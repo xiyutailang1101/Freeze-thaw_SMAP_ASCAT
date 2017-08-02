@@ -99,13 +99,20 @@ def cal_emi(sno, tb, doy, hrs='emi'):
         emissivity = emissivity[0][:]
         return emissivity
     else:
-        for hr in hrs:
-            tb_doy = doy + np.round(hr)/24.0
-            date_sno = sno[0][:]
-            data = sno[1][:]
-            ind = np.append(ind, np.argwhere(np.in1d(date_sno, tb_doy)))
+        tb_doy = doy + np.round(hrs)/24.0
+        date_sno = sno[0][:]
+        data = sno[1][:]
+        # using
+        ind = np.append(ind, np.argwhere(np.in1d(date_sno, tb_doy)))
+        index = []
+        for t in tb_doy:
+            ind0 = np.where(np.abs(date_sno - t) < 1e-2)
+            if ind0[0].size < 1:
+                pause = 0
+            else:
+                index.append(ind0[0])
         ind2 = np.int_(np.sort(ind, axis=0))
-        return data[ind2], date_sno[ind2]
+        return data[index], date_sno[index]
 
 def get_4var(filename, site_no, prj='np', dat='tb_v_aft'):
     hf = h5py.File(filename, 'r')
@@ -233,28 +240,41 @@ def interpolate2d(filename, site_no, prj='tbn'):
     return var
 
 
-def interp_radius(filename, site_no, prj='np', dat='tb_v_aft', disref=0.5):
+def interp_radius(filename, site_no, prj='np', dat='smap_tb', disref=0.5):
     s_info = site_infos.change_site(site_no)
-    attributes = site_infos.get_attribute(prj, dat)
-    hf = h5py.File(filename, 'r')
+    attributes = 'North_Polar_Projection'
+    atts = site_infos.get_attribute('np', sublayer='smap_tb')
+    hf_l0 = h5py.File(filename, 'r')
     # the lat and lon of all available tb pixel
-    lat = hf[attributes[1]].value
-    lon = hf[attributes[2]].value
-    var = hf[attributes[0]].value
-    dis = (lat - s_info[1])**2 + (lon - s_info[2])**2
-    inner = np.where(dis < disref ** 2)
+    # print filename[48: ]
+    if attributes not in hf_l0:
+        hf_l0.close()
+        stat = -1
+        print '%s was not included in \n %s' % (attributes, filename[48: ])
+        return [-9999 + i*0 for i in range(len(atts[1]))], -9999
+    hf = hf_l0[attributes]  # open second layer
+    lat = hf['cell_lat'].value
+    lon = hf['cell_lon'].value
+    dis = bxy.cal_dis(s_info[1], s_info[2], lat, lon)
+    inner = np.where(dis < disref)
     dis_inner = dis[inner[0]]
-    var_inner = var[inner[0]]
-    di = 1.0/dis_inner
-    v1 = np.sum(di * var_inner)
-    vn = np.sum(di)
-    if vn > 0:
-        v_interp = v1 * 1.0/vn
+    interpolated_value = []
+    if dis_inner.size>0:  # not empty
+        inner_id = inner[0]
+        if dis_inner.size > 1:
+            print '%d pixels:' % dis_inner.size, dis_inner, ' within the r=%d km' % disref
+            inner_id = inner[0][np.argmin(dis_inner)]
+            if site_no == '1177':
+                inner_id = inner[0][0]
+                print lat[inner_id], lon[inner_id]
+        for atti in atts[1]:
+            var = hf[atti].value
+            var_inner = var[inner_id]
+            v_interp = bxy.dis_inter(dis_inner, var_inner)
+            interpolated_value.append(v_interp)
+        return interpolated_value, dis_inner
     else:
-        v_interp = -99.0
-    if v_interp < 200 and v_interp > 0:
-        tt = 0
-    return v_interp
+        return [-9999 + i*0 for i in range(len(atts[1]))], -9999
 
 
 def interp_geo(x, y, z, orb, site_no, disref=0.5, f=None, incidence=None):
@@ -964,13 +984,14 @@ def ascat_ipt(dis, value, time, orb):
 
 
 def ascat_ang_norm():
-    siteno = ['947']
-        #, '1175', '950', '2065', '967', '2213', '949', '950', '960', '962', '968','1090',  '1177',  '2081', '2210', '1089', '1233', '2212', '2211']
+    siteno = ['947',
+        '1175', '950', '2065', '967', '2213', '949', '950', '960', '962', '968','1090',  '1177',  '2081', '2210', '1089', '1233', '2212', '2211']
     angle_range = np.arange(25, 65, 0.1)
+    prefix = site_infos.get_data_path('_07_01')
     for site in siteno:
         txtname = './result_05_01/ascat_point/ascat_s'+site+'_2016.npy'
         txt_table = np.load(txtname)
-        id_orb = txt_table[:, -1] == 1
+        id_orb = txt_table[:, -1] == 0
         out = txt_table[id_orb, :].T
         xt, y1t, y2t = np.array(out[0]), np.array(out[1]), np.array(out[2])
         x_inc, y_sig = out[5: 8], out[2: 5]
@@ -1003,7 +1024,7 @@ def ascat_ang_norm():
             ssres = np.sum((y-f(x))**2)
             r2 = 1 - ssres/sstot
             fig.text(0.15, 0.15, '$y = %.2f x + %.f$\n $r^2 = %.4f$' %(a, b, r2))
-            plot_funcs.plt_more(ax, x, f(x), symbol='r-', fname='Incidence_angle_p'+str(p_no))
+            plot_funcs.plt_more(ax, x, f(x), symbol='r-', fname=prefix+'Incidence_angle_p'+str(p_no))
             fig.clear()
             pylt.close()
         fig2 = pylt.figure(figsize=[4, 3])
@@ -1017,8 +1038,8 @@ def ascat_ang_norm():
             if any(sig1[0] < -1e4):
                 sig1*=1e-6
             # linear regression
-            x = inci1[:, 1].T
-            y = sig1[:, 1].T
+            x = inci1.ravel()
+            y = sig1.ravel()
             a, b = np.polyfit(x, y, 1)
             f = np.poly1d([a, b])
              # r squared
@@ -1041,21 +1062,21 @@ def ascat_ang_norm():
                 fig2.text(0.45, 0.75, '$y = %.2f x + %.f$\n $r^2 = %.4f$' %(a, b, r2))
             n += 1
         ax.set_ylim([-18, -4])
-        pylt.savefig('Incidence_angle_'+site+'.png', dpi=120)
+        pylt.savefig(prefix+'Incidence_angle_'+site+'.png', dpi=120)
         pylt.close()
     return 0
 
 
-def ascat_plot_series(orb_no=0):  # orbit default is 0, ascending, night pass
+def ascat_plot_series(site_no, orb_no=0, inc_plot=False, sigma_g = 5, pp=False):  # orbit default is 0, ascending, night pass
     # read series sigma
-    site = '947'
-    site_nos = site_infos.get_id(site)
+    site = site_no
+    site_nos = site_infos.get_id(site, mode='single')
     for si0 in site_nos:
         txtname = './result_05_01/ascat_point/ascat_s'+si0+'_2016.npy'
         ascat_all = np.load(txtname)
         id_orb = ascat_all[:, -1] == orb_no
         ascat_ob = ascat_all[id_orb]
-        ascat_gap(ascat_ob, si0)
+        # ascat_gap(ascat_ob, si0)
         # angular normalization
         tx = ascat_ob[:, 0] + np.round(ascat_ob[:, 1])/24.0
         p = (tx > 20) & (tx < 80)
@@ -1063,33 +1084,44 @@ def ascat_plot_series(orb_no=0):  # orbit default is 0, ascending, night pass
         a, b = np.polyfit(x, y, 1)
         print 'the angular dependency: a: %.3f, b: %.3f' % (a, b)
         f = np.poly1d([a, b])
-        fig = pylt.figure(figsize=[4, 3])
-        ax = fig.add_subplot(111)
-        ax.plot(x, y, 'o')
-        y_mean = np.sum(y)/y.size
-        sstot = np.sum((y-y_mean)**2)
-        ssres = np.sum((y-f(x))**2)
-        r2 = 1 - ssres/sstot
-        fig.text(0.15, 0.15, '$y = %.2f x + %.f$\n $r^2 = %.4f$' %(a, b, r2))
-        plot_funcs.plt_more(ax, x, f(x), symbol='r-', fname='./result_05_01/point_result/ascat/Incidence_angle_p'+si0)
-        fig.clear()
-        pylt.close()
+
+        # # plot the angular dependency
+        # fig = pylt.figure(figsize=[4, 3])
+        # ax = fig.add_subplot(111)
+        # ax.plot(x, y, 'o')
+        # y_mean = np.sum(y)/y.size
+        # sstot = np.sum((y-y_mean)**2)
+        # ssres = np.sum((y-f(x))**2)
+        # r2 = 1 - ssres/sstot
+        # fig.text(0.15, 0.15, '$y = %.2f x + %.f$\n $r^2 = %.4f$' %(a, b, r2))
+        # plot_funcs.plt_more(ax, x, f(x), symbol='r-', fname='./result_05_01/point_result/ascat/Incidence_angle_p'+si0)
+        # fig.clear()
+        # pylt.close()
 
         sig_m = ascat_ob[:, 3]
+        inc_m = ascat_ob[:, 6]
         sig_mn = sig_m - (ascat_ob[:, 6]-45)*a
         # daily average:
         tdoy = ascat_ob[:, 0]
         u_doy = np.unique(tdoy)
         sig_d, i0 = np.zeros([u_doy.size, 2]), 0
+        inc_d = np.zeros(u_doy.size)
         for td in u_doy:
             sig_d[i0][0] = td
             sig_d[i0][1] = np.mean(sig_mn[tdoy == td])
+            inc_d[i0] = np.mean(inc_m[tdoy == td])
             i0 += 1
         tx = sig_d[:, 0]
         sig_mn = sig_d[:, 1]
+
+        # one more constraints, based on incidence angle
+        # id_inc = bxy.gt_le(inc_d, 30, 35)
+        # tx, sig_mn = tx[id_inc], sig_mn[id_inc]
+
         # edge detect
-        g_size = 8
-        g_sig, ig2 = gauss_conv(sig_d[:, 1], sig=1.5, size=2*g_size+1)  # non-smoothed
+        sig_g = sigma_g  # gaussian stds
+        g_size = 6*sig_g/2
+        g_sig, ig2 = gauss_conv(sig_mn, sig=3, size=2*g_size+1)  # non-smoothed
         g_sig_valid = 2*(g_sig[g_size: -g_size] - np.nanmin(g_sig[g_size: -g_size]))\
                     /(np.nanmax(g_sig[g_size: -g_size]) - np.nanmin(g_sig[g_size: -g_size]))-1
         max_gsig_s, min_gsig_s = peakdetect.peakdet(g_sig_valid, 1e-1, tx[g_size: -g_size])
@@ -1103,23 +1135,42 @@ def ascat_plot_series(orb_no=0):  # orbit default is 0, ascending, night pass
         sm5_daily, sm5_date = cal_emi(sm5, y2_empty, doy, hrs=passhr)
         stats_t, t5 = read_site.read_sno(site_file, "Soil Temperature Observed -2in (degC)", si0)
         t5_daily, t5_date = cal_emi(t5, y2_empty, doy, hrs=passhr)
-        stats_swe, swe = read_site.read_sno(site_file, "snow", si0, field_no=-1)
+        if pp:
+            stats_swe, swe = read_site.read_sno(site_file, "Precipitation Increment (mm)", si0)
+        else:
+            stats_swe, swe = read_site.read_sno(site_file, "snow", si0, field_no=-1)
         swe_daily, swe_date = cal_emi(swe, y2_empty, doy, hrs=passhr)
         sm5_daily[sm5_daily < -90], t5_daily[t5_daily < -90], \
         swe_daily[swe_daily < -90] = np.nan, np.nan, np.nan  # remove missing
         # print 'site no is %s' % si0
         print 'station ID is %s' % si0
-        # ons_site = sm_onset(sm5_date-365, sm5_daily, t5_daily)
-        test_def.plt_npr_gaussian_ASC(['E(t)', tx[ig2][g_size: -g_size]+365, g_sig_valid],  # npr
-                                 # ['TB_v', t_v, var_npv],
-                                 ['Soil moisture (%)', sm5_date, sm5_daily],  # soil moisture
-                                 ['Soil temperature (DegC)', t5_date, t5_daily],
-                                 ['SWE (mm)', swe_date, swe_daily],
-                                 ['$\sigma^0$', tx+365, sig_mn],  # 511
-                                 fa_2=[], vline=onset,  # edge detection, !! t_v was changed
-                                 #ground_data=ons_site,
-                                 fe_2=[],
-                                 figname='./result_05_01/point_result/ascat/onset_based_on_ASCAT'+si0+'2.png', mode='annual')
+        if inc_plot is True:
+            fig = pylt.figure(figsize=[8, 3])
+            ax = fig.add_subplot(111)
+            x, y = u_doy, inc_d
+            ax.plot(x, y, 'o')
+            pylt.savefig('./result_07_01/inc_mid_'+si0+'.png')
+            fig.clear()
+            pylt.close()
+            # ons_site = sm_onset(sm5_date-365, sm5_daily, t5_daily)
+        # onset based on ascat
+        # test_def.plt_npr_gaussian_ASC(['E(t)', tx[ig2][g_size: -g_size]+365, g_sig_valid],
+        #                          # ['TB_v', t_v, var_npv],
+        #                          ['Soil moisture (%)', sm5_date, sm5_daily],  # soil moisture
+        #                          ['Soil temperature (DegC)', t5_date, t5_daily],
+        #                          ['SWE (mm)', swe_date, swe_daily],
+        #                          ['$\sigma^0$', tx+365, sig_mn],  # 511
+        #                          fa_2=[], vline=onset,  # edge detection, !! t_v was changed
+        #                          #ground_data=ons_site,
+        #                          fe_2=[],
+        #                          figname='./result_05_01/point_result/ascat/onset_based_on_ASCAT'+si0+'2.png',
+        #                          mode='annual')
+        return [tx[ig2][g_size: -g_size]+365, g_sig_valid], \
+               [sm5_date, sm5_daily], \
+               [t5_date, t5_daily], \
+               [swe_date, swe_daily], \
+               [tx+365, sig_mn], \
+               onset
 
         # fig = pylt.figure(figsize=[4, 3])
         # ax = fig.add_subplot(111)
@@ -1321,6 +1372,12 @@ def ascat_onset_map(ob, odd_point=[], product='ascat', mask=False):
         prefix = './result_05_01/onset_result/ascat_onset_'
         lons_grid, lats_grid = np.load('./result_05_01/onset_result/lon_ease_grid.npy'), \
                                 np.load('./result_05_01/onset_result/lat_ease_grid.npy')
+        if odd_point[0] is not list:
+            dis_odd = bxy.cal_dis(odd_point[1], odd_point[0], lats_grid.ravel(), lons_grid.ravel())
+            index = np.argmin(dis_odd)
+            row = int(index/lons_grid.shape[1])
+            col = index - (index/lons_grid.shape[1]*lons_grid.shape[1])
+            print row, col, lons_grid[row, col], lats_grid[row, col]
         for key in ob:
             for m in mode:
                 onset_0_file = prefix+'0'+'_2016'+m+key+'.npy'
@@ -1559,9 +1616,11 @@ def ascat_test_odd_point_plot(sig_file, area_file, p_id, area='odd_arctic1', odd
     fig = pylt.figure()
     ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
     ax.set_title('Loc: %.4f, %.4f, %d, %d \n T: %d F: %d, Days: %d' % (loni, lati, rowi, coli, onset[0], onset[1], sum(v<0)))
+    print prefix+area+orb
     plot_funcs.pltyy(t_valid, v_valid, prefix+area+orb, '$\sigma_0$ (dB)',
                      t2=t_valid[ig2][g_size: -g_size], s2=g_sig_valid,
                      ylim=[-20, -4], symbol=['bo', 'g-'], handle=[fig, ax])
+
     return 0
 
 
@@ -1628,3 +1687,28 @@ def bbox_find(lat_array, lon_array, lats, lons):
         col[i] = id0 - id0/array_shape[1]*array_shape[1]
     print row, col
     return row, col
+
+
+def plot_tbtxt(site_no, orb, txt_name, att_name, prefix='./result_07_01/'):
+    att = site_infos.get_attribute(sublayer='smap_tb')
+    tbs = np.loadtxt(txt_name)
+    fig0 = pylt.figure(figsize=[10, 8])
+    i = 0
+    axs = []
+    for name0 in att_name:
+        i += 1
+        att_id = att[1].index(name0) + 1
+        x, y = tbs[:, 0], tbs[:, att_id]
+        ax0 = fig0.add_subplot(3, 2, i)
+        if name0 != 'cell_tb_time_seconds_aft':
+            ax0.plot(x, y, 'ko')
+        else:
+            sec_2016 = datetime.datetime.strptime('20160101 00:00:00', '%Y%m%d %X') \
+                       - datetime.datetime.strptime('20000101 11:58:56', '%Y%m%d %X')
+            sec_now = y - sec_2016.total_seconds()
+            pass_hr = np.modf(sec_now/(24*3600.0))[0] * 24
+            n, bins, patches = ax0.hist(pass_hr, 50, normed=1, facecolor='green', alpha=0.75)
+        ax0.set_ylabel(name0)
+        axs.append(ax0)
+    pylt.savefig(prefix+'ancplot/'+site_no+orb+'anc.png')
+
