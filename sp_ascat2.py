@@ -24,7 +24,6 @@ n_pixel = []
 for site_no in site_nos:
     x_time, sigma0, date_list, out_ascat, inc45_55 = [], [], [], [], []
     txt_path = '/home/xiyu/PycharmProjects/R3/result_03_4/' + 's' + site_no + '/'  # 02: descending, 03: ascending
-
     date_record = []
     n = 0
     n_warning, n_inc = 0, 0

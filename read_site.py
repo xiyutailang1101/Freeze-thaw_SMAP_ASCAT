@@ -12,6 +12,7 @@ import datetime
 import basic_xiyu as bs
 import plot_funcs
 import matplotlib.pyplot as plt
+import data_process
 abvalue = []
 
 
@@ -262,8 +263,9 @@ def read_series(time_st, time_end, site_no, ob='_A_', data='radar', dat='sig_vv_
         # for keyi in value.keys():
         #     print keyi, value[keyi]
         # print dis
-        print h5_file, n
         if status > 0:
+            # print value.keys()
+            # print dat
             v_inter = bs.dis_inter(dis, value[dat])  # interpolation
             series.append(v_inter)
             dis_all.append(dis)
@@ -351,6 +353,53 @@ def get_abnormal(flagged_value, flag_abnorm):
     return flagged_value, abnorm_value
 
 
+def search_snotel(site_no, date,
+                  att=["Soil Moisture Percent -2in (pct)", "Soil Temperature Observed -2in (degC)",
+                         "Air Temperature Observed (degC)", "snow"]):
+    if (site_no == '2065') | (site_no == '2081'):
+        att[2] = "Air Temperature Average (degC)"
+    site_type = site_infos.get_type(site_no)
+    sno_file = './result_07_01/txtfiles/site_measure/'+site_type + site_no + '.txt'
+    print site_type + site_no + '.txt'
+    #
+    n_row = -1
+    with open(sno_file, 'rb') as f1:
+        reader = csv.reader(f1)
+        for row in reader:
+            n_row += 1
+            if n_row == 63:
+                if 'Snow Depth (cm)' in row: # check SD or SWE
+                    att[-1] = 'Snow Depth (cm)'
+                else:
+                    att[-1] = 'Snow Water Equivalent (mm)'
+                col_no = [row.index(att0) for att0 in att]  # the col number for attributes
+            if n_row > 63:
+                t = datetime.datetime.strptime(row[0], "%Y-%m-%d %H:%M").timetuple()
+                doy = t.tm_yday + t.tm_hour/24.0
+                if (doy == date) & (t.tm_year == 2016):
+                    output = [row[i] for i in col_no]
+                    break
+            else:
+                continue
+    print t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_yday, date, '\n', att, '\n', output, '\n', '=================================='
+    return output
+
+
+def read_measurements(site_no, measure_name, doy, hr=0):
+    sno_lib = site_infos.get_type(site_no, all_site=True)
+    if site_no not in sno_lib:
+        return np.zeros(doy.size) - 999, doy
+    site_type = site_infos.get_type(site_no)
+    site_file = './copy0519/txt/'+site_type + site_no + '.txt'
+    if measure_name == 'snow':
+        f_no = -1
+    else:
+        f_no = 0
+    stats_t, t5 = read_sno(site_file, measure_name, site_no, field_no=f_no)
+    m_daily, m_doy = data_process.cal_emi(t5, [], doy, hrs=hr)
+    return m_daily, m_doy
+
+
 def read_sno(sno_file, filed_name, station_id, field_no=0):
     """
     <description>
@@ -361,11 +410,14 @@ def read_sno(sno_file, filed_name, station_id, field_no=0):
     :return:
         2 by n array, line 0 is day of year, line 1 is the value
     """
+    site_type = site_infos.get_type(station_id)
+    sno_file = './copy0519/txt/'+site_type + station_id + '.txt'
     print "reading %s..." % filed_name
     n_inter = 0  # iterate time, rows of sno_files
     n_ab = 0
     filed_value = []
     filed_date = []
+    snow_id = 0
     global abvalue
     with open('abvs', 'rb') as fab:
         read1 = csv.reader(fab)
@@ -375,21 +427,44 @@ def read_sno(sno_file, filed_name, station_id, field_no=0):
             n_ab += 1
     with open(sno_file, 'rb') as f1:
         reader = csv.reader(f1)
+        index_row = -1
         for row in reader:
-            if n_inter == 63:  # the filed name list
-                if field_no != -1:  # not the snow reading
+            if filed_name == "Snow":  # 'Snow Water Equivalent (mm)' or 'Snow Depth (cm)'
+                    field_no = -1
+            if row[0] == 'Date':  # the filed name list
+                index_row = 0
+                if filed_name != "snow":
+                # if field_no != -1:  # not the snow reading
                     field_no = row.index(filed_name)
+                else:
+                    if 'Snow Water Equivalent (mm)' in row:
+                        field_no = row.index('Snow Water Equivalent (mm)')
+                    else:
+                        field_no = row.index("Snow Depth (cm)")
+                        snow_id = 1
                 print 'col No. is: ', field_no, row[field_no]  # show what filed is read
-            elif n_inter > 63:
+                # if row[field_no] == 'Snow Depth (cm)':  # special for snow
+                #     snow_id = 1
+            elif index_row>-1:
                 t = datetime.datetime.strptime(row[0], "%Y-%m-%d %H:%M").timetuple()
                 doy = t.tm_yday + t.tm_hour/24.0 + 365*(t.tm_year - 2015)
                 if row[field_no] == abvalue:
                     filed_value.append(float(-99))
                     filed_date.append(doy)
                 else:
-                    filed_value.append(float(row[field_no]))
-                    filed_date.append(doy)
+                    if snow_id != 1:  # remove the invalid snow depth
+                        filed_value.append(float(row[field_no]))
+                        filed_date.append(doy)
+                    else:
+                        if (float(row[field_no]) > 190):
+                        # (float(row[field_no]) in np.array([102,104,107,112,130,140,183,241,231,239])) | \
+                            filed_value.append(float(-99))
+                            filed_date.append(doy)
+                        else:
+                            filed_value.append(float(row[field_no]))
+                            filed_date.append(doy)
             n_inter += 1
+    f1.closed
     return 1, np.array([filed_date, filed_value])
 
 
@@ -512,3 +587,32 @@ def fix_angle_ascat(txtfile):
     # ax.plot(incm-inc_ref, sigm, 'bo')
     # plt.savefig('ascat_cor_inc.png', dpi=120)
     return [tx, sigf, sigm, sigaf, txt_table[:, -1].T]  # date, sigma triplets, orbit
+
+
+def read_diurnal(date, hr_as, hr_des, siteno, att_name):
+    """
+
+    :param date:
+    :param hr_as:
+    :param hr_des:
+    :param siteno:
+    :param att_name: measurement for read, like snow water equavailent
+    :return:
+    """
+    y2_empty = np.zeros(date.size) + 1
+    stats_sm, sm5 = read_sno(' ', "Soil Moisture Percent -2in (pct)", siteno)  # air tmp
+    sm_as, sm_date_as = data_process.cal_emi(sm5, y2_empty, date, hrs=hr_as)
+    return 0
+
+
+# def read_measurement(t0, var_name, site_no):
+#     """
+#
+#     :param t0: <list>: [day_of_year, pass_hr]
+#     :param var_name: <string>: name of measurement
+#     :param site_no:
+#     :return: <list>: [day_of_year, measurement]
+#     """
+#     statu, var_all = read_sno('_', var_name, site_no)
+#     m_value, m_date = data_process.cal_emi(var_all, ' ', t0[0], hrs=t0[1])
+#     return [np.modf(m_date)[1], np.round(np.modf(m_date)[0]*24), m_value]

@@ -17,7 +17,8 @@ from datetime import date as dtime
 from datetime import datetime as dtime2
 from netCDF4 import Dataset
 import h5py
-
+import test_def
+import basic_xiyu as bxy
 
 def smap_mask():
     # read ascat land mask
@@ -66,9 +67,14 @@ def build_mask(mode='sig'):
         np.save('./result_05_01/other_product/snow_mask_360', resampled_ascat0['snow'].data)
         data_process.pass_zone_plot(lon_gd, lat_gd, resampled_ascat0['snow'], '/home/xiyu/Data/Snow/', fname='snow_mask01', z_min=0, z_max=15)
 
-def smap_area_plot(datez, save_dir='./result_05_01/smap_area_result/', orbit_no=0):
-    ob = 'AS'
-    smap_data = np.load('./result_05_01/SMAP_AK/txt_xyz'+datez+'.npy')
+
+def smap_area_plot(datez, save_dir='./result_05_01/smap_area_result/', orbit='AS'):
+    ob = orbit
+    if orbit == 'AS':
+        fpath0 = './result_05_01/SMAP_AK/smap_ak_as/AS_'
+    else:
+        fpath0 = './result_05_01/SMAP_AK/smap_ak_as/DES_'
+    smap_data = np.load(fpath0+'txt_xyz'+datez+'.npy')
     datez = datez[0:4] + datez[5:7] + datez[8:10]
     pre_path = save_dir+datez+'/'
     if not os.path.exists(save_dir+datez):
@@ -125,7 +131,7 @@ def smap_area_plot(datez, save_dir='./result_05_01/smap_area_result/', orbit_no=
             ease_x = ease_lon[min(tp0[0]): max(tp0[0])+1, min(tp0[1]): max(tp0[1])+1]
             np.save('./result_05_01/other_product/lat_ease2_360N_grid', ease_y.data)
             np.save('./result_05_01/other_product/lon_ease2_360N_grid', ease_x.data)
-            np.save('./result_05_01/smap_resample_'+ob+'/smap_'+datez+'_'+key+'_resample', v_map[min(tp0[0]): max(tp0[0])+1, min(tp0[1]): max(tp0[1])+1].data)
+            np.save('./result_05_01/smap_resample_'+ob+'/all/smap_'+datez+'_'+key+'_resample', v_map[min(tp0[0]): max(tp0[0])+1, min(tp0[1]): max(tp0[1])+1].data)
 
 
 def ascat_area_plot2(datez, save_dir='./result_05_01/test_area_result_9km_', orbit_no=0):
@@ -146,8 +152,8 @@ def ascat_area_plot2(datez, save_dir='./result_05_01/test_area_result_9km_', orb
     ease_valid = lat_valid & lon_valid
     lat_gd, lon_gd = ease_lat[400: 700, 400: 700], ease_lon[400: 700, 400: 700]
     np.save('lat_ease_grid', lat_gd.data), np.save('lon_ease_grid', lon_gd.data)
-    lats_dim, lons_dim = np.arange(54, 72, 0.1), np.arange(-170, -130, 0.1)
-    lons_grid, lats_grid = np.meshgrid(lons_dim, lats_dim)
+    # lats_dim, lons_dim = np.arange(54, 72, 0.1), np.arange(-170, -130, 0.1)
+    # lons_grid, lats_grid = np.meshgrid(lons_dim, lats_dim)
 
     # read the ascat, constraint by land% > 50%, orbit, and usable flag
     ascat_data = np.load('./result_05_01/ASCAT_AK/ascat_'+datez+'_alaska.npy')
@@ -231,7 +237,7 @@ def ascat_area_plot2(datez, save_dir='./result_05_01/test_area_result_9km_', orb
             sigma_dict0 = {'sigma': sigma_land0, 'incidence': inc_land0, 'pass': pass_hr0}
             if n1 < 1:
                 resampled_ascat0 = res.resample_to_grid(sigma_dict0, lon_land0, lat_land0, lon_gd, lat_gd, search_rad=9000)
-                # data_process.pass_zone_plot(lon_gd, lat_gd, resampled_ascat0['sigma'], pre_path, fname='_zone'+str(tzone[n0][0]*10))
+                data_process.pass_zone_plot(lon_gd, lat_gd, resampled_ascat0['sigma'], pre_path, fname='_zone'+str(tzone[n0][0]*10))
             else:
                 resampled_ascat_tp = res.resample_to_grid(sigma_dict0, lon_land0, lat_land0, lon_gd, lat_gd, search_rad=9000)
                 #data_process.pass_zone_plot(lon_gd, lat_gd, resampled_ascat_tp['sigma'], pre_path, fname='_zone'+str(tzone[n0][0]*10))
@@ -283,72 +289,6 @@ def ascat_area_plot2(datez, save_dir='./result_05_01/test_area_result_9km_', orb
     #     m.scatter(s_lon, s_lat, 5, marker='*', color='k', latlon=True)
     #     plt.savefig(pre_path+'spatial_ascat0_'+i_tp+'.png', dpi=120)
     #     plt.close()
-
-
-def ascat_point_plot():
-    site_nos = ['947', '2081', '2065', '967', '2213', '949', '950', '960', '962', '968','1090', '1175', '1177', '2210', '1089', '1233', '2212', '2211']
-    site_dic = {'sno_': ['1089', '967', '1062', '947', '949', '950', '960', '962', '968', '1090', '1175', '1177'],
-                    'scan_': ['2081', '2213', '2210', '2065', '2212', '2211', '1233']}
-    for site_no in site_nos:
-        ascat_point = []
-        loc_as = np.array([])  # Location of nn for ascending pass
-        x_time, sigma0, date_list, out_ascat, inc45_55 = [], [], [], [], []
-        txt_path = '/home/xiyu/PycharmProjects/R3/result_05_01/site_ascat/' + 's' + site_no + '/'
-        n = 0
-        n_warning, n_inc = 0, 0
-        file_list = sorted(os.listdir(txt_path))
-        for txt_file in file_list:
-            # get dt
-            n+=1
-            p_uline = re.compile('_')
-            datei = p_uline.split(txt_file)[1]
-            txt_i = np.load(txt_path + txt_file)
-            if txt_i.size < 5:
-                n_warning += 1
-                print 'no data is %s' % datei
-                continue
-            if txt_i.size > 5:
-                date_list.append(datei)
-                if len(txt_i.shape) < 2:  # only 1- d
-                    locs, sig = np.array([txt_i[0:2]*1]), np.array([txt_i[2:5]*1])
-                    f_u, inc = np.array([txt_i[5:8]]), np.array([txt_i[8:11]])
-                    orb = np.array([txt_i[-1]])
-                elif txt_i.shape[1] > 10:  # with triplets, flag, and inc angles
-                    locs, sig = txt_i[:,  0:2], txt_i[:, 2:5]
-                    f_u, inc = txt_i[:,  5:8]*1, txt_i[:, 8:11]
-                    f_land = txt_i[:, 11:14]
-                    t_utc = txt_i[:, 14]
-                    orb = txt_i[:, -1]
-                print 'DATE:', datei
-                id_nn, dis = data_process.ascat_nn(locs.T[1], locs.T[0], sig.T, orb.T, site_no, disref=0, f=f_u.T, incidence=inc.T)
-                # test
-                as_loc = ascat_test_nn(id_nn[0], id_nn[1], txt_i)
-                loc_as = np.append(loc_as, as_loc)
-                pass_hr = 24*np.modf(t_utc/3600/24)[0]
-                pass_time = [pass_hr[id_nn[0]], pass_hr[id_nn[1]],
-                             [np.fix(t_utc/3600/24 - (dtime(2016, 1, 1) - dtime(2000, 1, 1)).days)],
-                             pass_hr]
-                items = ['NN as_pass', 'NN des_pass', 'DOY', 'passing hours']
-                # for i in range(0, len(pass_time)):
-                #     print items[i], ':', pass_time[i], '\n'
-                idn = np.concatenate((id_nn[0], id_nn[1])).astype(int)
-                sig_daily = data_process.ascat_ipt(dis, txt_i[:, [2, 3, 4, 8, 9, 10, 11, 12, 13]][idn].T, pass_hr[idn], orb[idn])
-                doy = np.fix(t_utc/3600/24 - (dtime(2016, 1, 1) - dtime(2000, 1, 1)).days)[0]
-                sig_table = [[doy]+t for t in sig_daily]
-                for v in sig_table:
-                    ascat_point.append(v)
-                tt = 0
-        np.save('./result_05_01/ascat_point/ascat_s'+site_no+'_2016', np.array(ascat_point))
-        np.save('./result_05_01/ascat_point/loc_a_s'+site_no+'_2016', loc_as.reshape(-1, 2))
-    st = 0
-    return 0
-
-
-# def time_mosaic(intervals, pass_h):
-#     id_time = []
-#     for interv in intervals:
-#         id_time.append((pass_hr > interv[0]) & (pass_hr < interv[1]))
-#     return id_time
 
 
 def refined_read_series():
@@ -429,6 +369,7 @@ def ascat_alaka_area():  # 20170604
         '''
         # spt_quick.ascat_area_plot2(da, orbit_no=2)  # give savedir and orbit (2: all, 1: ascend only)
 
+
 def ascat_test_nn(id_as, id_des, site_file):
     '''
     return the lat and lon of nn at an orbit.
@@ -439,3 +380,263 @@ def ascat_test_nn(id_as, id_des, site_file):
     print 'location of ascending: \n', nn_as_loc, '\n'
     # print 'location of dscending: \n', nn_des_loc
     return nn_as_loc
+
+
+def ascat_point_plot(center=False, dis0=19,
+                     site_nos=['947', '2081', '2065', '967', '2213', '949', '950', '960', '962', '968', '1090', '1175',
+                               '1177', '2210', '1089', '1233', '2212', '2211']):
+
+    site_dic = {'sno_': ['1089', '967', '1062', '947', '949', '950', '960', '962', '968', '1090', '1175', '1177'],
+                    'scan_': ['2081', '2213', '2210', '2065', '2212', '2211', '1233']}
+    if center is not False:
+        all_subcenter = np.loadtxt(center, delimiter=',').T # the subcenters
+        site_nos = all_subcenter[0].astype(int)
+    for site_no in site_nos:
+        main_sid = site_nos[0]/100
+        site_no = str(site_no)
+        ascat_point = []
+        loc_as = np.array([])  # Location of nn for ascending pass
+        x_time, sigma0, date_list, out_ascat, inc45_55 = [], [], [], [], []
+        if center is not False:
+            i_tb = all_subcenter[2] == float(site_no)
+            site_subcenter = all_subcenter[:, i_tb]
+            center_tb = [site_subcenter[0], site_subcenter[1]]
+            txt_path = '/home/xiyu/PycharmProjects/R3/result_05_01/site_ascat/' + 's' + str(main_sid)+ '/'
+        else:
+            txt_path = '/home/xiyu/PycharmProjects/R3/result_05_01/site_ascat/' + 's' + str(site_no) + '/'
+        n = 0
+        n_warning, n_inc = 0, 0
+        file_list = sorted(os.listdir(txt_path))
+        for txt_file in file_list:
+            # get dt
+            n+=1
+            p_uline = re.compile('_')
+            datei = p_uline.split(txt_file)[1]
+            txt_i = np.load(txt_path + txt_file)
+            if txt_i.size < 5:
+                n_warning += 1
+                # print 'no data is %s' % datei
+                continue
+            if txt_i.size > 5:
+                date_list.append(datei)
+                if len(txt_i.shape) < 2:  # only 1- d
+                    locs, sig = np.array([txt_i[0:2]*1]), np.array([txt_i[2:5]*1])
+                    f_u, inc = np.array([txt_i[5:8]]), np.array([txt_i[8:11]])
+                    orb = np.array([txt_i[-1]])
+                elif txt_i.shape[1] > 10:  # with triplets, flag, and inc angles
+                    locs, sig = txt_i[:,  0:2], txt_i[:, 2:5]
+                    f_u, inc = txt_i[:,  5:8]*1, txt_i[:, 8:11]
+                    f_land = txt_i[:, 11:14]
+                    t_utc = txt_i[:, 14]
+                    orb = txt_i[:, -1]
+                # print 'DATE:', datei
+                id_nn, dis = data_process.ascat_nn(locs.T[1], locs.T[0], sig.T, orb.T, site_no, f=f_u.T, disref=dis0)
+                # test
+                as_loc = ascat_test_nn(id_nn[0], id_nn[1], txt_i)
+                loc_as = np.append(loc_as, as_loc)
+                # pass_hr = 24*np.modf(t_utc/3600/24)[0]
+                pass_hr = t_utc
+                pass_time = [pass_hr[id_nn[0]], pass_hr[id_nn[1]],
+                             [np.fix(t_utc/3600/24 - (dtime(2016, 1, 1) - dtime(2000, 1, 1)).days)],
+                             pass_hr]
+                items = ['NN as_pass', 'NN des_pass', 'DOY', 'passing hours']
+                for i in range(0, len(pass_time)):
+                    isprint = False
+                    # print items[i], ':', pass_time[i], '\n'
+                idn = np.concatenate((id_nn[0], id_nn[1])).astype(int)
+                sig_daily = data_process.ascat_ipt(dis, txt_i[:, [2, 3, 4, 8, 9, 10, 11, 12, 13, 0, 1]][idn].T, pass_hr[idn], orb[idn])
+                doy = np.fix(t_utc/3600/24 - (dtime(2016, 1, 1) - dtime(2000, 1, 1)).days)[0]
+                sig_table = [[doy]+t for t in sig_daily]
+                for v in sig_table:
+                    ascat_point.append(v)
+                tt = 0
+        np.save('./result_05_01/ascat_point/ascat_s'+str(site_no)+'_2016', np.array(ascat_point))
+        # np.save('./result_05_01/ascat_point/loc_a_s'+site_no+'_2016', loc_as.reshape(-1, 2))
+    st = 0
+    return 0
+
+
+def ascat_sub_pixel(sub_info, center=False, dis0=19,
+                    site_nos=['947', '2081', '2065', '967', '2213', '949', '950', '960', '962', '968', '1090', '1175',
+                               '1177', '2210', '1089', '1233', '2212', '2211']):
+    """
+
+    :param sub_info: 3*N: 3 for lon, lat, id; N is the number of point
+    :param center:
+    :param dis0:
+    :param site_nos:
+    :return:
+    """
+
+    # site_dic = {'sno_': ['1089', '967', '1062', '947', '949', '950', '960', '962', '968', '1090', '1175', '1177'],
+    #                 'scan_': ['2081', '2213', '2210', '2065', '2212', '2211', '1233']}
+    if center is not False:
+        all_subcenter = np.loadtxt(center, delimiter=',').T # the subcenters
+        site_nos = all_subcenter[0].astype(int)
+    for site_no in site_nos:
+        txt_path = './result_08_01/point/ascat/s%s/' % site_no
+        file_list = sorted(os.listdir(txt_path))
+        x_time, sigma0, date_list, out_ascat, inc45_55 = [], [], [], [], []
+        # 0: num of sub_pixels, 1: 1num of days, 2: num of attributes (-1 was the pixel_id)
+        all_subpixel = np.zeros([9, len(file_list)*3, 47]) - 999
+        ascat_corner = np.zeros([9, len(file_list)*3, 9]) - 999  # 2: lat*4, lon*4
+        corner_headers = ['lat0', 'lat1', 'lat2', 'lat3', 'lon', 'lon', 'lon', 'lon', '1_doy_hr_id']
+        if ascat_corner.shape[0] != len(corner_headers):
+            print 'the headers for corner data should be updated, from current number of headers: %d to %d' \
+                  % (len(corner_headers), ascat_corner.shape[0])
+            return -1
+        i_day = 0  # the id of days
+        i_subpixel_day = np.zeros(9)
+        for i, file0 in enumerate(file_list):
+            date0 = file0.split('_')[1]
+            value0 = np.load(txt_path+file0)
+            if value0.size < 46:
+                t_now = bxy.current_time()
+                t_str = "%d_%d_%d_%d:%d" % (t_now.tm_year, t_now.tm_mon, t_now.tm_mday, t_now.tm_hour, t_now.tm_min)
+                bcomand = "echo 'no data recorded in station %s on %s (%s)' 1> missing_data.txt" \
+                          % (site_no, date0, t_str)
+                os.system(bcomand)
+                continue
+            date_list.append(date0)
+            for i2 in range(0, sub_info.shape[1]):
+                lat0i, lon0i = sub_info[1, i2], sub_info[0, i2]
+                dis_list0i = bxy.cal_dis(lat0i, lon0i, value0[:, 0], value0[:, 1])  # find the nearest distance
+                value0i = value0[np.where(dis_list0i<dis0)]
+                i3 = value0i.shape[0]  # number of nearest pixels, i3 = 0--2, (=2 if two tracks overlap)
+                all_subpixel[i2, i_subpixel_day[i2]: i_subpixel_day[i2]+i3, 0:-1] = value0i
+                if i3>0:
+                    # extract pixel info, the coordinates of cornner
+                    for i4 in range(0, i3):
+                        lat_c, lon_c, u_time, line_no_c, orbit_c = \
+                            value0i[i4][0], value0i[i4][1], value0i[i4][14], value0i[i4][15], value0i[i4][-1]
+                        local_time_c = bxy.time_getlocaltime([u_time], ref_time=[2000, 1, 1, 0])
+                        local_hr_c = local_time_c[-1, :]
+                        # add pixel id
+                        id_daily = 1e6+local_time_c[-2, :]*1e3+local_hr_c*10+i4  # 1xxx(doy)x(nearest_id)
+                        if id_daily == 1074200:
+                            pause = 1
+                        all_subpixel[i2, i_subpixel_day[i2]: i_subpixel_day[i2]+i3, -1] = id_daily
+                        dis_list_i4 = bxy.cal_dis(lat_c, lon_c, value0[:, 0], value0[:, 1])
+                        dis_indx = np.where((dis_list_i4 < 14) & (dis_list_i4 > 0.01) & (value0[:, -1] == orbit_c))
+                        nn_pixels = value0[dis_indx]
+                        utc_seconds = nn_pixels[:, 14]  # get local time to use the same track (passing time)
+                        local_time = bxy.time_getlocaltime(utc_seconds, ref_time=[2000, 1, 1, 0])
+                        local_hr = local_time[-1]
+                        uni_hr = np.unique(local_hr)  # get all pass hrs (0-2, e.g.: pass at 11:00, 13:00)
+                        nn_pixels_track = nn_pixels[local_hr == local_hr_c, :]
+                        print 'there is %d pixels around the target, %d of them are in the same track' \
+                              % (nn_pixels.shape[0], nn_pixels_track.shape[0])
+                        if nn_pixels_track.shape[0] < 4:
+                           # olny 3 points nearby was founded
+                            azi = value0[i4][16]
+                            r = 6370
+                            theta, phi = (90-lat_c)/180*np.pi, lon_c/180*np.pi
+                            xc, yc, zc = r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta)
+                            d = 12.5/2.0
+                            # np.array([[xc-d, yc+d], [xc+d, yc+d], [xc+d, yc-d], [xc-d, yc-d]])
+                            orig = np.array([[-d, d], [d, d], [d, -d], [-d, -d]])
+                            r_matrix = np.array([[np.cos(azi), np.sin(azi)], [-np.sin(azi), np.cos(azi)]])
+                            r_xy = np.dot(orig, r_matrix) + np.array([xc, yc])
+                            theta0 = np.arctan(np.sqrt(r_xy[:, 0]**2+r_xy[:, 1]**2)/zc)
+                            phi0 = np.arctan(r_xy[:, 1]/r_xy[:, 0])
+                            lat_corner = 90 - theta0*180/np.pi
+                            lon_corner = phi0*180/np.pi
+                            for i1, lon1 in enumerate(lon_corner):
+                                if lon1 < 60:
+                                    lon_corner[i1]-=180
+                        else:
+                            line_nos = nn_pixels_track[:, 15]
+                            i_node1 = line_nos > line_no_c
+                            i_node2 = line_nos < line_no_c  # two away pixel center
+                            i_node0 = line_nos == line_no_c # two pixels on the same line
+                            lat1, lon1 = nn_pixels_track[i_node1, 0], nn_pixels_track[i_node1, 1]
+                            lat2, lon2 = nn_pixels_track[i_node2, 0], nn_pixels_track[i_node2, 1]
+                            lat_side, lon_side = nn_pixels_track[i_node0, 0], nn_pixels_track[i_node0, 1]
+                            lat_corner = 0.5 * np.array([lat1+lat_side[0], lat1+lat_side[1],
+                                                         lat2+lat_side[0], lat2+lat_side[1]]).ravel()
+                            lon_corner = 0.5 * np.array([lon1+lon_side[0], lon1+lon_side[1],
+                                                         lon2+lon_side[0], lon2+lon_side[1]]).ravel()
+                        i_seq = np.argsort(lon_corner)
+                        i_seq0132 = [i_seq[i] for i in [0, 1, 3, 2]]
+                        ascat_corner[i2, i_subpixel_day[i2]: i_subpixel_day[i2]+i3, 0:4] = lat_corner[i_seq0132]
+                        ascat_corner[i2, i_subpixel_day[i2]: i_subpixel_day[i2]+i3, 4:8] = lon_corner[i_seq0132]
+                        ascat_corner[i2, i_subpixel_day[i2]: i_subpixel_day[i2]+i3, -1] = id_daily
+                elif i3>2:
+                    pas = 0
+            i_subpixel_day[i2] = i_subpixel_day[i2] + i3
+        # OUTPUT
+        prefix00 = 'result_08_01/point/ascat/time_series'
+        fname0 = '%s/ascat_%s_%s_%s_value' % (prefix00, date_list[0], date_list[-1][-4:], site_nos[0])
+        fname1 = '%s/ascat_%s_%s_%s_corner' % (prefix00, date_list[0], date_list[-1][-4:], site_nos[0])
+        np.save(fname0, all_subpixel)
+        np.save(fname1, ascat_corner)
+        txtname = '%s/corner_meta0.txt' % prefix00
+        np.savetxt(txtname, ascat_corner[0, 1, :], delimiter=',', header=','.join(corner_headers))
+        print 'saved at directory: ', prefix00
+        return 0
+
+        #id_nn, dis = data_process.ascat_nn(locs.T[1], locs.T[0], sig.T, orb.T, site_no, f=f_u.T, disref=dis0)
+
+
+        main_sid = site_nos[0]/100
+        site_no = str(site_no)
+        ascat_point = []
+        loc_as = np.array([])  # Location of nn for ascending pass
+        x_time, sigma0, date_list, out_ascat, inc45_55 = [], [], [], [], []
+        if center is not False:
+            i_tb = all_subcenter[2] == float(site_no)
+            site_subcenter = all_subcenter[:, i_tb]
+            center_tb = [site_subcenter[0], site_subcenter[1]]
+            txt_path = '/home/xiyu/PycharmProjects/R3/result_05_01/site_ascat/' + 's' + str(main_sid)+ '/'
+        else:
+            txt_path = '/home/xiyu/PycharmProjects/R3/result_05_01/site_ascat/' + 's' + str(site_no) + '/'
+        n = 0
+        n_warning, n_inc = 0, 0
+        file_list = sorted(os.listdir(txt_path))
+        for txt_file in file_list:
+            # get dt
+            n+=1
+            p_uline = re.compile('_')
+            datei = p_uline.split(txt_file)[1]
+            txt_i = np.load(txt_path + txt_file)
+            if txt_i.size < 5:
+                n_warning += 1
+                # print 'no data is %s' % datei
+                continue
+            if txt_i.size > 5:
+                date_list.append(datei)
+                if len(txt_i.shape) < 2:  # only 1- d
+                    locs, sig = np.array([txt_i[0:2]*1]), np.array([txt_i[2:5]*1])
+                    f_u, inc = np.array([txt_i[5:8]]), np.array([txt_i[8:11]])
+                    orb = np.array([txt_i[-1]])
+                elif txt_i.shape[1] > 10:  # with triplets, flag, and inc angles
+                    locs, sig = txt_i[:,  0:2], txt_i[:, 2:5]
+                    f_u, inc = txt_i[:,  5:8]*1, txt_i[:, 8:11]
+                    f_land = txt_i[:, 11:14]
+                    t_utc = txt_i[:, 14]
+                    orb = txt_i[:, -1]
+                # print 'DATE:', datei
+                id_nn, dis = data_process.ascat_nn(locs.T[1], locs.T[0], sig.T, orb.T, site_no, f=f_u.T, disref=dis0)
+                # test
+                as_loc = ascat_test_nn(id_nn[0], id_nn[1], txt_i)
+                loc_as = np.append(loc_as, as_loc)
+                # pass_hr = 24*np.modf(t_utc/3600/24)[0]
+                pass_hr = t_utc
+                pass_time = [pass_hr[id_nn[0]], pass_hr[id_nn[1]],
+                             [np.fix(t_utc/3600/24 - (dtime(2016, 1, 1) - dtime(2000, 1, 1)).days)],
+                             pass_hr]
+                items = ['NN as_pass', 'NN des_pass', 'DOY', 'passing hours']
+                for i in range(0, len(pass_time)):
+                    isprint = False
+                    # print items[i], ':', pass_time[i], '\n'
+                idn = np.concatenate((id_nn[0], id_nn[1])).astype(int)
+                sig_daily = data_process.ascat_ipt(dis, txt_i[:, [2, 3, 4, 8, 9, 10, 11, 12, 13, 0, 1]][idn].T, pass_hr[idn], orb[idn])
+                doy = np.fix(t_utc/3600/24 - (dtime(2016, 1, 1) - dtime(2000, 1, 1)).days)[0]
+                sig_table = [[doy]+t for t in sig_daily]
+                for v in sig_table:
+                    ascat_point.append(v)
+                tt = 0
+        np.save('./result_05_01/ascat_point/ascat_s'+str(site_no)+'_2016', np.array(ascat_point))
+        # np.save('./result_05_01/ascat_point/loc_a_s'+site_no+'_2016', loc_as.reshape(-1, 2))
+    st = 0
+    return 0

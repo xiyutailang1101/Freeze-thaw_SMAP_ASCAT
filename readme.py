@@ -1,5 +1,11 @@
 # Updating logs
 # 30/06
+"""
+April, 2018
+"""
+# change the ascat.npy files into result_08_01
+'./result_05_01/tp_site_ascat/ascat_'   # orignial path
+
 import site_infos  		 # save the infomatin of site
 import ob_difference  # calculate the orbit difference of A/D orbit
 
