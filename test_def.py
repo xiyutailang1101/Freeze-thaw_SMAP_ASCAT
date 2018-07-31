@@ -19,6 +19,7 @@ from matplotlib import gridspec
 import temp_test
 from matplotlib.ticker import MaxNLocator
 from matplotlib.patches import Patch, Polygon, Arc
+from matplotlib import colors, cm
 
 def make_patch(colorP):
     aqua_patch = Patch(edgecolor='none', facecolor=colorP)
@@ -129,6 +130,16 @@ def main(site_no, period, sm_wind=17, mode='all', seriestype='sig', tbob='_A_', 
     site_flagv, site_flagh = site_tb[:, n_flagv], site_tb[:, n_flagh]
     site_errorv, site_errorh = site_tb[:, n_errorv], site_tb[:, n_errorh]
     tb_center_lon, tb_center_lat = site_tb[2, n_lon], site_tb[2, n_lat]
+    # utc time transform newly updated 07/21
+    idx_nan = np.isnan(site_passtime)
+    site_passtime[idx_nan] = 0
+    time_tple = bxy.time_getlocaltime(site_passtime)
+    site_date0, site_hr0 = time_tple[-2]+(time_tple[0]-2015)*365+\
+                           np.max(np.array([(time_tple[0]-2016), np.zeros(time_tple[0].size)]), axis=0), \
+                           time_tple[-1]
+    site_date0[idx_nan], site_hr0[idx_nan] = -999, -999
+    x_test = site_date - site_date
+    x_test_no_nan = x_test[x_test>0]
     if center == True:
         return [tb_center_lon, tb_center_lat]
     """
@@ -367,7 +378,7 @@ def plot_ref(plotname, ref_no):
 
 def read_alaska(start_date, end_date):
     predir = './result_05_01/SMAP_AK/'
-    orbit = '_D_'
+    orbit = '_A_'
     site_info = ['alaska', 63.25, -151.5]
     tb_attr_name = ['/cell_tb_v_aft', '/cell_tb_h_aft', '/cell_tb_qual_flag_v_aft', '/cell_tb_qual_flag_h_aft',
                     "/cell_lat", "/cell_lon"]
@@ -787,45 +798,47 @@ def plt_npr_gaussian_all(tb, npr, sigma, soil, snow, onset, figname='all_plot_te
     ax0 = plt.Subplot(fig, gs00[-1, :])
     # ax1, ax2, ax3, ax4 = plt.subplot(fig, gs0[1]), plt.subplot(fig, gs0[2]), \
     #                      plt.subplot(fig, gs0[3]), plt.subplot(fig, gs0[4])
-    # fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, figsize=size, sharex=True)  # sharex
-    # ax0 = plt.subplot(gs0[0, :])
-    # ax1 = plt.Subplot(fig, gs0[1, :])
-    ax1, ax2, ax3, ax4 = plt.Subplot(fig, gs0[1]), plt.Subplot(fig, gs0[2]), plt.Subplot(fig, gs0[3]), plt.Subplot(fig, gs0[4])
-    nr, st = 20, 9
-    sub_no = 4*nr+st
-    ax0, ax1, ax2, ax3, ax4 = plt.subplot2grid((sub_no, 1), (0, 0), rowspan=st), \
-                              plt.subplot2grid((sub_no, 1), (st, 0), rowspan=nr),  \
-                              plt.subplot2grid((sub_no, 1), (st+nr, 0), rowspan=nr), \
-                              plt.subplot2grid((sub_no, 1), (st+2*nr, 0), rowspan=nr), \
-                              plt.subplot2grid((sub_no, 1), (st+3*nr, 0), rowspan=nr)
-
+    fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, figsize=size, sharex=True)  # sharex
     params = {'mathtext.default': 'regular'}
     plt.rcParams.update(params)
+
+    # #  add a time window bar 2018/05 updated
+    # nr, st = 20, 9
+    # sub_no = 4*nr+st
+    # ax0, ax1, ax2, ax3, ax4 = plt.subplot2grid((sub_no, 1), (0, 0), rowspan=st), \
+    #                           plt.subplot2grid((sub_no, 1), (st, 0), rowspan=nr),  \
+    #                           plt.subplot2grid((sub_no, 1), (st+nr, 0), rowspan=nr), \
+    #                           plt.subplot2grid((sub_no, 1), (st+2*nr, 0), rowspan=nr), \
+    #                           plt.subplot2grid((sub_no, 1), (st+3*nr, 0), rowspan=nr)
+
+    # params = {'mathtext.default': 'regular'}
+    # plt.rcParams.update(params)
     # row 1 tb
     # ax1 = fig.add_subplot(511)  # tb
     # ax0 setting, for boundary of seasons
-    timings = [60, 150, 260, 350, 366]
-    timing_color = ['aqua', 'red', 'orange', 'blue', 'aqua']
-    timing_color_rgba = plot_funcs.check_rgba(timing_color)
-    timing_color_rgba[3] = [0., .3, 1., 1.]
-    print timing_color_rgba
-    timing_name = ["Frozen", "Thawing", "Thawed", "Freezing", " "]
-    fill_y1 = 1
-    ax0.plot(soil[0][1], soil[0][2]*0)
-    plot_funcs.make_ticklabels_invisible(ax0)  # hide the y_tick
-    ax0.tick_params(axis='x', which='both', bottom='off', top='off')
-    ax0.tick_params(axis='y', which='both', left='off', right='off')
-    text_x0 = 0
-    for i in range(0, len(timings)):
-        ax0.fill_between(np.arange(text_x0, timings[i]), fill_y1, color=timing_color_rgba[i])
-        text_x = 0.5*(timings[i]+text_x0)
-        print text_x
-        ax0.text(text_x, 0.5, timing_name[i], va="center", ha="center")  # 1.3 up
-        text_x0 = timings[i]+1
-        if i < len(timings)-1:
-            # add vertical line and label
-            ax0.axvline(timings[i])
-            ax0.text(timings[i], 1.3, timings[i], va="center", ha="center")
+    # timings = [60, 150, 260, 350, 366]
+    # timing_color = ['aqua', 'red', 'orange', 'blue', 'aqua']
+    # timing_color_rgba = plot_funcs.check_rgba(timing_color)
+    # timing_color_rgba[3] = [0., .3, 1., 1.]
+    # print timing_color_rgba
+    # timing_name = ["Frozen", "Thawing", "Thawed", "Freezing", " "]
+    # fill_y1 = 1
+    # ax0.plot(soil[0][1], soil[0][2]*0)
+    # plot_funcs.make_ticklabels_invisible(ax0)  # hide the y_tick
+    # ax0.tick_params(axis='x', which='both', bottom='off', top='off')
+    # ax0.tick_params(axis='y', which='both', left='off', right='off')
+    # text_x0 = 0
+    #
+    # for i in range(0, len(timings)):
+    #     ax0.fill_between(np.arange(text_x0, timings[i]), fill_y1, color=timing_color_rgba[i])
+    #     text_x = 0.5*(timings[i]+text_x0)
+    #     print text_x
+    #     ax0.text(text_x, 0.5, timing_name[i], va="center", ha="center")  # 1.3 up
+    #     text_x0 = timings[i]+1
+    #     if i < len(timings)-1:
+    #         # add vertical line and label
+    #         ax0.axvline(timings[i])
+    #         ax0.text(timings[i], 1.3, timings[i], va="center", ha="center")
 
 
     print np.nanmax(soil[0][1]), np.nanmin(soil[0][1])
@@ -838,6 +851,7 @@ def plt_npr_gaussian_all(tb, npr, sigma, soil, snow, onset, figname='all_plot_te
                              handle=[fig, ax1], nbins2=6)  # plot tbv
     l1_le = plot_funcs.plt_more(ax1, tb[1][0], tb[1][1], line_list=[l1])
     # ax1.locator_params(axis='y', nbins=4)
+    ax1_2.axhline(y=0)
     ax1.set_ylabel('T$_b$ (K)')
     # ax1.legend([l1_le[0][0], l1_le[1]], ['T$_{BV}$', 'T$_{BH}$'], loc=3, prop={'size': 6})
     if title is not False:
@@ -981,9 +995,10 @@ def plt_npr_gaussian_all(tb, npr, sigma, soil, snow, onset, figname='all_plot_te
     for ax in ax2s:
         ax.yaxis.set_major_locator(MaxNLocator(4))
         ax.get_yaxis().set_label_coords(1.10, 0.5)  # position of labels
+
     # ylims
     ax1.set_ylim([210, 280])
-    ax1_2.set_ylim([-9, 9])
+    # ax1_2.set_ylim([-9, 9])
     if site_no == '1177':
         st = 0
     else:
@@ -998,7 +1013,8 @@ def plt_npr_gaussian_all(tb, npr, sigma, soil, snow, onset, figname='all_plot_te
         shade_window = 'no shade'
     else:
         for ax in axs:
-            ax.axvspan(shade[0][0], shade[0][1], color=(0.8, 0.8, 0.8), alpha=0.5, lw=0)
+            for shade0 in shade:
+                ax.axvspan(shade0[0], shade0[1], color=(0.8, 0.8, 0.8), alpha=0.5, lw=0)
     if xlims:
         for ax in axs:
             ax.set_xlim(xlims)
@@ -1006,13 +1022,13 @@ def plt_npr_gaussian_all(tb, npr, sigma, soil, snow, onset, figname='all_plot_te
     # legend setting
     leg1 = ax1.legend([l1_le[0][0], l1_le[1]], ['T$_{bv}$', 'T$_{bh}$'],
                loc=3, ncol=1, prop={'size': 12}, numpoints=1)
-    for leg in [leg1]:
-        leg.get_frame().set_linewidth(0.0)
+    # for leg in [leg1]:
+    #     leg.get_frame().set_linewidth(0.0)
     # layout setting
     ax4.set_xlabel('Day of year 2016')
     plt.tight_layout()
 
-    #fig.subplots_adjust(hspace=0.1)
+    fig.subplots_adjust(hspace=0.05)
 
     # other setting like the title
 
@@ -1032,7 +1048,7 @@ def plt_npr_gaussian_all(tb, npr, sigma, soil, snow, onset, figname='all_plot_te
     #     yticks[-1].label2.set_visible(False)
     plt.rcParams.update({'font.size': 16})
     print figname
-    plt.savefig(figname, dpi=120)
+    plt.savefig(figname, dpi=300)
     plt.close()
 
     return 0
@@ -1093,7 +1109,7 @@ def plt_npr_gaussian_all(tb, npr, sigma, soil, snow, onset, figname='all_plot_te
     plt.close()
 
 
-def plot_snow_effect(tbv, tbh, obd_v, obd_h, swe, dswe=False, air_change=False, fname='', sno='947'):
+def plot_snow_effect(tbv, tbh, obd_v, obd_h, swe, dswe=False, air_change=False, fname='', sno='947', vlines=False):
     fig, (ax0, ax1, ax2) = plt.subplots(3, sharex=True)
     params = {'mathtext.default': 'regular'}
     plt.rcParams.update(params)
@@ -1128,7 +1144,12 @@ def plot_snow_effect(tbv, tbh, obd_v, obd_h, swe, dswe=False, air_change=False, 
         color1 = plot_funcs.get_colors(air_change[1], cm0, -30, 30)
         # color2 = np.random.rand(swe[0].size, 3)
         color2 = tuple(map(tuple, color1))
-        ax2.fill_between(swe[0], 0, swe[1], color=color2[133])
+        normalize = colors.Normalize(vmin=air_change[1][air_change[1]>-10].min(), vmax=air_change[1][air_change[1]>10].min())
+        cmap = plt.get_cmap('coolwarm')
+        test00=0
+        # for i in range(swe[0].size-1):
+        #     ax2.fill_between([swe[0][i], swe[0][i+1]], [swe[1][i], swe[1][i+1]], color=cmap(normalize(air_change[1][i])), cmap=plt.get_cmap('rainbow'))  # c=z_value, cmap=plt.get_cmap('rainbow')
+        # ax2.fill_between(swe[0], 0, swe[1], color=cmap(normalize(swe[1])), cmap=plt.get_cmap('rainbow'))  # c=z_value, cmap=plt.get_cmap('rainbow')
         # ax22.contourf(air_change[0], air_change[1], air_change[1], 20)
     plt.xlim([0, 365])
     ylabels = ['$NPR_{pm}$ (10$^{-2}$)', '$\Delta T_{b, diurnal}$ (K)', 'SWE (mm)', ax22label]
@@ -1141,13 +1162,22 @@ def plot_snow_effect(tbv, tbh, obd_v, obd_h, swe, dswe=False, air_change=False, 
     shade0 = [onset_value[0][16], swe[0][(swe[1]>-1)&(swe[1]<5)][0]]
     # swe[0][(swe[1]>0)(swe[1]<5)][0]
     print onset_value.size, 'the t_air0 time is ', shade0[0]
-    ax1.set_ylim([-10, 15])
+    ax1.set_ylim([-10, 40])
     i=0
     for ax in [ax0, ax1, ax2]:
-        # ax.axvspan(shade0[0], shade0[1], color=(0.8, 0.8, 0.8), alpha=0.5, lw=0)
+        ax.axvspan(shade0[0], shade0[1], color=(0.8, 0.8, 0.8), alpha=0.5, lw=0)
         no_use = 0
+    if vlines is not False:
+        for vline0 in vlines:
+            ax1.axvline(x=vline0, color='k', ls='--')
     # ax1.axvline(x=80, color='k', ls='-')
     # ax1.axvline(x=115, color='k', ls='-')
+
+    # added 2018/07/31, calculating the average delta Tb in the shade area.
+    mean_delta_tbv = np.mean(obd_v[1][(obd_v[0]>shade0[0]) & (obd_v[0]<shade0[1])])
+    mean_delta_tbh = np.mean(obd_h[1][(obd_h[0]>shade0[0]) & (obd_h[0]<shade0[1])])
+    with open('diurnal_test.txt', 'a') as txt0:
+        txt0.write('%s, %.2f, %.2f \n' % (sno, mean_delta_tbv, mean_delta_tbh))
 
     text3, i3 = ['a', 'b', 'c'], -1
     for ax in [ax0, ax1, ax2]:
@@ -1168,9 +1198,9 @@ def plot_snow_effect(tbv, tbh, obd_v, obd_h, swe, dswe=False, air_change=False, 
     plt.tight_layout()
     fig.subplots_adjust(hspace=0.1)
     if len(fname) > 0:
-        plt.savefig(fname)
+        plt.savefig(fname, dpi=300)
     else:
-        plt.savefig('snow_eff_test.png')
+        plt.savefig('snow_eff_test.png', dpi=300)
     return 0
 
 
@@ -1617,9 +1647,9 @@ def npr_smap_compare(pixel_id, ft10, ft10_dict, period, sno='947', compare=False
     # label or text box
     plot_id = ['a', 'b']
     ax_ft.text(0.05, 0.95, plot_id[subplot_a-1], transform=ax_ft.transAxes, va='top', ha='right', fontsize=16)
-    site_name = site_infos.change_site(sno, names=True)
+    site_name = site_infos.change_site(sno, names=sno)
     text_site = '%s(ID: %s)' % (site_name, sno)
-    ax_ft.text(0.95, 0.95, text_site, transform=ax_ft.transAxes, va='top', ha='right', fontsize=16)  # text
+    ax_ft.text(0.95, 0.95, text_site, transform=ax_ft.transAxes, va='top', ha='right', fontsize=16, bbox=dict(facecolor='white', alpha=1))  # text
     ax_ft.set_ylabel('NPR ($10^{-2}$)')
     plt.rcParams.update({'font.size': 16})  # set the font size
     # set the legend
@@ -1637,7 +1667,7 @@ def npr_smap_compare(pixel_id, ft10, ft10_dict, period, sno='947', compare=False
                    bbox_to_anchor=[0., 1.02, 1., .102], loc=3, ncol=2, mode='expand', borderaxespad=0., prop={'size': 12})
     if subplot_a > 1:
         figname2 = 'new_smap_ft_compare_%s' % sno
-        plt.savefig(figname2)
+        plt.savefig(figname2, dpi=300)
         plt.close()
         return 0, 0
     else:
@@ -1654,3 +1684,52 @@ def plot_patch_test():
     figname2 = 'new_smap_ft_compare_%s' % ('legend')
     # plt.tight_layout()
     plt.savefig(figname2)
+
+
+def edge_detect(t_series, edge_series, s, order=1, seriestype='tb'):
+    """
+    :param t_series: from overpass second
+    :param edge_series: ft indicators
+    :param s: sigma of gaussian filter
+    :param order: 1st detrivative of gaussian
+    :param seriestype: the name of indicator.
+    :return:
+    """
+    snr_threshold = 0
+    if order == 1:  # first order of gaussian
+        if seriestype == 'tb':
+            peaks_iter = 1e-1
+        elif seriestype == 'npr':
+            peaks_iter = 1e-4
+        elif seriestype == 'sig':
+            peaks_iter = 1e-2
+        else:
+            peaks_iter = 1e-4
+        g_size = 6*s/2
+        g_npr, i_gaussian = data_process.gauss_conv(edge_series, sig=s)  # option: ffnpr-t_h; var_npv-t_h
+        conv_valid = g_npr[g_size: -g_size]  # valid interval: g_size: -g_size
+        max_gnpr, min_gnpr = peakdetect.peakdet(conv_valid, peaks_iter, t_series[i_gaussian][g_size: -g_size])
+        # calculate the winter mean convolution as well as the snr
+        t_valid = t_series[i_gaussian][g_size: -g_size]
+        i_winter = (t_valid > 1+365) & (t_valid < 60+365)
+        conv_winter = conv_valid[i_winter]
+        conv_noise = np.nanmean(np.abs(conv_winter))
+        # snr = max_gnpr[:, -1]/conv_noise
+        # max_npr_valid = max_gnpr[np.abs(snr) > snr_threshold]
+        # snr = np.abs(min_gnpr[:, -1])/conv_noise
+        # min_npr_valid = min_gnpr[np.abs(snr) > snr_threshold]
+        max_npr_valid = max_gnpr
+        min_npr_valid = min_gnpr
+        return max_npr_valid, min_npr_valid, np.array([t_valid, conv_valid])
+
+
+def get_peak(series, iter, t_x):
+    """
+
+    :param series: the time series of a given indicator
+    :param iter: peaks greater than iter are returned
+    :param t_x: the x axis for the time series (i.e., date)
+    :return:
+    """
+    max_series, min_series = peakdetect.peakdet(series, iter, t_x)
+    return max_series, min_series

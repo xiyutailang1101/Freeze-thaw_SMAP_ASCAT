@@ -19,13 +19,12 @@ from basic_xiyu import h5_writein
 
 prefix = './result_07_01/'
 site_nos = ['947', '949', '950', '960', '962', '967', '968', '1090', '1175', '1177', '1233', '2065', '2081', '2210', '2211', '2212', '2213'] #'1089'
-site_nos = ['947']
 sha = {'947': [[90, 115], [60, 120]], '968': [[120, 145], [90, 150]], '2213': [100, 120], '1177': [[100, 150], [100, 150]]}
 # '947', '949', '950', '960', '962', '968','1090', '1175', '1177'
 #'967', '2065', '2081', '2210', '2213', '1089', '1233', '2212', '2211',
 site_dic = {'sno_': ['1089', '967', '1062', '947', '949', '950', '960', '962', '968','1090', '1175', '1177'],
                     'scan_': ['2081', '2213', '2210', '2065', '2212', '2211', '1233']}
-stds = [7]
+stds = [1.5]
 # initiations:
 orders = 1
 obs = [0, '_A_', 18]  # 0: As, 1:Des
@@ -43,6 +42,7 @@ onset_save = []
 gau0_tb = []
 # dsm_npr: for moisture change in that day
 for site_no in site_nos:
+
     i_csv += 1
     # site read
     pp = False
@@ -201,6 +201,11 @@ for site_no in site_nos:
         # onset_new: ascat, tb, npr, site
         ons_new.append(ons0[0]), ons_new.append(ons0[1]), ons_new.append(ons1[0]), ons_new.append(ons1[1])
         ons_new.append(ons_site[0]), ons_new.append(ons_site[1])
+        # onset_save[onsets_i] = ons_new
+        # with open('ons_final.txt', 'a') as onset_f0:
+        #     onset_f0.write(ons_new)
+           # write_string = '%.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f,'
+
         for ons in ons_tsoil:
             ons_new.append(ons)
         onset_file = 'result_07_01/txtfiles/result_txt/smap_ft_compare_%s.csv' % obs[1][1]
@@ -220,12 +225,13 @@ for site_no in site_nos:
                               # swe_date, swe_daily
                               ['Soil temperature (DegC)', tsoil[0], tsoil[1]]],
                              ['SWE (mm)', swe[0], swe[1]], onset_value[0], # row5 swe/percipitation, onset
-                             figname=prefix+'all_plot_'+site_no+'_'+str(k_width)+'.png', size=(8, 10), xlims=[1, 366],
-                             title=False, site_no=site_no, pp=precip, s_symbol='k.', tair=[tair_date, tair_daily], snow_plot=False)
+                             figname=prefix+'all_plot_'+site_no+'_'+str(k_width)+'.png', size=(8, 8), xlims=[1, 366],
+                             title=False, site_no=site_no, pp=precip, s_symbol='k.', tair=[tair_date, tair_daily], snow_plot=False,
+                             shade=[[60, 150], [250, 340]])
                              #day_tout=day2, end_ax1=tb_onsetnew, end_ax2=npr_end, end_ax3=ascat_end)
         ons_new.append(int(site_no))
         onset_save.append(ons_new)
-
+    np.savetxt('ons_final.txt', onset_save, delimiter=',', fmt='%.2f')
 
     # print onset_save
     # print prefix+'all_plot_'+site_no+'_'+str(k_width)+'.png'

@@ -1216,7 +1216,8 @@ def time_mosaic(intervals, pass_h):
     return id_time
 
 
-def pass_zone_plot(input_x, input_y, value, pre_path, fname=[], z_min=-20, z_max=-4, prj='merc', odd_points=[]):
+def pass_zone_plot(input_x, input_y, value, pre_path, fname=[], z_min=-20, z_max=-4, prj='merc', odd_points=[],
+                   title_str=' '):
     """
     :param input_x:
     :param input_y:
@@ -1227,12 +1228,14 @@ def pass_zone_plot(input_x, input_y, value, pre_path, fname=[], z_min=-20, z_max
     """
     fig = plt.pyplot.figure(figsize=[8, 8])
     ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+    ax.set_title(title_str)
     if prj == 'merc':
         m = Basemap(llcrnrlon=-170, llcrnrlat=54, urcrnrlon=-140, urcrnrlat=72,
                     resolution='l', area_thresh=1000., projection=prj,
                     lat_ts=50., ax=ax)
-    elif prj == 'laea':
-        m = Basemap(width=4e6, height=4e6, resolution='l', projection=prj, lat_ts=62, lat_0=62, lon_0=-150., ax=ax)
+    elif prj == 'aea':
+        # m = Basemap(width=3e6, height=3e6, resolution='l', projection=prj, lat_ts=62, lat_0=62, lon_0=-150., ax=ax)
+        m = Basemap(width=15e5, height=2e6, resolution='l', projection=prj, lat_1=55, lat_2=65, lon_0=-154., lat_0=63, ellps='WGS84', ax=ax)
     elif prj == 'ease':
         m = Basemap(llcrnrlon=-170, llcrnrlat=54, urcrnrlon=-140, urcrnrlat=72, resolution='l', area_thresh=10000, lat_ts=30, projection='cea')
     im = m.pcolormesh(input_x, input_y, value, vmin=z_min, vmax=z_max, latlon=True)
@@ -1240,10 +1243,15 @@ def pass_zone_plot(input_x, input_y, value, pre_path, fname=[], z_min=-20, z_max
     m.drawcountries()
     parallel = np.arange(50, 80, 5)
     meridian = np.arange(-170, -130, 5)
-    m.drawparallels(parallel, labels=[1, 0, 0, 0])
-    m.drawmeridians(meridian, labels=[0, 0, 0, 1])
+    m.drawparallels(parallel, labels=[1, 0, 0, 0], fontsize=18)
+    m.drawmeridians(meridian, labels=[0, 0, 0, 1], fontsize=18)
     cb = m.colorbar(im)
-    if len(odd_points) > 0:
+    if fname == 'thaw_14_7' or fname =='freeze_14_7':
+        cb.set_label('Days')
+    else:
+        cb.set_label('DOY 2016')
+    # if len(odd_points) > 0:
+    if odd_points.size < 20:
         if type(odd_points[0]) is list:
             x = np.array([odd_points[i][0] for i in range(0, len(odd_points))])
             y = np.array([odd_points[i][1] for i in range(0, len(odd_points))])
@@ -1252,14 +1260,13 @@ def pass_zone_plot(input_x, input_y, value, pre_path, fname=[], z_min=-20, z_max
         else:
             x, y = odd_points[0], odd_points[1]
         print 'odd point: ', x, y
-        if fname.find('smap') != -1:
-            x-=0.2
-            y+=0.2
-        else:
-            x-=0.08
-            y+=0.08
         m.scatter(x, y, marker='x', color='k', latlon=True)
-        m.scatter(x[-7:], y[-7:], marker='s', color='k', latlon=True)
+        # m.scatter(x[-7:], y[-5:], marker='s', color='k', latlon=True)
+    else:
+        for s0 in odd_points:
+            x, y = s0[-2], s0[-3]
+            m.scatter(x, y, marker='x', color='k', latlon=True)
+    plt.rcParams.update({'font.size': 18})
     plt.pyplot.savefig(pre_path+fname+'.png', dpi=120)
     # add_site(m, pre_path+'spatial_ascat'+fname+'_site')
     plt.pyplot.close()
@@ -1440,14 +1447,21 @@ def ascat_plot_series(site_no, orb_no=0, inc_plot=False, sigma_g = 5, pp=False, 
             return [-1, -1, -1], [-1, -1, -1], [-1, -1], -1, [-1, -1], [-1, -1]
         id_orb = ascat_all[:, -1] == orb_no
         ascat_ob = ascat_all[id_orb]
-        # transform utc time to local time
-        sec_ascat = bxy.timetransform(ascat_ob[:, 1], '20000101 00:00:00', '%Y%m%d %X', tzone=True)
-        doy_tp = np.modf((sec_ascat)/3600.0/24.0)
-        doy = doy_tp[1]+1
-        passhr = np.round(doy_tp[0]*24.0)
+
+        # # transform utc time to local time
+        # sec_ascat = bxy.timetransform(ascat_ob[:, 1], '20000101 00:00:00', '%Y%m%d %X', tzone=True)
+        # doy_tp = np.modf((sec_ascat)/3600.0/24.0)
+        # doy = doy_tp[1]+1
+        # passhr = np.round(doy_tp[0]*24.0)
+
+        # newly updated 0515/2018
+        times_ascat = bxy.time_getlocaltime(ascat_ob[:, 1], ref_time=[2000, 1, 1, 0])
+        doy_tp2 = times_ascat[-2] + (times_ascat[0]-2015)*365 + np.max(np.array([(times_ascat[0]-2016), np.zeros(times_ascat[0].size)]), axis=0)
+        passhr = times_ascat[-1]*1.0
 
         # angular normalization
-        tx = doy_tp[1]+1 -365
+        # tx = doy_tp[1]+1 -365
+        tx = doy_tp2 + 1 -365
         p = (tx > 0) & (tx < 60)
         x, y = ascat_ob[p, 5: 8].reshape(1, -1)[0], ascat_ob[p, 2: 5].reshape(1, -1)[0]
         a, b = np.polyfit(x, y, 1)
@@ -1542,6 +1556,104 @@ def ascat_plot_series(site_no, orb_no=0, inc_plot=False, sigma_g = 5, pp=False, 
     # read site data
     # plot
     return 0
+
+
+def get_ascat_series(site_no, orb_no=0, inc_plot=False, sigma_g = 5, pp=False, norm=False,
+                      txt_path='./result_05_01/ascat_point/', is_sub=False, order=1):  # orbit default is 0, ascending, night pass
+    """
+    added 2018/06/14
+        return ascat time series from the ascat .npy files, number of attributes: 14, passing seconds included
+    :param site_no:
+    :param orb_no:
+    :param inc_plot:
+    :param sigma_g:
+    :param pp:
+    :param norm:
+    :param txt_path:
+    :param is_sub:
+    :param order:
+    :return:
+    """
+    # read series sigma
+    site = site_no
+    site_nos = site_infos.get_id(site, mode='single')
+    for si0 in site_nos:
+        if is_sub is False:
+            txtname = glob.glob(txt_path+'ascat_s'+si0+'*')[0]
+        # txtname = './result_05_01/ascat_point/ascat_s'+si0+'_2016.npy'
+        ascat_all = np.load(txtname)
+        if ascat_all.size < 1:
+            return [-1, -1, -1], [-1, -1, -1], [-1, -1], -1, [-1, -1], [-1, -1]
+        id_orb = ascat_all[:, -1] == orb_no
+        ascat_ob = ascat_all[id_orb]
+
+        # # transform utc time to local time
+        # sec_ascat = bxy.timetransform(ascat_ob[:, 1], '20000101 00:00:00', '%Y%m%d %X', tzone=True)
+        # doy_tp = np.modf((sec_ascat)/3600.0/24.0)
+        # doy = doy_tp[1]+1
+        # passhr = np.round(doy_tp[0]*24.0)
+
+        # newly updated 0515/2018
+        times_ascat = bxy.time_getlocaltime(ascat_ob[:, 1], ref_time=[2000, 1, 1, 0])
+        doy_tp2 = times_ascat[-2] + (times_ascat[0]-2015)*365
+        passhr = times_ascat[-1]*1.0
+
+        # angular normalization
+        # tx = doy_tp[1]+1 -365
+        tx = doy_tp2 + 1 -365
+        p = (tx > 0) & (tx < 60)
+        x, y = ascat_ob[p, 5: 8].reshape(1, -1)[0], ascat_ob[p, 2: 5].reshape(1, -1)[0]
+        a, b = np.polyfit(x, y, 1)
+        print 'the angular dependency: a: %.3f, b: %.3f' % (a, b)
+        f = np.poly1d([a, b])
+
+        # angular dependency for each ob mode
+        p_win, p_su = (tx>0) & (tx<60), (tx>150)&(tx<260)
+        x_trip_win, x_trip_su = ascat_ob[p_win, 5: 8], ascat_ob[p_su, 5: 8]
+        y_trip_win, y_trip_su = ascat_ob[p_win, 2: 5], ascat_ob[p_su, 2: 5]
+        a_array, b_array, d_array = np.zeros(6)-1, np.zeros(6)-1, np.zeros(3) - 99
+        for i1 in range(0, 3):
+            a_w, b_w = np.polyfit(x_trip_win[:, i1], y_trip_win[:, i1], 1)
+            a_s, b_s = np.polyfit(x_trip_su[:, i1], y_trip_su[:, i1], 1)
+            a_array[i1], b_array[i1] = a_w, b_w
+            a_array[i1+3], b_array[i1+3] = a_s, b_s
+            d_array[i1] = np.mean(y_trip_su[:, i1]) - np.mean(y_trip_win[:, i1])
+        a_coef_name = 'ascat_linear_a.txt'
+        b_coef_name = 'ascat_linear_b.txt'
+        # with open(a_coef_name, 'a') as t_file:
+        #     t_file.write('%s,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n' % (site_no, a_array[0], a_array[1], a_array[2],
+        #                                                       a_array[3], a_array[4], a_array[5], d_array[0], d_array[1], d_array[2]))
+        # with open(b_coef_name, 'a') as t_file:
+        #     t_file.write('%s,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n' % (site_no, b_array[0], b_array[1], b_array[2],
+        #                                                       b_array[3], b_array[4], b_array[5], d_array[0], d_array[1], d_array[2]))
+
+        sig_m = ascat_ob[:, 3]
+        inc_m = ascat_ob[:, 6]
+        # sig_m = ascat_ob[:, 2]  # changed using the forwards mode to increase the winter summer difference
+        # inc_m = ascat_ob[:, 5]
+        sig_mn = sig_m - (ascat_ob[:, 6]-45)*a
+        # daily average:
+        tdoy = tx
+        u_doy = np.unique(tdoy)
+        sig_d, i0 = np.zeros([u_doy.size, 2]), 0
+        pass_hr_d = np.zeros(u_doy.size)
+        inc_d = np.zeros(u_doy.size)
+        for td in u_doy:
+            sig_d[i0][0] = td
+            sig_d[i0][1] = np.mean(sig_mn[tdoy == td])
+            inc_d[i0] = np.mean(inc_m[tdoy == td])  # daily incidence angle
+            pass_hr_d[i0] = np.mean(passhr[tdoy == td])
+            i0 += 1
+        tx = sig_d[:, 0]
+        sig_mn = sig_d[:, 1]
+        pass_hr_d = np.round(pass_hr_d)
+        # one more constraints, based on incidence angle
+        # id_inc = bxy.gt_le(inc_d, 30, 35)
+        # tx, sig_mn = tx[id_inc], sig_mn[id_inc]
+        sig_d[:, 0] -= 1
+        sig_d[:, 0] += 365
+        return sig_d, pass_hr_d
+
 
 
 def ascat_order2(site_no, orb_no=0, inc_plot=False, sigma_g = 5, pp=False, norm=False,
@@ -1832,13 +1944,14 @@ def smap_alaska_onset(mode='tb', std=3, version='old'):
     return 0
 
 
-def ascat_onset_map(ob, odd_point=[], product='ascat', mask=False, std=4, mode=['_norm_'], version='old'):
+def ascat_onset_map(ob, odd_point=[], product='ascat', mask=False, std=4, mode=['_norm_'], version='old',
+                    f_win=[0, 0], t_win=[0, 0]):
     anc_direct = './result_05_01/other_product/'
     if version == 'new':
         result_doc = 'all_year_observation'
     elif version == 'old':
         result_doc = 'all_year_observation_old'
-    fpath1 = './result_05_01/onset_result/%s/'%result_doc
+    fpath1 = './result_08_01/'
 
     if product == 'ascat':
         prefix = './result_05_01/onset_result/%s/' % result_doc
@@ -1860,9 +1973,9 @@ def ascat_onset_map(ob, odd_point=[], product='ascat', mask=False, std=4, mode=[
                 onset_1_file = prefix+'ascat_onset_1'+'_2016'+m+key+'_w'+str(std)+'.npy'
                 onset1 = np.load(onset_1_file)
                 if mask is True:
-                    mask0 = np.load(anc_direct+'snow_mask_125s.npy')
-                    onset0 = np.ma.masked_array(onset0, mask=[mask0==0])
-                    onset1 = np.ma.masked_array(onset1, mask=[mask0==0])
+                    mask_snow = np.load(anc_direct+'snow_mask_125s.npy')
+                    onset0 = np.ma.masked_array(onset0, mask=[mask_snow==0])
+                    onset1 = np.ma.masked_array(onset1, mask=[mask_snow==0])
                 fpath1 = 'result_08_01/'
                 pass_zone_plot(lons_grid, lats_grid, onset0, fpath1,
                                fname='onset_0'+m+key+'_w'+str(std),
@@ -1870,6 +1983,72 @@ def ascat_onset_map(ob, odd_point=[], product='ascat', mask=False, std=4, mode=[
                 pass_zone_plot(lons_grid, lats_grid, onset1, fpath1,
                                fname='onset_1'+m+key+'_w'+str(std),
                                z_max=360, z_min=240, odd_points=odd_point)
+    elif product == 'grid_test':
+        for d_str in ['20151102']:
+            h5_name = 'result_08_01/area/smap_area_result/SMAP_alaska_A_GRID_%s.h5' % d_str
+            h0 = h5py.File(h5_name)
+            lons_grid = h0['cell_lon'].value
+            lats_grid = h0['cell_lat'].value
+
+            indicators = [product]
+            # change onset vlaue
+            th_name = 'test_onset0_%s.npy' % std
+            fr_name = 'test_onset1_%s.npy' % std
+            onset0 = np.load(th_name)
+            onset1 = np.load(fr_name)  # test_onset1.npy
+            onset0_14 = np.load('test_onset0_14.npy')
+            onset1_14 = np.load('test_onset1_14.npy')
+            out_bound = lons_grid>-141.0
+            onset0[out_bound], onset1[out_bound], onset0_14[out_bound], onset1_14[out_bound] = 0, 0, 0, 0
+
+            if odd_point.size == 4:
+                odd_lon = odd_point[2]
+                odd_lat = odd_point[3]
+                odd_onset = onset0[odd_point[0], odd_point[1]]
+            else:
+                print 'add all location with labels'
+            tbv0 = h0[u'cell_tb_v_aft'].value
+            tbv0[tbv0<0] = 0
+            mask = np.load('./result_05_01/other_product/mask_ease2_360N.npy')
+            onset0 = np.ma.masked_array(onset0, mask=[(onset0==0)|(mask==0)])
+            onset1 = np.ma.masked_array(onset1, mask=[(onset1==0)|(mask==0)])
+            onset0_14 = np.ma.masked_array(onset0_14, mask=[(onset0_14==0)|(mask==0)])
+            onset1_14 = np.ma.masked_array(onset1_14, mask=[(onset1_14==0)|(mask==0)])
+            # mask the snow cover
+            mask_snow = np.load('./result_05_01/other_product/snow_mask_360_2.npy')
+            onset0 = np.ma.masked_array(onset0, mask=[mask_snow!=0])
+            onset1 = np.ma.masked_array(onset1, mask=[mask_snow!=0])
+            onset0_14 = np.ma.masked_array(onset0_14, mask=[mask_snow!=0])
+            onset1_14 = np.ma.masked_array(onset1_14, mask=[mask_snow!=0])
+            # onset0 = np.ma.masked_array(onset0, mask=[onset0==0])
+            # for ind in indicators:
+            #     onset0 = np.load(fpath1+'smap_onset_0_2016_'+ind+'_AS'+'_w'+str(std)+'.npy')
+            #     onset1 = np.load(fpath1+'smap_onset_1_2016_'+ind+'_AS'+'_w'+str(std)+'.npy')
+            #     if mask is True:
+            #         mask0 = np.load(anc_direct+'snow_mask_360s.npy')
+            #         onset0 = np.ma.masked_array(onset0, mask=[mask0==0])
+            #         onset1 = np.ma.masked_array(onset1, mask=[mask0==0])
+            #     fpath1 = 'result_08_01/'
+            thawname = 'npr_thaw_s%d_doy%d_%d' % (std, t_win[0], t_win[1])
+            # thawtitle = 'Thawing window: DOY %d--%d' % (t_win[0], t_win[1])
+            thawtitle = 's of the normal distribution: %d' % std
+            frname = 'npr_freeze_s%d_doy%d_%d' % (std, f_win[0], f_win[1])
+            # frtitle = 'Freezing window: DOY %d--%d' % (f_win[0], f_win[1])
+            frtitle = 's of the normal distribution: %d' % std
+            pass_zone_plot(lons_grid, lats_grid, onset0, fpath1, fname=thawname, z_max=60, z_min=150, prj='aea',
+                           odd_points=odd_point[:, [0, 2, 3, 4]], title_str=thawtitle)  # fpath1
+            pass_zone_plot(lons_grid, lats_grid, onset1, fpath1, fname=frname, z_max=250, z_min=340, prj='aea',
+                           odd_points=odd_point[:, [1, 2, 3, 4]], title_str=frtitle)
+
+            # pass_zone_plot(lons_grid, lats_grid, onset0, fpath1, fname=thawname, z_max=60, z_min=150, prj='aea',
+            #                odd_points=[odd_lon, odd_lat], title_str=thawtitle)  # fpath1
+            # pass_zone_plot(lons_grid, lats_grid, onset1, fpath1, fname=frname, z_max=250, z_min=340, prj='aea',
+            #                odd_points=[odd_lon, odd_lat], title_str=frtitle)
+            # pass_zone_plot(lons_grid, lats_grid, onset1_14-onset1, fpath1, fname='freeze_14_7', z_max=-20, z_min=20, prj='aea',
+            #                odd_points=[odd_lon, odd_lat], title_str='Freezing onsets bias')
+            # pass_zone_plot(lons_grid, lats_grid, onset0_14-onset0, fpath1, fname='thaw_14_7', z_max=-20, z_min=20, prj='aea',
+            #                odd_points=[odd_lon, odd_lat], title_str='Thawing onsets bias')
+
     else:
         lons_grid = np.load('./result_05_01/other_product/lon_ease2_360N_grid.npy')
         lats_grid = np.load('./result_05_01/other_product/lat_ease2_360N_grid.npy')
@@ -1878,9 +2057,9 @@ def ascat_onset_map(ob, odd_point=[], product='ascat', mask=False, std=4, mode=[
             onset0 = np.load(fpath1+'smap_onset_0_2016_'+ind+'_AS'+'_w'+str(std)+'.npy')
             onset1 = np.load(fpath1+'smap_onset_1_2016_'+ind+'_AS'+'_w'+str(std)+'.npy')
             if mask is True:
-                mask0 = np.load(anc_direct+'snow_mask_360s.npy')
-                onset0 = np.ma.masked_array(onset0, mask=[mask0==0])
-                onset1 = np.ma.masked_array(onset1, mask=[mask0==0])
+                mask_snow = np.load(anc_direct+'snow_mask_360s.npy')
+                onset0 = np.ma.masked_array(onset0, mask=[mask_snow==0])
+                onset1 = np.ma.masked_array(onset1, mask=[mask_snow==0])
             fpath1 = 'result_08_01/'
             pass_zone_plot(lons_grid, lats_grid, onset0, fpath1, fname='onset_0_smap_'+ind+'_w'+str(std),
                                    z_max=180, z_min=50, odd_points=odd_point)  # fpath1
@@ -2238,6 +2417,9 @@ def cal_obd(ass, des, as_time, des_time):
     date_as = ass[0][id_as]
     id_des = np.in1d(des[0], date_as)
     date_des = des[0][id_des]
+    if all(date_as == date_des) is not True:
+        print 'the number of ascending passes dont equal the descending'
+        return -1, -1, -1
     # cal the difference
     obd = des[1][id_des] - ass[1][id_as]
     # keep the pass time
@@ -2247,6 +2429,7 @@ def cal_obd(ass, des, as_time, des_time):
 
 def plot_obd(site_no, p='v', passvalid=False, isplot=True):
     prefix = './result_07_01/'
+    # pm/as, am/des
     as_fname, des_fname = prefix+'txtfiles/site_tb/tb_'+site_no+'_A_2016.txt', prefix+'txtfiles/site_tb/tb_'+site_no+'_D_2016.txt'
     site_as = np.loadtxt(as_fname)
     site_des = np.loadtxt(des_fname)
@@ -2271,9 +2454,9 @@ def plot_obd(site_no, p='v', passvalid=False, isplot=True):
     tbv_a, tbv_d = [as_date, site_as[:, n_tbv]], [des_date, site_des[:, n_tbv]]
     tbh_a, tbh_d = [as_date, site_as[:, n_tbh]], [des_date, site_des[:, n_tbh]]
     # check the passtime distributionn
-    fig = pylt.figure(figsize=[5, 5])
-    ax = fig.add_subplot(1, 1, 1)
-    ax.plot()
+    # fig = pylt.figure(figsize=[5, 5])
+    # ax = fig.add_subplot(1, 1, 1)
+    # ax.plot()
     if p=='v':
         obd, tb_date, pass_hr = cal_obd(tbv_a, tbv_d, pass_as, pass_des)
     elif p=='h':
@@ -2314,53 +2497,53 @@ def plot_obd(site_no, p='v', passvalid=False, isplot=True):
     sm_change = np.diff(sm_as)
     idd = np.in1d(sm_date365[1:], tb_date)
     tb_date-=365
-
-    if isplot:
-        fig = pylt.figure(figsize=[8, 8])
-        ax0 = fig.add_subplot(3, 1, 3)
-        if p == 'vh':
-            p0, = ax0.plot(tb_date, obd_v, 'o', markersize=3)
-            p0_1 = plot_funcs.plt_more(ax0, tb_date, obd_h, line_list=[p0], symbol='ro')
-            ax0.legend([p0_1[0], p0_1[1]], ['V pol.', 'H pol.'], loc=0, prop={'size': 8})
-            ax0.set_ylim([-15, 15])
-        elif p == 'vh0':
-            ax0.plot(tb_date, obd_h-obd_v, 'o', markersize=3)
-            ax0.set_ylim([-2, 2])
-        elif p == 'sig':
-            tb_date+=365
-            ax0.plot(obd_date, obd_sig, 'o', markersize=3)
-        if p=='npr':
-            ax0.set_ylim([-0.01, 0.01])
-        ax0.axhline(ls=':', lw=1.5)
-
-        ax1 = fig.add_subplot(3, 1, 2)
-        p1, = ax1.plot(tb_date, pass_hr[0], 'o')
-        p1_2 = plot_funcs.plt_more(ax1, tb_date, pass_hr[1], line_list=[p1], symbol='r+')
-        ax1.legend([p1_2[0], p1_2[1]], ['as_hour', 'des_hour'], loc=0, prop={'size': 8})
-
-        ax2 = fig.add_subplot(3, 1, 1)
-        t = sm_date_as.astype(int)-365
-        # p1, = ax2.plot(t, sm_as)
-        # t = sm_date_des.astype(int)-365
-        # p1_2 = plot_funcs.plt_more(ax2, t, sm_des, line_list=[p1], symbol='r-')
-        # ax2.legend([p1_2[0], p1_2[1]], ['as_VWC', 'des_VWC'], loc=0, prop={'size': 8})
-
-        # d, t, hr = cal_obd([np.fix(sm_date_as), sm_as], [np.fix(sm_date_des), sm_des], sm_as, sm_des)
-        # t-=365
-        # ax2.plot(t, d, 'o')
-        # ax2.axhline(ls=':', lw=1.5)
-
-        # else:
-        #     d, t, hr = cal_obd([np.fix(sm_date_as), sm_as], [np.fix(sm_date_des), sm_des], sm_as, sm_des)
-        #     t-=365
-        #     ax2.plot(t, d, 'o')
-        #     ax2.axhline(ls=':', lw=1.5)
-        ax2.set_xlim([0, 400])
-        save_prefix = './result_08_01/'
-        fig.savefig(save_prefix+site_no+'_'+p+'_obd.png')
-        pylt.close()
-    else:
-        print 'no plotting'
+    # comments on 07/26
+    # if isplot:
+    #     fig = pylt.figure(figsize=[8, 8])
+    #     ax0 = fig.add_subplot(3, 1, 3)
+    #     if p == 'vh':
+    #         p0, = ax0.plot(tb_date, obd_v, 'o', markersize=3)
+    #         p0_1 = plot_funcs.plt_more(ax0, tb_date, obd_h, line_list=[p0], symbol='ro')
+    #         ax0.legend([p0_1[0], p0_1[1]], ['V pol.', 'H pol.'], loc=0, prop={'size': 8})
+    #         ax0.set_ylim([-15, 15])
+    #     elif p == 'vh0':
+    #         ax0.plot(tb_date, obd_h-obd_v, 'o', markersize=3)
+    #         ax0.set_ylim([-2, 2])
+    #     elif p == 'sig':
+    #         tb_date+=365
+    #         ax0.plot(obd_date, obd_sig, 'o', markersize=3)
+    #     if p=='npr':
+    #         ax0.set_ylim([-0.01, 0.01])
+    #     ax0.axhline(ls=':', lw=1.5)
+    #
+    #     ax1 = fig.add_subplot(3, 1, 2)
+    #     p1, = ax1.plot(tb_date, pass_hr[0], 'o')
+    #     p1_2 = plot_funcs.plt_more(ax1, tb_date, pass_hr[1], line_list=[p1], symbol='r+')
+    #     ax1.legend([p1_2[0], p1_2[1]], ['as_hour', 'des_hour'], loc=0, prop={'size': 8})
+    #
+    #     ax2 = fig.add_subplot(3, 1, 1)
+    #     t = sm_date_as.astype(int)-365
+    #     # p1, = ax2.plot(t, sm_as)
+    #     # t = sm_date_des.astype(int)-365
+    #     # p1_2 = plot_funcs.plt_more(ax2, t, sm_des, line_list=[p1], symbol='r-')
+    #     # ax2.legend([p1_2[0], p1_2[1]], ['as_VWC', 'des_VWC'], loc=0, prop={'size': 8})
+    #
+    #     # d, t, hr = cal_obd([np.fix(sm_date_as), sm_as], [np.fix(sm_date_des), sm_des], sm_as, sm_des)
+    #     # t-=365
+    #     # ax2.plot(t, d, 'o')
+    #     # ax2.axhline(ls=':', lw=1.5)
+    #
+    #     # else:
+    #     #     d, t, hr = cal_obd([np.fix(sm_date_as), sm_as], [np.fix(sm_date_des), sm_des], sm_as, sm_des)
+    #     #     t-=365
+    #     #     ax2.plot(t, d, 'o')
+    #     #     ax2.axhline(ls=':', lw=1.5)
+    #     ax2.set_xlim([0, 400])
+    #     save_prefix = './result_08_01/'
+    #     fig.savefig(save_prefix+site_no+'_'+p+'_obd.png')
+    #     pylt.close()
+    # else:
+    #     print 'no plotting'
     heads = 'date, orbit_difference_v, orbit_difference_h'
     # if p=='vh':
     #     np.savetxt('./result_07_01/for_comparison/tp/obd_tb'+site_no+'.txt', np.array([tb_date, obd_v, obd_h]).T,
@@ -2802,3 +2985,194 @@ def angular_correct(sigma0, inc0, inc_c=45):
     sig_mn = sigma0 - (inc0-inc_c)*a
     return sig_mn
 
+
+# updated 0515/2018
+def ascat_plot_series_copy(site_no, orb_no=0, inc_plot=False, sigma_g = 5, pp=False, norm=False,
+                      txt_path='./result_05_01/ascat_point/', is_sub=False, order=1):  # orbit default is 0, ascending, night pass
+    # read series sigma
+    site = site_no
+    site_nos = site_infos.get_id(site, mode='single')
+    for si0 in site_nos:
+        if is_sub is False:
+            txtname = glob.glob(txt_path+'ascat_s'+si0+'*')[0]
+        # txtname = './result_05_01/ascat_point/ascat_s'+si0+'_2016.npy'
+        ascat_all = np.load(txtname)
+        if ascat_all.size < 1:
+            return [-1, -1, -1], [-1, -1, -1], [-1, -1], -1, [-1, -1], [-1, -1]
+        id_orb = ascat_all[:, -1] == orb_no
+        ascat_ob = ascat_all[id_orb]
+        # transform utc time to local time
+        sec_ascat = bxy.timetransform(ascat_ob[:, 1], '20000101 00:00:00', '%Y%m%d %X', tzone=True)
+        doy_tp = np.modf((sec_ascat)/3600.0/24.0)
+        doy = doy_tp[1]+1
+        passhr = np.round(doy_tp[0]*24.0)
+        times_ascat = bxy.time_getlocaltime(ascat_ob[:, 1], ref_time=[2000, 1, 1, 0])
+        doy_tp2 = times_ascat[-2]
+        passhr2 = times_ascat[-1]
+
+        # angular normalization
+        tx = doy_tp[1]+1 -365
+        p = (tx > 0) & (tx < 60)
+        x, y = ascat_ob[p, 5: 8].reshape(1, -1)[0], ascat_ob[p, 2: 5].reshape(1, -1)[0]
+        a, b = np.polyfit(x, y, 1)
+        print 'the angular dependency: a: %.3f, b: %.3f' % (a, b)
+        f = np.poly1d([a, b])
+
+        # angular dependency for each ob mode
+        p_win, p_su = (tx>0) & (tx<60), (tx>150)&(tx<260)
+        x_trip_win, x_trip_su = ascat_ob[p_win, 5: 8], ascat_ob[p_su, 5: 8]
+        y_trip_win, y_trip_su = ascat_ob[p_win, 2: 5], ascat_ob[p_su, 2: 5]
+        a_array, b_array, d_array = np.zeros(6)-1, np.zeros(6)-1, np.zeros(3) - 99
+        for i1 in range(0, 3):
+            a_w, b_w = np.polyfit(x_trip_win[:, i1], y_trip_win[:, i1], 1)
+            a_s, b_s = np.polyfit(x_trip_su[:, i1], y_trip_su[:, i1], 1)
+            a_array[i1], b_array[i1] = a_w, b_w
+            a_array[i1+3], b_array[i1+3] = a_s, b_s
+            d_array[i1] = np.mean(y_trip_su[:, i1]) - np.mean(y_trip_win[:, i1])
+        a_coef_name = 'ascat_linear_a.txt'
+        b_coef_name = 'ascat_linear_b.txt'
+        with open(a_coef_name, 'a') as t_file:
+            t_file.write('%s,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n' % (site_no, a_array[0], a_array[1], a_array[2],
+                                                              a_array[3], a_array[4], a_array[5], d_array[0], d_array[1], d_array[2]))
+        with open(b_coef_name, 'a') as t_file:
+            t_file.write('%s,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n' % (site_no, b_array[0], b_array[1], b_array[2],
+                                                              b_array[3], b_array[4], b_array[5], d_array[0], d_array[1], d_array[2]))
+
+        sig_m = ascat_ob[:, 3]
+        inc_m = ascat_ob[:, 6]
+        # sig_m = ascat_ob[:, 2]  # changed using the forwards mode to increase the winter summer difference
+        # inc_m = ascat_ob[:, 5]
+        sig_mn = sig_m - (ascat_ob[:, 6]-45)*a
+        # daily average:
+        tdoy = tx
+        u_doy = np.unique(tdoy)
+        sig_d, i0 = np.zeros([u_doy.size, 2]), 0
+        pass_hr_d = np.zeros(u_doy.size)
+        inc_d = np.zeros(u_doy.size)
+        for td in u_doy:
+            sig_d[i0][0] = td
+            sig_d[i0][1] = np.mean(sig_mn[tdoy == td])
+            inc_d[i0] = np.mean(inc_m[tdoy == td])  # daily incidence angle
+            pass_hr_d[i0] = np.mean(passhr[tdoy == td])
+            i0 += 1
+        tx = sig_d[:, 0]
+        sig_mn = sig_d[:, 1]
+        pass_hr_d = np.round(pass_hr_d)
+        # one more constraints, based on incidence angle
+        # id_inc = bxy.gt_le(inc_d, 30, 35)
+        # tx, sig_mn = tx[id_inc], sig_mn[id_inc]
+
+        # edge detect
+        sig_g = sigma_g  # gaussian stds
+        g_size = 6*sig_g/2
+        if order == 1:
+            g_sig, ig2 = gauss_conv(sig_mn, sig=sig_g, size=2*g_size+1)  # non-smoothed
+        elif order == 2:
+            g_sig, ig2 = gauss2nd_conv(sig_mn, sig=sig_g)
+        g_sig_valid = 2*(g_sig[g_size: -g_size] - np.nanmin(g_sig[g_size: -g_size]))\
+                    /(np.nanmax(g_sig[g_size: -g_size]) - np.nanmin(g_sig[g_size: -g_size]))-1
+        g_sig_valid_non = g_sig[g_size: -g_size]  # NON-normalized
+        if norm == True:
+            g_sig_valid = g_sig[g_size: -g_size]  # NON-normalized
+        max_gsig_s, min_gsig_s = peakdetect.peakdet(g_sig_valid_non, 1e-1, tx[g_size: -g_size])
+        onset = find_inflect(max_gsig_s, min_gsig_s, typez='annual')
+
+        # new updated 20161130
+        # onset, g_npr, i_gaussian, g_sig_valid_non, max_gsig_s, min_gsig_s, sig \
+        #     = gauss_cov_snr(sig_mn, 1e-1, tx+365)
+        # tp = [x for x in onset]
+        # onset = tp
+        # g_size = 6*sig/2
+        # print 'site no is %s' % si0
+
+        print 'station ID is %s' % si0
+        if inc_plot is True:
+            # tx = doy_tp[1]+1 -365
+            # p = (tx > 20) & (tx < 90)
+            # x, y = ascat_ob[p, 5: 8].reshape(1, -1)[0], ascat_ob[p, 2: 5].reshape(1, -1)[0]
+            plot_funcs.inc_plot_ascat(ascat_ob, site_no)
+            # ons_site = sm_onset(sm5_date-365, sm5_daily, t5_daily)
+        # onset based on ascat
+
+        # actual pass time
+        # sec_ascat = bxy.timetransform(ascat_ob[:, 1], '20000101 00:00:00', '%Y%m%d %X', tzone=True)
+        # doy, passhr = np.modf((sec_ascat)/3600.0/24.0)[1] + 1, np.round(np.modf((sec_ascat)/3600.0/24.0)[0]*24)
+        return [tx[ig2][g_size: -g_size]+365, g_sig_valid, g_sig_valid_non], \
+               [tx, sig_mn, inc_d], \
+               onset,\
+               pass_hr_d,\
+               [u_doy+365, pass_hr_d],\
+               [max_gsig_s, min_gsig_s]  # g_sig[g_size: -g_size] g_sig_valid
+    # read site data
+    # plot
+    return 0
+
+
+def smap_alaska_grid(year=2016):  # not used 0718/2018
+    # spt_quick.smap_area_plot(t_str, save_dir='./result_08_01/area/smap/', orbit='A')
+    # save_dir = './result_08_01/area/smap/SMAP_alaska_A_201601*.h5'
+    match_file = './result_08_01/area/SMAP/SMAP_alaska_A_%d*.h5' % year
+    h5_list = sorted(glob.glob('./result_08_01/area/SMAP/SMAP_alaska_A_2017*.h5'))
+    min_row, min_col, max_row, max_col = 999, 999, 0, 0
+    lons, lats, cols, rows = np.array([]), np.array([]), np.array([]), np.array([])
+    for h5_file in h5_list:
+        h0 = h5py.File(h5_file, 'r')
+        h0_north = h0['North_Polar_Projection']
+        cell_lon, cell_lat, cell_col, cell_row = \
+            h0_north[u'cell_lon'], h0_north[u'cell_lat'], h0_north[u'cell_column'], h0_north[u'cell_row']
+        min_row0, min_col0, max_row0, max_col0 = \
+            np.min(cell_row), np.min(cell_col), np.max(cell_row), np.max(cell_col)
+        min_row, min_col = min(min_row0, min_row), min(min_col0, min_col)
+        max_row, max_col = max(max_row0, max_row), max(max_col0, max_col)
+        lons, lats, cols, rows = \
+            np.append(lons, cell_lon), np.append(lats, cell_lat), np.append(cols, cell_col), np.append(rows, cell_row)
+    lat_grid, lon_grid = \
+        np.zeros([max_row-min_row+1, max_col-min_col+1]), np.zeros([max_row-min_row+1, max_col-min_col+1])
+    TBdir = '/media/327A50047A4FC379/SMAP/SPL1CTB.003/'
+
+    for row0 in range(min_row, max_row+1):
+        for col0 in range(min_col, max_col+1):
+            idx = np.where((cols == col0) & (rows == row0))
+            print idx
+            break
+        break
+
+
+    return 0
+
+
+def smap_ascat_position():
+    ascat_grid_lat, ascat_grid_lon = np.load('lat_ease_grid.npy'), np.load('lon_ease_grid.npy')
+    smap_h5 = 'result_08_01/area/smap_area_result/SMAP_alaska_A_GRID_20160105.h5'
+    h0 = h5py.File(smap_h5)
+    smap_grid_lat, smap_grid_lon = h0[u'cell_lat'].value, h0[u'cell_lon'].value
+    ascat_lat, ascat_lon, smap_lat, smap_lon = \
+        ascat_grid_lat.ravel(), ascat_grid_lon.ravel(), smap_grid_lat.ravel(), smap_grid_lon.ravel()
+    ascat_table_row, ascat_table_col = np.zeros([smap_lat.size, 9]) - 99, np.zeros([smap_lat.size, 9]) - 99
+    for id0 in range(0, smap_lat.size):
+        # print id0
+        smap_ascat_table0 = np.zeros([2, 9]) - 99
+        smap0 = [smap_lat[id0], smap_lon[id0]]
+        dis = bxy.cal_dis(smap_lat[id0], smap_lon[id0], ascat_lat, ascat_lon)
+        sub9 = np.argsort(dis)[0: 9]
+        for i0, subi in enumerate(sub9):
+            tp_rc = bxy.trans_in2d(subi, [300, 300])
+            smap_ascat_table0[0, i0] = tp_rc[0]
+            smap_ascat_table0[1, i0] = tp_rc[1]
+        ascat_table_row[id0], ascat_table_col[id0] = smap_ascat_table0[0], smap_ascat_table0[1]
+    np.savetxt('ascat_row_table.txt', ascat_table_row, fmt='%d', delimiter=',')
+    np.savetxt('ascat_col_table.txt', ascat_table_col, fmt='%d', delimiter=',')
+
+
+def latlon2rc(target):
+    lon_t, lat_t = target[0], target[1]
+    h5_name = 'result_08_01/area/smap_area_result/SMAP_alaska_A_GRID_%s.h5' % '20160108'
+    h0 = h5py.File(h5_name)
+    lons_grid = h0['cell_lon'].value
+    lats_grid = h0['cell_lat'].value
+    dis_array = bxy.cal_dis(lat_t, lon_t, lats_grid.ravel(), lons_grid.ravel())
+    idx_1d = np.argmin(dis_array)
+    rc = bxy.trans_in2d(idx_1d, lons_grid.shape)
+    # print rc
+    # print lats_grid[rc[0], rc[1]], lons_grid[rc[0], rc[1]]
+    return rc, idx_1d

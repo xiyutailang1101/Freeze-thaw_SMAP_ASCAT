@@ -124,6 +124,7 @@ def timetransform(time_utc, reftime, fms, tzone=False):
     sec_ascat = time_utc-sec_2015.total_seconds()
     # transform to local time
     if tzone:
+        pause = 0
         sec_ascat[(sec_ascat>sec_20160312.total_seconds()) & (sec_ascat<sec_20161105.total_seconds())] -= 8*3600
         sec_ascat[sec_ascat<sec_20160312.total_seconds()] -= 9*3600
         sec_ascat[sec_ascat>sec_20161105.total_seconds()] -= 9*3600
@@ -157,7 +158,7 @@ def time_getlocaltime(utc_sec, ref_time=[2000, 1, 1, 12]):  # default ob: asc
                             p_time0.astimezone(tz=tz_ak).timetuple().tm_yday,
                             p_time0.astimezone(tz=tz_ak).timetuple().tm_hour]
                            for p_time0 in passtime_obj_list]).T
-    return doy_passhr
+    return doy_passhr  # year, month, day, doy, hour
 
 
 def zone_trans(secs, zone0, zone1, ref_time=[2000, 1, 1, 0]):
@@ -263,9 +264,9 @@ def los_factor(a, b, omega):
     return 2*np.pi*omega*np.sqrt(1.0*a/2*(np.sqrt(1+(b/a)**2)-1))
 
 
-def doy2date(doy, year0=2016):
-    d_obj = datetime(year0, 1, 1) + timedelta(doy)
-    return d_obj.strftime("%m%d")
+def doy2date(doy, year0=2016, fmt="%m%d"):
+    d_obj = datetime(year0, 1, 1) + timedelta(doy-1)
+    return d_obj.strftime(fmt)
 
 
 def current_time():
@@ -279,5 +280,74 @@ def test_read_txt(delimiter=','):
             atts = row0.split(delimiter)
             print atts[0], atts[1]
             break
+
+
+def get_head_cols(fname, headers=[]):
+    if len(headers) == 0:
+        print 'input headers required'
+    else:
+        site_tb = np.loadtxt(fname)
+        with open(fname, 'rb') as as0:
+
+            for row in as0:
+                row0 = re.split(', |,|\n', row[2:])
+                col_num = []
+                for head0 in headers:
+                    col_num.append(row0.index(head0))
+                    # 'cell_tb_time_seconds_aft', 'cell_tb_v_aft', 'cell_tb_h_aft', 'cell_tb_qual_flag_v_aft',
+                    # 'cell_tb_qual_flag_h_aft', 'cell_tb_error_v_aft', 'cell_tb_error_h_aft', 'cell_lon', 'cell_lat'
+                return col_num
+
+
+def time_normalize(time_array):
+    return time_array
+
+
+def trans_in2d(idx_1d, shape):
+    row_num = idx_1d/shape[1]
+    col_num = idx_1d - idx_1d/shape[1] * shape[1]
+    idx_2d = np.array([row_num, col_num])
+    return idx_2d
+
+
+def trans_doy_str(doy_array):
+    doy_str = []
+    for doy0 in doy_array:
+        doy_str0 = doy2date(doy0, year0=2015, fmt="%Y%m%d")
+        doy_str.append(doy_str0)
+    return doy_str
+
+
+def odd_out(out_name, out_value, nodata_id=0):
+    """
+    save ood value record on an ascii file
+    :param out_name:
+    :param out_value:
+    :param nodata_id:
+    :return:
+    """
+    if type(out_value) == str:
+        lines = 'odd value is %s' % out_value
+    else:
+        lines = 'odd value is %.1f' % out_value
+    with open(out_name, 'a') as writer0:
+        if nodata_id == 0:
+            time0 = datetime.now().timetuple()
+            time_str = '%d-%d, %d: %d \n' % (time0.tm_mon, time0.tm_mday, time0.tm_hour, time0.tm_min)
+            writer0.write(time_str)
+            writer0.write(lines)
+            writer0.write('\n')
+            nodata_id += 1
+        else:
+            writer0.write(lines)
+            writer0.write('\n')
+
+
+def geo_2_row(grid, target):
+    dis = cal_dis(target[1], target[0], grid[1].ravel(), grid[0].ravel())
+    idx_1d = np.argmin(dis)
+    rc = trans_in2d(idx_1d, grid[0].shape)
+    return rc
+
 
 

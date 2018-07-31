@@ -20,6 +20,7 @@ import basic_xiyu as bs
 from plot_funcs import plt_more
 import test_def
 import glob
+import basic_xiyu as bxy
 
 # def initlog():
 #     import logging
@@ -107,6 +108,36 @@ def return_ind(filenamez, siten, sensor, prj='North_Polar_Projection',thsig=[0.4
         region_ind = np.intersect1d(lon_ind, lat_ind)
         # print '============', lon_t, lat_t, lon_ind, lat_ind, region_ind
         return region_ind, 1
+    elif sensor == 'grid':
+        # initialize
+        i_dic = 0
+        ki = 0
+        site_dict = {site_no0: dict() for site_no0 in siten}
+        lon_dic = {site_no0: [] for site_no0 in siten}
+        # a dict for each site, keys of the dict is the same with the smap_h5
+        for f0 in filenamez:
+            i_dic += 1
+            hf = h5py.File(f0, 'r')
+            dset_col = np.array(hf[prj + '/cell_column'])
+            dset_row = np.array(hf[prj + '/cell_row'])
+            for site_no0 in site_dict.keys():
+                #  hf_site = h5py.File('./h5_l1c/smap_'+site_no0[0]+'.h5', 'a')
+                site_info0 = site_infos.change_site(site_no0)
+                lat_t, lon_t = site_info0[1], site_info0[2]
+                loc_ind = np.where((dset_col>159) & (dset_col<251) & (dset_row>139) & (dset_row<221))
+                lon_dic[site_no0].append(loc_ind)
+                if loc_ind[0].size > 0:
+                    #read_tb_site(hf, site_dict[site_no0], loc_ind, prj)
+                    att_keys = hf[prj].keys()
+                    for key in att_keys:
+                        if ki<1:
+                            site_dict[site_no0][prj+'/'+key] = hf[prj+'/'+key].value[loc_ind]
+                        else:
+                            site_dict[site_no0][prj+'/'+key] = np.concatenate((site_dict[site_no0][prj+'/'+key], hf[prj+'/'+key].value[loc_ind]))
+                    ki += 1
+            hf.close()
+        return lon_dic, site_dict
+
     elif sensor == 'amsr2':
          # initialize
         i_dic = 0
@@ -654,7 +685,7 @@ def save_radar(ind, h5_in, field, ini):
 logging1 = log_write.initlog('test1')
 
 
-def radar_read_main(orbit, site_number, peroid, polars):
+def radar_read_main(orbit, site_number, peroid, polars, r_range=False):
     """
     Radiometer saving form:
         Based on date, each date contains all the global orbits and numbers of observing time
@@ -676,10 +707,6 @@ def radar_read_main(orbit, site_number, peroid, polars):
     TB_date = []
     TB_date2, TB_ind = [], -1  # use to find yyyy.mm.dd format documents
     # Time list of radar data
-    time_list = []
-    field_radar = ['Sigma0_Data/cell_sigma0_vv_aft', 'Sigma0_Data/cell_lat', 'Sigma0_Data/cell_lon']
-    attr_name_sig = ['Sigma0_Data/cell_sigma0_vv_aft', 'Sigma0_Data/cell_sigma0_qual_flag_vv',
-                                  'Sigma0_Data/cell_lat', 'Sigma0_Data/cell_lon']
     i = 0
     tb_attr_name = ['/cell_tb_v_aft', '/cell_tb_h_aft', '/cell_tb_qual_flag_v_aft', '/cell_tb_qual_flag_h_aft',
                     "/cell_lat", "/cell_lon"]  # /cell_lon here is for tb cell
@@ -745,9 +772,12 @@ def radar_read_main(orbit, site_number, peroid, polars):
             tb_full_path = [TBdir + tb_folder + '/' + tb_name for tb_name in tb_name_list]
             # fname = TBdir + tb_folder + '/' + tb_name
             print site_number
-            site_ind, hdf5_slice = return_ind(tb_full_path, site_number, 'tbs', prj=proj)
+            if r_range is not False:
+                site_ind, hdf5_slice = return_ind(tb_full_path, site_number, 'tbs', prj=proj, thtb=r_range)
+            else:
+                site_ind, hdf5_slice = return_ind(tb_full_path, site_number, 'tbs', prj=proj)
             for sn in hdf5_slice.keys():
-                hf0 = h5py.File('./tp/SMAP_'+sn+orbit+time_str+'.h5', 'a')
+                hf0 = h5py.File('./result_08_01/area/SMAP/SMAP_'+sn+orbit+time_str+'.h5', 'a')
                 for key in hdf5_slice[sn]:
                     hf0[key] = hdf5_slice[sn][key]
                 hf0.close()
@@ -879,6 +909,93 @@ def radar_read_main(orbit, site_number, peroid, polars):
         # sys.exit()
 # print(time_list)
 # print(Site_sig0)
+
+
+def radar_read_alaska(orbit, site_number, peroid, polars, r_range=False, ):
+    n = 1
+    # orbit = '_D_'
+
+    rootdir = '/media/Seagate Expansion Drive/Data_Xy/CloudFilm/'  # directory: sigma
+    TBdir = '/media/327A50047A4FC379/SMAP/SPL1CTB.003/'  # directory: TB, listed by date document
+    TB_date_list = sorted(os.listdir(TBdir))
+    TB_date = []
+    TB_date2, TB_ind = [], -1  # use to find yyyy.mm.dd format documents
+    # Time list of radar data
+    i = 0
+    tb_attr_name = ['/cell_tb_v_aft', '/cell_tb_h_aft', '/cell_tb_qual_flag_v_aft', '/cell_tb_qual_flag_h_aft',
+                    "/cell_lat", "/cell_lon"]  # /cell_lon here is for tb cell
+
+    # list of additional tb data
+    time_ini = 0
+    for time_dot in TB_date_list:
+        if time_dot == peroid[0]:
+            time_ini = 1
+        elif time_dot == peroid[1]:
+            time_ini = 0
+        if time_ini > 0:
+            TB_date.append(time_dot.replace(".", ""))
+            TB_date2.append(time_dot)
+    for time_str in TB_date:  # loop day by day
+        TB_ind += 1
+    # for time_str in ['20150421', '20150422']:
+        print('At the date of %s and %s' % (time_str, TB_date2[TB_ind]))
+        logging1.info('At the date of %s' % time_str)
+        '''
+        ********************************************************************************************************************
+    1\\\Find the TB data filename list and read the data around the station,
+        for each site the radius in degrees is set as 1 degree, several pixels around the Site will be found.
+        1a. Generate the file list;
+        1b. Read each file in the list.
+        ********************************************************************************************************************
+        '''
+        # 01 list with radiometer files
+        tb_file_list = []
+        tb_ob_list = []
+        tb_folder = TB_date2[TB_ind]
+        print 'the order of tb_file is :', tb_folder
+        for tbs in os.listdir(TBdir + tb_folder):
+            if tbs.find('.iso') == -1 and tbs.find(orbit) != -1 and tbs.find('.qa') == -1:  # Using ascend orbit data, iso and is metadata we don't need
+                tb_file_list.append(tbs)
+                p_underline = re.compile('_')
+                tb_ob_list.append(p_underline.split(tbs)[3])
+        obset = set(tb_ob_list)
+        tb_name_list = []
+        for orb_no in obset:  # ob_set is a set of orbit numbers
+            list_orb = []
+            for tb_file in tb_file_list:  # tb_file_list is a list of all tb files (Line 175)
+                if re.search(orb_no, tb_file):
+                    list_orb.append(tb_file)
+            if len(list_orb) > 1:
+                looks = sorted([p_underline.split(lkt)[-1] for lkt in list_orb])
+                last_look = looks[-1]
+                for lk in list_orb:
+                    if lk.find(last_look) != -1:
+                        tb_name_list.append(lk)
+            else:
+                tb_name_list.append(sorted(list_orb)[-1])
+
+        # 02 read data from list created in 01
+        proj_g = 'Global_Projection'
+        proj_n = 'North_Polar_Projection'
+        count_tb = 0  # remains 1 if no tb file was found
+        d_att = {'_key': 'dict for global tb'}  # create dictionary for store tb data temporally
+        for proj in [proj_n]:  # two projection method:
+            count_tb = 0
+            for namez in tb_attr_name:
+                d_att[namez] = np.array([])
+            tb_full_path = [TBdir + tb_folder + '/' + tb_name for tb_name in tb_name_list]
+            # fname = TBdir + tb_folder + '/' + tb_name
+            print site_number
+            if r_range is not False:
+                site_ind, hdf5_slice = return_ind(tb_full_path, site_number, 'grid', prj=proj, thtb=r_range)
+            else:
+                site_ind, hdf5_slice = return_ind(tb_full_path, site_number, 'grid', prj=proj)
+            for sn in hdf5_slice.keys():
+                hf0 = h5py.File('./result_08_01/area/SMAP/SMAP_'+sn+orbit+time_str+'.h5', 'a')
+                for key in hdf5_slice[sn]:
+                    hf0[key] = hdf5_slice[sn][key]
+                hf0.close()
+            continue
 
 
 def readradar(orbit='_A_'):
@@ -1049,7 +1166,7 @@ def getascat(site_no, doy, year0=2015, orbit=1, center=False):
     # return 0
 
 
-def read_ascat_alaska(doy, year0=2015, orbit=1):
+def read_ascat_alaska(doy, year0=2015):
     site_no = ['alaska']
     path_ascat = '/media/327A50047A4FC379/ASCAT/ascat_l1/'
     filelist = os.listdir(path_ascat)
@@ -1057,6 +1174,7 @@ def read_ascat_alaska(doy, year0=2015, orbit=1):
     dayz = doy - (doy/365 * 365)  # get the year and j
     dtime0 = datetime.datetime(yr, 01, 01) + datetime.timedelta(dayz-1)
     dtime_str = dtime0.strftime('%Y%m%d')  # get yyyymmdd formated string, matching it in file list
+    dtime_str = bxy.doy2date(doy, fmt='%Y%m%d')
     print 'Now data at %s is searching' % (dtime_str)
     file_daily = []  # daily nc list
     for ncfile in filelist:
@@ -1094,10 +1212,11 @@ def read_tb_site(h5_smap, dic_site, location, prj):
     return dic_site
 
 
-def read_tb2txt(site_no, ob, attribute_name='smap_tb', fname=[], year_type = 'water', prefix='./', is_inter=True):
-    site_path = site_infos.get_data_path('_05_01') + 's' + site_no + '/'
+def read_tb2txt(site_no, ob,
+                attribute_name='smap_tb', fname=[], year_type = 'water', is_inter=True, ipt_path='_05_01'):
+    site_path = site_infos.get_data_path(ipt_path) + 's' + site_no + '/'
     if year_type == 'water':
-        file_list, d_list = read_site.get_h5_list('20151001', '20170301', site_no, ob)  #
+        file_list, d_list = read_site.get_h5_list('20151001', '20170301', site_no, ob, ipt_path)  #
     else:
         file_list, d_list = read_site.get_h5_list('20160101', '20161225', site_no, ob)
     # initials
@@ -1109,7 +1228,7 @@ def read_tb2txt(site_no, ob, attribute_name='smap_tb', fname=[], year_type = 'wa
         head += (atti+',')
     day0 = 0
     for doyi, single_file in enumerate(file_list):
-        if single_file == 'SMAP_967_A_20160224.h5':
+        if single_file == 'SMAP_1233_A_20160531.h5':
             pause = 0
         filename = site_path + single_file
         if is_inter is True:

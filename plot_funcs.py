@@ -313,7 +313,7 @@ def inc_plot_ascat(ascat_ob, site_no):
     plt.rcParams.update({'font.size': 16})
     plt.tight_layout()
     figname = 'ascat_plot_series_test_%s' % site_no
-    plt.savefig(figname)
+    plt.savefig(figname, dpi=300)
     fig.clear()
     plt.close()
 
@@ -491,3 +491,91 @@ def check_rgb(c, a=1.):
     list0 = colorConverter.to_rgb(c)
     print list0
     return list0
+
+
+def plot_tair_npr_onset(fname):
+    xy_onset = np.loadtxt(fname, delimiter=',')
+    # ax = fig0.add_subplot(1, 1, 1)
+    ax = plt.subplot2grid((1, 5), (0, 0), colspan=3)
+    params = {'mathtext.default': 'regular'}
+    plt.rcParams.update(params)
+    symbs = ['o', '^', '*', 's', 'D', 'h']
+    clrs = ['r', 'g', 'b']
+    site_no = xy_onset[:, -1]
+    for i in range(0, len(symbs)):
+        for j in range(0, len(clrs)):
+            if i*3+j > 16:
+                break
+            sitename = site_infos.change_site(str(int(site_no[i*3+j])), names=True)
+            ax.plot(xy_onset[i*3+j, 0], xy_onset[i*3+j, 1], clrs[j]+symbs[i], label=sitename, markersize=10)
+
+    # ax.plot(xy_onset[:, 0], xy_onset[:, 1], 'ko')
+    # legend(ll, [key0], prop={'size': 10}, numpoints=1)
+    # bbox_to_anchor=(1.07, 1), loc=2, borderaxespad=0., prop={'size': 12}
+    ax.legend(bbox_to_anchor=(1.07, 1), loc=2, borderaxespad=0., prop={'size': 17}, numpoints=1)
+
+    ax.set_xlabel('$Thawing\ onset\ (NPR)$ \n Day of year 2016')
+    ax.set_ylabel('$Thawing\ onset\ (T_{air})$ \n Day of year 2016')
+    ax.text(0.20, 0.85, 'Bias = 1$\pm$3 (days)', transform=ax.transAxes, va='top', fontsize=22)
+    ax.plot(np.arange(1, 150), np.arange(1, 150))
+    ax.set_xlim([70, 135])
+    ax.set_ylim([70, 135])
+    plt.rcParams.update({'font.size': 24})
+    plt.tight_layout()
+    plt.savefig('result_08_01/air_npr_onset')
+
+
+def plot_comparison(fname, colnum, figname):
+    ob_col, pred_col, label_col = colnum[0], colnum[1], colnum[2]
+    ax = plt.subplot2grid((1, 10), (0, 0), colspan=7)
+    xy_onset = np.loadtxt(fname, delimiter=',')
+    with open(fname) as reader0:
+        for line0 in reader0:
+            heads = line0.split(',')
+            break
+    params = {'mathtext.default': 'regular'}
+    plt.rcParams.update(params)
+    symbs = ['o', '^', '*', 's', 'D', 'h']
+    clrs = ['r', 'g', 'b']
+    site_no = xy_onset[:, label_col]  # site_no and label
+    for i in range(0, len(symbs)):
+        for j in range(0, len(clrs)):
+            if i*3+j > 16:
+                break
+            sitename = int(site_no[i*3+j])
+            ax.plot(xy_onset[i*3+j, ob_col], xy_onset[i*3+j, pred_col], clrs[j]+symbs[i], label=sitename, markersize=10)
+
+
+    ax.legend(bbox_to_anchor=(1.07, 1), loc=2, borderaxespad=0., prop={'size': 14}, numpoints=1)
+
+    x_label = 'Ob. onset (%s) \n Day of year 2016' % heads[ob_col]
+    y_label = 'Pred. onset (%s) \n Day of year 2016' % heads[pred_col]
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    # ax.text(0.20, 0.85, 'Bias = 1$\pm$3 (days)', transform=ax.transAxes, va='top', fontsize=22)
+    ax_min = np.min(np.array([xy_onset[:, ob_col], xy_onset[:, pred_col]]))
+    ax.plot(np.arange(int(ax_min)-20, int(ax_min)+80), np.arange(int(ax_min)-20, int(ax_min)+80))
+    ax.set_xlim([int(ax_min)-20, int(ax_min)+80])
+    ax.set_ylim([int(ax_min)-20, int(ax_min)+80])
+    plt.xticks(rotation='vertical')
+    plt.rcParams.update({'font.size': 24})
+    plt.tight_layout()
+    save_name = 'result_08_01/%s' % figname
+    plt.savefig(save_name)
+    return 0
+
+
+def plot_interp_time_series(series_list, label, odd_threshold=0):
+    plot_nums = len(series_list)
+    if plot_nums > 5:
+        print 'the number of subplots is too large:', plot_nums
+        return 0
+    for i in range(0, plot_nums):
+        ax = plt.subplot2grid((plot_nums, 1), (i, 0))
+        x_value, y_value, label0 = series_list[i][:, 0], series_list[i][:, 1], label[i]
+        valid_id = y_value>odd_threshold
+        ax.plot(x_value[valid_id], y_value[valid_id], label=label0)
+        ax.legend()
+        ax.set_ylabel(label0)
+    plt.savefig('tp/temp_timeseries_0730/test.png')
+    plt.close()

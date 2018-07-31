@@ -30,25 +30,46 @@ import site_infos
 #                      'cell_tb_v_fore', 'cell_tb_qual_flag_v_fore', 'cell_tb_error_v_fore',
 #                      'cell_tb_h_fore', 'cell_tb_qual_flag_h_fore', 'cell_tb_error_h_fore',
 #                      'cell_boresight_incidence_fore', 'cell_tb_time_seconds_fore']}
-
-
+site_nos = ['947', '949', '950', '960', '962', '967', '968', '1090', '1175', '1177', '1233', '2065', '2081', '2210', '2211', '2212', '2213']
+orb = '_A_'
+for site_no in site_nos:
+    full_path = 'tp/temp_timeseries_0730/tb_'+site_no+orb+'2016.txt'
+    Read_radar.read_tb2txt(site_no, orb, fname=full_path, attribute_name='smap_ta_lonlat_colrow',
+                                   year_type='water', is_inter=True)
+sys.exit()
 site_nos_new = ['957', '958', '963', '2080', '947', '949', '950',
                 '960', '962', '967', '968', '1090', '1175', '1177', '1233',
                 '2065', '2081', '2210', '2211', '2212', '2213']
 site_nos_new = ['957', 'ns1', 'ns2', 'ns3', 'ns4', 'ns5', 'ns6', 'ns7']
 site_nos_new = ['957', '9001', '9002', '9003', '9004', '9005', '9006', '9007']
-doy0 = range(10, 150)
+# read from downloaded L1C data
+site_nos_new = ['9001', '9002', '9003', '9004', '9005', '9006', '9007',
+                '948', '958', '963', '2080', '947', '949', '950',
+                '960', '962', '967', '968', '1090', '1175', '1177', '1233',
+                '2065', '2081', '2210', '2211', '2212', '2213'
+                ]  # no '957'
+site_nos_new = ['9001', '9002', '9003', '9004', '9005', '9006', '9007',
+                '948', '958', '963', '2080',
+                '947', '949', '950',
+                '960', '962', '967', '968', '1090', '1175', '1177', '1233',
+                '2065', '2081', '2210', '2211', '2212', '2213'
+                ]  # no '957'
+# site_nos_new = ['1233', '2065']
+# Read_radar.radar_read_main('_A_', site_nos_new, ['2016.06.02', '2016.12.31'], 'vv')
+# Read_radar.radar_read_main('_D_', site_nos_new, ['2016.06.02', '2016.12.31'], 'vv')
+doy0 = range(10, 251)
 for doy in doy0:
     Read_radar.getascat(site_nos_new, doy)
-# bcomand = "sh result_08_01/point/ascat/cpdata.sh"
+bcomand = "sh result_08_01/point/ascat/cpdata.sh"
 # os.system(bcomand)
 sys.exit()
 for site_no in site_nos_new:
 
     for orb in ['_A_', '_D_']:
-        full_path = './result_07_01/txtfiles/SMAP_pixel_series/tb_'+site_no+orb+'2016'
+        full_path = './result_08_01/point/smap_pixel/time_series/tb_'+site_no+orb+'2016'
         Read_radar.read_tb2txt(site_no, orb, fname=full_path, attribute_name='smap_ta_lonlat_colrow',
-                               year_type='water', prefix='result_07_01/txtfiles/site_tb/multipixels/', is_inter=False)
+                               year_type='water', is_inter=True, ipt_path='_08_01')
+        print '%s-%s has been all extracted' % (site_no, orb)
 
 sys.exit()
 

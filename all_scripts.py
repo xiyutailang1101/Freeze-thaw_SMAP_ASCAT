@@ -21,6 +21,8 @@ import site_infos
 import pytz
 import Read_radar
 import subprocess as sb
+import h5py
+from matplotlib import colors, cm, colorbar
 
 
 def draw_pie_landcover():
@@ -69,14 +71,16 @@ def draw_pie_landcover():
                         p_4 = np.sum(arr1[:, 1][i_0])
                         i_0 = (arr1[:, 0] > 70) & (arr1[:, 0] < 90) # grass
                         p_5 = np.sum(arr1[:, 1][i_0])
-                        i_0 = (arr1[:, 0] > 89)  # wetland
+                        i_0 = (arr1[:, 0] > 89) & (arr1[:, 0] < 92)  # wetland
                         p_6 = np.sum(arr1[:, 1][i_0])
-                        pp = np.array([p_1, p_4, p_0, p_6, p_3, p_5, p_2])
+                        i_0 = (arr1[:, 0] > 91)
+                        p_7 = np.sum(arr1[:, 1][i_0])
+                        pp = np.array([p_1, p_4, p_0, p_6, p_7, p_3, p_5, p_2])
                         i_0 = np.where(pp>5)
                         label0s = {'11': 'water', '12': 'perennial snow', '31': 'Barren Land', '41': 'Forest', '51': 'Shrub', '71': 'Grass', '90': 'wetland'}
                         label1s = ['Water', 'Perennial Snow', 'Barren Land', 'Forest', 'Shrub',  'Grass', 'wetland']
                         label_color = {'Water': 'aqua', 'Perennial Snow': 'snow', 'Barren Land': 'brown', 'Forest': 'forestgreen',
-                                       'Shrub': 'olive',  'Grass': 'palegreen', 'wetland': 'steelblue'}
+                                       'Shrub': 'olive',  'Grass': 'palegreen', 'wetland': 'steelblue', 'wetland2': 'cyan'}
                         labels = [label_color.keys()[i] for i in i_0[0]]  # labels
                         sizes = [pp[i] for i in i_0[0]]  # sizes
                         cc = [label_color[i] for i in labels]
@@ -305,7 +309,7 @@ def new_process(site_nos):
     # np.savetxt('result_07_01/test_melt_date.txt', save_txt.T, fmt='%d', delimiter=',')
 
 
-def test_method(ft, txt=False):
+def test_method(ft, txt=False, ft2='freeze'):
     # plot_filter()
     txtname = './result_07_01/methods/%s_ratio.csv' % ft
     if txt is False:
@@ -339,7 +343,10 @@ def test_method(ft, txt=False):
         snrs = np.loadtxt(txtname, delimiter=',')
         mean_npr, mean_tb, mean_ascat = snrs[0], snrs[1], snrs[2]
         s = np.arange(1, 10.4, 0.4)
-
+        txtname2 = './result_07_01/methods/%s_ratio.csv' % ft2
+        snrs2 = np.loadtxt(txtname2, delimiter=',')
+        mean_npr2, mean_tb2, mean_ascat2 = snrs2[0], snrs2[1], snrs2[2]
+        mean_npr, mean_tb, mean_ascat =0.5*(mean_npr+mean_npr2), 0.5*(mean_tb+mean_tb2), 0.5*(mean_ascat+mean_ascat2)
     figs = plt.figure()
     params = {'mathtext.default': 'regular'}
     plt.rcParams.update(params)
@@ -353,7 +360,8 @@ def test_method(ft, txt=False):
     plt.ylim([0, 12])
     plt.rcParams.update({'font.size': 16})
     plt.legend(loc=0, prop={'size': 14})
-    plt.savefig(fig_fname)
+    plt.savefig(fig_fname, dpi=300)
+    plt.close()
 
 
 def call_data_process():
@@ -720,7 +728,7 @@ def ascat_sub9(site_nos, sub_dir):
     return 0
 
 
-def disscus_sm_variation(sno):
+def disscus_sm_variation(sno='1233'):
     save_path = './result_07_01/new_final/'
     # site_nos = ['947', '949', '950', '960', '962', '967', '968', '1089', '1090', '1175', '1177', '1233', '2065', '2081', '2210', '2211', '2212', '2213']
     site_nos = [sno]
@@ -831,7 +839,8 @@ def disscus_sm_variation(sno):
                     status = 1
             axes = [ax1, ax2, ax3, ax4]
             vlines = [vline1, vline2, vline3, vline4]
-            vlines = [[0, 0], ons0, ons1, [0, ons_new[1]] ]
+            vlines = [[0, 0], ons0, ons1, [0, ons_new[1]]]
+
             text_ur = ['a', 'b', 'c', 'd']
             for j, ax0 in enumerate(axes):
                 print j
@@ -848,27 +857,30 @@ def disscus_sm_variation(sno):
             onset_value = site_infos.site_onset(sno)
             insitu_frz = onset_value[0][7]
             ax1.axvline(x=insitu_frz, color='r', ls=v_symbol[1])
+
             plt.rcParams.update({'font.size': 16})
-            # label location
-            # if plt_col == 0:
-            #     a=0
-            #     for axi in [ax2_2, ax3_2, ax4_2]:
-            #         axi.get_yaxis().set_visible(False)
-            #         for yticks in axi.yaxis.get_major_ticks():
-            #             yticks.label2.set_visible(False)
-            # else:
-            #     for axi in [ax2, ax3, ax4]:
-            #         axi.get_yaxis().set_visible(False)
-            #         for yticks in axi.yaxis.get_major_ticks():
-            #             yticks.label1.set_visible(False)
+            # add labels. updated 0514/2018
+            insitu_frz2 = 313
+
+            x_length = 365 - 250 + 1
+            v_text = [v[1] for v in vlines[1:]]
+            print v_text
+            # ax2.text(0.568965517241, 1.05, '315', transform=ax2.transAxes, va='top', size=16)
+            for ax00, v00 in zip([ax2, ax3, ax4], v_text):
+                x_text = (v00*1.0-250+1)/x_length
+                y_text = 1.08
+                print x_text, y_text
+                ax00.text(x_text, y_text, 'DOY '+str(int(v00)), transform=ax00.transAxes, va='top', ha='center', size=16)
+            ax1.text((insitu_frz*1.0-250)/x_length, y_text, 'DOY '+str(int(insitu_frz)), transform=ax1.transAxes, va='top', ha='center', size=16)
+            # ax1.text((insitu_frz2*1.0-250)/x_length, y_text, str(int(insitu_frz2)), transform=ax1.transAxes, va='top', ha='center', size=16)
         plt.tight_layout()
-        plt.savefig('test00')
+        plt.savefig('test00', dpi=300)
+        plt.close()
     return 0
 
 
-def discuss_combining():
+def discuss_combining(site_nos = ['2213']):
     # site_nos = ['2213']
-    site_nos = ['2211', '2213']
     text4 = ['a', 'b', 'c']
     axs=[]
     fig0 = plt.figure(0, figsize=[6, 5.4])
@@ -886,29 +898,82 @@ def discuss_combining():
     k_width = 7
 
     for i, site_no in enumerate(site_nos):
+        i+=1
         sigconv, sigseries, ons_new, gg, sig_pass, peakdate_sig = \
                 data_process.ascat_plot_series(site_no, orb_no=0, inc_plot=False, sigma_g=k_width) # 0 for ascending
 
         tbv1, tbh1, npr1, gau1, ons1, sitetime, peakdate1 = test_def.main(site_no, [], sm_wind=7, mode='annual', tbob='_A_', sig0=k_width)  # result npr
-        ax0 = plt.subplot2grid((4, 1), (i+1, 0))
+        ax0 = plt.subplot2grid((4, 1), (i, 0))
         axs.append(ax0)
         npr = [[npr1[0], npr1[1]*100], [gau1[0], gau1[2]*100]]
         _, ax0_2, l2 = pltyy(npr[0][0], npr[0][1], 'test_comp2', 'NPR ($10^{-2}$)',
                      t2=sigseries[0], s2=sigseries[1], label_y2='$\sigma_{45}^0$ (dB)',
                      symbol=l_symbol, handle=[0, ax0], nbins2=6, label_x='')
         # plot snow
+        xlimit = [50, 150]
         swe_value, swe_date = read_site.read_measurements(site_no, 'snow', np.arange(366, 366+365), hr=0)
         swe_date-=365
         ax_sn = ax0.twinx()
-        ax_sn.spines["right"].set_position(("axes", 1.3))
+        ax_sn.spines["right"].set_position(("axes", 1.35))
         plot_funcs.make_patch_spines_invisible(ax_sn)
         ax_sn.spines["right"].set_visible(True)
-        ax_sn.plot(swe_date, swe_value, 'k:', label="snow depth")
-        ax_sn.fill_between(swe_date, 0, swe_value, facecolor='grey')
-        ax_sn.set_ylim([0, 150])
 
+        # add in situ
+        air_temp, air_t_date = read_site.read_measurements(site_no, "Air Temperature Observed (degC)",np.arange(366, 366+365), hr=18)
+        if site_no in ['2213', '1090']:
+            # add tbv and tbd
+            ax_vh = plt.subplot2grid((4, 1), (i+1, 0))
+            # obd_v, obd_h, m1, m1_change = data_process.plot_obd(site_no, p='vh', isplot=False)
+            obd_v, obd_h, npr0, gau0, ons0, tb_pass, peakdate0 = test_def.main(site_no, [], sm_wind=7, mode='annual',
+                                                                         seriestype='tb', sig0=k_width, order=1)  # result tb
+            l1, = ax_vh.plot(obd_v[0], obd_v[1], 'ko', markersize=3)
+            # ax_vh.plot(np.arange(60, 150), np.arange(60, 150)*0+1, 'ko', markersize=3)
+            l11 = plot_funcs.plt_more(ax_vh, obd_h[0], obd_h[1], line_list=[l1], symbol='ro')
+            ax_vh.axhline(ls=':', lw=1.5)
+            ax_vh.legend(l11, ['V-pol', 'H-pol'], bbox_to_anchor=(1., 1), loc=2, prop={'size': 10}, numpoints=1)
+            ax_vh.set_xlim(xlimit)
+            ax_vh.set_ylim([190, 280])
+            ax_vh.set_ylabel("$T_{b}$ (K)")
+            ax_vh.yaxis.set_major_locator(MaxNLocator(4))
+            ax_vh.text(0.92, 0.2, 'b', transform=ax_vh.transAxes, va='top')
+            xticks = ax_vh.axes.get_xticklabels()
+            for x_tick in xticks:
+                x_tick.set_visible(False)
+            # plot_funcs.make_patch_spines_invisible(ax_vh)
+
+            # add in situ
+            soil_t, soil_t_date = read_site.read_measurements(site_no, "Soil Temperature Observed -2in (degC)",
+                                                              np.arange(366, 366+365), hr=18)
+            soil_sm, soil_sm_date = read_site.read_measurements(site_no, "Soil Moisture Percent -2in (pct)",
+                                                                np.arange(366, 366+365), hr=18)
+            soil_t_date-=365
+            soil_sm_date-=365
+            ax_3rd = plt.subplot2grid((4, 1), (i+1+1, 0))
+            axs.append(ax_3rd)
+            _, ax_3rd2, l2 = pltyy(soil_sm_date, soil_sm, 'test_comp2', 'VWC (%)',
+                                 t2=soil_t_date, s2=soil_t, label_y2='T$_{soil}$ ($^\circ$C)',
+                                 symbol=['k-', 'b-'], handle=[0, ax_3rd], nbins2=6)
+            ax_3rd.set_xlim(xlimit)
+            ax_3rd.set_ylim([0, 60])
+            ax_3rd2.set_ylim([-30, 10])
+
+            ax_3rd.text(0.92, 0.2, 'c', transform=ax_3rd.transAxes, va='top')
+
+        # fill colors 07/2018
+        normalize = colors.Normalize(vmin=air_temp[air_temp>-15].min(), vmax=air_temp[air_temp>15].min())
+        cmap = plt.get_cmap('coolwarm')
+        swe_target = (swe_date>0) & (swe_date<150)
+        k = 1
+        for j in range(swe_date[swe_target].size/k-1):
+            ax_sn.fill_between([swe_date[swe_target][j], swe_date[swe_target][j+k]], [swe_value[swe_target][j], swe_value[swe_target][j+k]],
+                               color=cmap(normalize(air_temp[j])))
+        # ax_sn.fill_between(swe_date, 0, swe_value, facecolor='grey', alpha=0.6)
+
+        # plot snow
+        l3, = ax_sn.plot(swe_date, swe_value, 'k:', label="snow depth")
+        ax_sn.set_ylim([0, 150])
         ax_sn.yaxis.set_major_locator(MaxNLocator(4))
-        ax0.set_xlim([50, 150])
+        ax0.set_xlim(xlimit)
         ax0.set_ylim([-9, 8])
         ax0.yaxis.set_major_locator(MaxNLocator(4))
         ax0_2.set_ylim([-22, -4])
@@ -916,9 +981,13 @@ def discuss_combining():
         yticks[0].label1.set_visible(False)
         yticks2 = ax0_2.yaxis.get_major_ticks()
         yticks2[-1].label2.set_visible(False)
-        ax0.text(0.92, 0.95, text4[i], transform=ax0.transAxes, va='top')
+        ax0.text(0.92, 0.2, 'a', transform=ax0.transAxes, va='top')
+        # special setting
+        # x_lines = [80, 87, 104, 112]
+        # for x00 in x_lines:
+        #     ax0.axvline(x=x00)
 
-        if i < 1:
+        if i < 2:
             xticks = ax0.axes.get_xticklabels()
             for xt in xticks:
                 xt.set_visible(False)
@@ -926,14 +995,20 @@ def discuss_combining():
             # ax_sn.get_yaxis().set_label_coords(0, 0)
         if i<1:
             grey_patch = test_def.make_patch("grey")
-            leg0 = ax0.legend([l2[0], l2[1], grey_patch], ['NPR', '$\sigma_{45}^0$', 'Snow depth cm'], bbox_to_anchor=(0., 1.02, 1., 1.02), ncol=3, loc=3, prop={'size': 10}, frameon=False)
+            # leg0 = ax0.legend([l2[0], l2[1], l3], ['NPR', '$\sigma_{45}^0$', 'Snow depth cm'], bbox_to_anchor=(0., 1.02, 1., 1.02), ncol=3, loc=3, prop={'size': 10}, frameon=False)
             # leg0.get_frame().set_linewidth(0.0)
 
+    # for ax_labelloc in [ax0, ax_vh, ax_3rd]:
+    #     ax_labelloc.get_yaxis().set_label_coords(-0.2, 0.5)
+    cax = fig0.add_axes([0.12, 0.8, 0.5, 0.05])
+    cb2 = colorbar.ColorbarBase(cax, cmap=cmap, norm=normalize, ticks=[-10, -5, 0, 5, 10, 15], orientation='horizontal')
+    cb2.set_label('Air temperature ($^\circ$C)', labelpad=-50)
+    # cb2.ax.axis.set_label_position('top')
 
     axs[-1].set_xlabel('Day of year 2016')
     plt.tight_layout()
     fig0.subplots_adjust(hspace=0.2)
-    plt.savefig('test03.png')
+    plt.savefig('result_08_01/test03.png', dpi=300)
 
 
 def result_scatter():
@@ -1516,9 +1591,9 @@ def get_corner(fname):
     np.savetxt('test_get_corner.txt', newloc, fmt='%.5f', delimiter=',', header='longitude, latitude')
 
 
-def gdal_clips(sno, ipt='snowf'):
+def gdal_clips(sno, ipt='snowf', shp_folder='./result_08_01/point/ascat/shp/ascat_shp'):
     # gdalwarp -cutline ascat_1126200.shp -crop_to_cutline ims2016127_1km_GIS_v1.3.tif ims126_3.ti
-    shp_path = './result_08_01/point/ascat/shp/ascat_shp/ascat_%s*.shp' % sno
+    shp_path = '%s/ascat_%s*.shp' % (shp_folder, sno)
     results_path = './tp'
     results_path = 'result_08_01/point/ascat/pixels/%s' % ipt
     if ipt == 'snowf':
@@ -1601,6 +1676,8 @@ def ascat_snow_lc(sno, type=['snowf', 'lc']):
 
 def check_lc_snow_ascat(sno):
     # R3/result_08_01/point/ascat/pixels/npys
+    if sno == '9004':
+        pause = 0
     path0 = 'result_08_01/point/ascat/pixels/npys'
     fname_snow0 = '%s/ascat_*_%s_snowf.npy' % (path0, sno)
     fname_snow = glob.glob(fname_snow0)[0]
@@ -1635,8 +1712,9 @@ def ascat_snowlc_npy(sno_sp):
     value_path = 'result_08_01/point/ascat/time_series'
     # all statin
     for sno in sno_sp:
+        print 'ascat_snowlc_npy: ', sno
         value_name0 = '%s/ascat_*_%s_value.npy' % (value_path, sno)
-        value_name = glob.glob(value_name0)[0]
+        value_name = glob.glob(value_name0)[-1]
         value0 = np.load(value_name)
         value1 = value0[0, :, :]
         value2 = value1[value1[:, -1] > -999]  # the ASCAT measure
@@ -1646,11 +1724,21 @@ def ascat_snowlc_npy(sno_sp):
         snow_lc = np.loadtxt(snow_lc_name, delimiter=',')  # the ASCAT ancillary
         mask0 = np.in1d(value2[:, -1], snow_lc[:, 0])
         i0 = 0
-        measure_anc_array = np.zeros([180, 60]) - 999
+        measure_anc_array = np.zeros([280, 60]) - 999
         for id0 in snow_lc[:, 0]:
             pixel_value = value2[pixel_ids==id0]  # find the same pixel
             if pixel_value.shape[0]>1:
                 pixel_value = pixel_value[0]
+                # test temporally
+                t0 = value2[3, 14]
+                t1 = value2[4, 14]
+                lat01, lon01 = value2[3:5, 0], value2[3:5, 1]
+                sno_inf0 = site_infos.change_site(sno)
+                dis = bxy.cal_dis(lat01, lon01, sno_inf0[1], sno_inf0[2])
+                t_str0 = bxy.time_getlocaltime([t0, t1], ref_time=[2000, 1, 1, 0])
+            elif pixel_value.size == 0:
+                print 'data invalid: ', id0
+                continue
             anc_value = snow_lc[i0]
             measure_anc_array[i0, 0: pixel_value.size] = pixel_value
             measure_anc_array[i0, pixel_value.size: pixel_value.size+anc_value.size] = anc_value
@@ -1664,7 +1752,8 @@ def regions_extract(rid):
     # prior
     sno_sp_all = [['947', '948', '949', '950', '960', '1090'], ['962', '958', '2212'],
                   ['968', '1177', '1175'], ['2080', '963', '2081'],
-                  ['9001', '9002', '9003', '9004', '9005', '9006', '9007']]  # region 1 to 5
+                  ['9001', '9002', '9003', '9004', '9005', '9006', '9007'],
+                  ['968', '962', '1175', '2065', '2210', '2211', '2212', '2213']]  # region 1 to 5
     sno_sp = sno_sp_all[rid-1]
     txtname = 'region_%d_all_data.txt' % rid
     # loops
@@ -1741,7 +1830,7 @@ def regions_extract(rid):
     return sno_sp
 
 
-def regions_plotting(region_id=1, site_no=0, att_xyz=['tair', 'mid', '# date'], exception=False, xlim0=[-30, 30]):
+def regions_plotting(region_id=1, site_no=0, att_xyz=['tair', 'mid', '# date'], exception=False, xlim0=[-30, 30], xv=95):
     fname = 'result_08_01/point/ascat/pixels/results/air_sigma/region_%d_all_data.txt' % region_id
     with open(fname) as file0:
         for row0 in file0:
@@ -1778,12 +1867,14 @@ def regions_plotting(region_id=1, site_no=0, att_xyz=['tair', 'mid', '# date'], 
         z_value *= 1
     if att_xyz[0] == "# date":
         x_value -= 365
+    att_xyz[2], att_xyz[0], att_xyz[1] = ' ', ' ', ' '
     # value_xyz, att_xyz = trip_read(region_id=1, site_no=0, att_xyz=['tair', 'mid', '# date'], exception=False)
     # tair, sigma_mid, z_value = value_xyz[0], value_xyz[1], value_xyz[2]
     # plotting
     fig = plt.figure(figsize=[6, 4.5])
     ax = fig.add_subplot(1, 1, 1)
     m1 = ax.scatter(x_value, sigma_mid, c=z_value, cmap=plt.get_cmap('rainbow'))
+    ax.plot(x_value, sigma_mid, 'k-')
     ax.set_xlim(xlim0)
     ax.set_xlabel(att_xyz[0]), ax.set_ylabel(att_xyz[1])
     ax.set_ylim([-18, -7.5])
@@ -1796,6 +1887,11 @@ def regions_plotting(region_id=1, site_no=0, att_xyz=['tair', 'mid', '# date'], 
         ax.axhline(y=-11, ls='-.')
     ax.axvline(x=-5), ax.axvline(x=5)
     #plt.tight_layout()
+    if rid == 5:
+        ax.set_ylim([-20, -8])
+    if int(site_no) == 9007:
+        ax.set_ylim([-10, -5])
+    ax.axvline(x=xv)
     figname = 'tp/region_%d_plotting_%d_%s_%s_%s' % \
               (region_id, int(site_no), att_xyz[0], att_xyz[1], att_xyz[2])
     plt.savefig(figname)
@@ -1907,7 +2003,10 @@ def land_cover(rid, snos, trip_types, exce):
     width = 0.15
     ind = np.arange(N)
     # plotting
+
     fig0 = plt.figure()
+    if rid==5:
+        fig0 = plt.figure(figsize=[8, 2])
     ax = fig0.add_subplot(1, 1, 1)
     ps = []  # save for adding legend
     i2 = 0
@@ -1949,7 +2048,604 @@ def land_cover(rid, snos, trip_types, exce):
     plt.close()
 
 
+def tb_melt_window(sno, file_path='result_08_01/point/smap_pixel/time_series', xv=0):
+    orb = 'A'
+    fname = '%s/tb_%s_%s_2016' % (file_path, sno, orb)
+    # read head
+    with open(fname) as file0:
+        for row0 in file0:
+            atts = row0.split(',')
+            break
+    tb_value0 = np.loadtxt(fname)
+    print 'this data contain %d attributes (cols)' % len(atts)
+    print tb_value0.shape
+    # check distance
+    lats_tb, lons_tb = tb_value0[:, 2], tb_value0[:, 1]
+    coord_sno = site_infos.change_site(sno)
+    dis_arr = bxy.cal_dis(coord_sno[1], coord_sno[2], lats_tb, lons_tb)
+    if sno == '960' or sno == '1090':
+        ref_dis = 20
+    else:
+        ref_dis = 10
+    idx_dis = dis_arr<ref_dis
+    tb_value0 = tb_value0[idx_dis, :]
+    print 'ascending orbit mean', np.nanmean(dis_arr), 'with sigma of', np.nanstd(dis_arr)
+    # read attributes
+    doy = tb_value0[:, 0]
+    tbv, tbh = tb_value0[:, atts.index('cell_tb_v_aft')], tb_value0[:, atts.index('cell_tb_h_aft')]  # npr
+    npr_sno = (tbv-tbh)/(tbv+tbh)*1.0e2
+    # tb diurnal
+    orb2 = 'D'
+    fname2 = '%s/tb_%s_%s_2016' % (file_path, sno, orb2)
+    tb_value0 = np.loadtxt(fname2)
+    lats_tb, lons_tb = tb_value0[:, 2], tb_value0[:, 1]
+    dis_arr = bxy.cal_dis(coord_sno[1], coord_sno[2], lats_tb, lons_tb)
+    idx_dis = dis_arr<ref_dis
+    tb_value0 = tb_value0[idx_dis, :]
+    print 'descending orbit mean', np.nanmean(dis_arr[idx_dis]), 'with sigma of', np.nanstd(dis_arr[idx_dis])
+    doy_d = tb_value0[:, 0]
+    tbv_d, tbh_d = tb_value0[:, atts.index('cell_tb_v_aft')], tb_value0[:, atts.index('cell_tb_h_aft')]  # npr
+    doy_inter = np.intersect1d(doy, doy_d)
+    idx0 = np.in1d(doy, doy_d)
+    # idx0 = np.in1d(doy_inter, doy_d)  # days in ascending that also in descending
+    idx1 = np.in1d(doy_d, doy)
+    v_diurnal, h_diurnal = tbv_d[idx1] - tbv[idx0], tbh_d[idx1] - tbh[idx0]  # des - as, am - pm
+    doy_diurnal = doy[idx0]
+    fig, (ax1, ax2) = plt.subplots(2, figsize=[6, 4.5], sharex=True)
+    t_win = (doy_diurnal>60) & (doy_diurnal<150)
+    h_d_10 = np.nanmean(np.sort(h_diurnal[t_win])[-10: ])
+    ax1.plot(doy_diurnal, v_diurnal, '-', doy_diurnal, h_diurnal, '--')
+    ax1.axhline(y=h_d_10)
+    ax1.set_ylim([-20, 30])
+    ax2.plot(doy, npr_sno)
+    ax2.axvline(x=xv)
+    ax1.axvline(x=xv)
+    figname = 'tp/region_5_%s' % sno
+    plt.savefig(figname)
+    plt.close()
+
+
+def t_air_edges(site, orbit=0):
+    sigma_g = 10
+    sigma_ascat = 3
+    ob_name = ['A', 'D']
+    f_name = "./result_07_01/txtfiles/site_tb/tb_%s_%s_2016.txt" % (site, ob_name[orbit])
+    att_list = ['cell_tb_time_seconds_aft', 'cell_tb_v_aft', 'cell_tb_h_aft', 'cell_tb_qual_flag_v_aft',
+                'cell_tb_qual_flag_h_aft', 'cell_tb_error_v_aft', 'cell_tb_error_h_aft', 'cell_lon', 'cell_lat']
+    col_no = bxy.get_head_cols(f_name, headers=att_list)
+    cell_tb = np.loadtxt(f_name)
+    # assign the required value
+    tb_v = cell_tb[:, col_no[att_list.index('cell_tb_v_aft')]]
+    tb_h = cell_tb[:, col_no[att_list.index('cell_tb_h_aft')]]
+    tb_sec = cell_tb[:, col_no[att_list.index('cell_tb_time_seconds_aft')]]
+    time_t = bxy.time_getlocaltime(tb_sec)
+    doy, pass_hr = time_t[3]+(time_t[0]-2015)*365+np.max([(time_t[0]-2016)*1, time_t[0]*0], axis=0), time_t[4]
+    t_date = doy+pass_hr/24.0
+    npr = (tb_v - tb_h)/(tb_v + tb_h)
+    max_value, min_value, conv = test_def.edge_detect(t_date, npr, sigma_g, seriestype='npr')
+    max_value_thaw = max_value[(max_value[:, 1] > 365+60) & (max_value[:, 1] < 365+150)]
+    min_value_freeze = min_value[(min_value[:, 1] > 365+250) & (min_value[:, 1] > 365+340)]
+
+    swe_daily, swe_date = read_site.read_measurements(site, "snow", doy)
+    if site in ['2065', '2081']:
+        t_air, t_air_date = read_site.read_measurements(site, "Air Temperature Average (degC)", doy, hr=pass_hr)
+    else:
+        t_air, t_air_date = read_site.read_measurements(site, "Air Temperature Observed (degC)", doy, hr=pass_hr)
+
+    # add ascat time series
+    ascat_series, ascat_pass_pm = data_process.get_ascat_series(site)
+    max_ascat, min_ascat, conv_ascat = test_def.edge_detect\
+        (ascat_series[:, 0], ascat_series[:, 1], sigma_ascat, seriestype='sig')  # days of time series started from 2015
+
+    # located falling edges close to the rising edge of npr
+    npr_edge_thaw = max_value_thaw[np.argmax(max_value_thaw[:, -1])]
+    date_npr_thaw = npr_edge_thaw[1]
+    min_ascat_thaw = min_ascat[np.abs(min_ascat[:, 1]-date_npr_thaw)<30]
+    fall_edge_ascat = min_ascat_thaw[np.argmin(min_ascat_thaw[:, -1])]
+    winter_ascat_conv = conv_ascat[1][(conv_ascat[0] > 365) & (conv_ascat[0] < 365 + 60)]
+    noise_conv_ascat = np.array([np.mean(winter_ascat_conv), np.std(winter_ascat_conv)])  # mean and std
+
+    # plotting
+    fig0 = plt.figure()
+    ax1 = fig0.add_subplot(3, 1, 1)
+    ax2 = fig0.add_subplot(3, 1, 3)
+    ax3 = fig0.add_subplot(3, 1, 2)
+    ax1.plot(t_date, npr)
+    ax1_1 = ax1.twinx()
+    ax1_1.plot(conv[0], conv[1], 'g-')
+    swe_daily[swe_daily < -20] = np.nan
+    ax2.plot(swe_date, swe_daily)
+    ax2_2 = ax2.twinx()
+    ax2_2.plot(t_air_date, t_air, 'k.')
+    ax3.plot(ascat_series[:, 0], ascat_series[:, 1])
+    ax3_3 = ax3.twinx()
+    ax3_3.plot(conv_ascat[0], conv_ascat[1], 'g-')
+
+
+    # select the nearest peaks of indicator to the edge
+    # max2, min2 = test_def.get_peak(npr, 0.005, t_date)
+    # max_index, min_index = [], []
+    # for max_date in max_value_thaw[:, 1]:
+    #     max_index.append(np.argmin(np.abs(max2[:, 1]-max_date)))
+    # for min_date in min_value_freeze[:, 1]:
+    #     min_index.append(np.argmin(np.abs(min2[:, 1]-min_date)))
+    # max_value_thaw, min_value_freeze = max2[max_index], min2[min_index]
+
+
+    # vertical lines for onsets
+    text0_y = np.max(npr)*np.array([1 - 0.1 * i for i in np.arange(0, max_value_thaw[:, 1].size)])
+    for onset0, y0 in zip(max_value_thaw[:, 1], text0_y):
+        ax1.axvline(x=onset0, color='r')
+        ax2.axvline(x=onset0, color='r')
+        t_label = '%.2f' % onset0
+        ax1.text(onset0, y0, t_label, va='top')
+        # add a color point
+        print 'the thawing date', t_air_date[np.abs(t_air_date-onset0)<1]
+        ax2_2.plot(t_air_date[np.abs(t_air_date-onset0)<1], t_air[np.abs(t_air_date-onset0)<1], 'r.')
+    for onset1 in min_value_freeze[:, 1]:
+        ax1.axvline(x=onset1, color='b')
+        ax2.axvline(x=onset1, color='b')
+    ax3.axvline(x=fall_edge_ascat[1], ls='--')
+
+    for ax in [ax1, ax1_1, ax2, ax2_2, ax3]:
+        ax.set_xlim([366, 366+366])
+    ax2_2.axhline(y=0)
+
+
+    fig_name = 'result_08_01/test%s.png' % (site)
+    plt.savefig(fig_name)
+    plt.close()
+
+
+def ak_series(doy_array, att_list=['cell_tb_v_aft', 'cell_tb_h_aft'], ascat_atts=['resample', 'incidence']):
+    # read smap
+    date_str = []
+    for doy0 in doy_array:
+        date_str0 = bxy.doy2date(doy0, fmt='%Y%m%d')
+        date_str.append(date_str0)
+    h5_path = 'result_08_01/area/smap_area_result'
+    # 'result_08_01/area/smap_area_result/SMAP_alaska_A_GRID_%s.h5'
+    h5_list = sorted(os.listdir(h5_path))
+
+    # read asacat
+    ascat_directory = 'result_08_01/ascat_resample_AS'
+    npy_list = os.listdir(ascat_directory)
+    nodata_id = 0
+    i_date = 0
+
+    ascat_dict = {} # initial
+    for att1 in ascat_atts:
+        ascat_dict[att1] = np.zeros([300, 300, len(date_str)])-999
+
+    for i_date, d_str in enumerate(date_str):
+        for att0 in ascat_atts:
+            npy_name = 'ascat_%s_%s.npy' % (d_str, att0)
+            if npy_name not in npy_list:  # no data in a certain date
+                with open('ascat_series_no_data.out', 'a') as writer1:
+                    if nodata_id == 0:  # add a line of current time
+                        time0 = datetime.now().timetuple()
+                        time_str = '%d-%d, %d: %d \n' % (time0.tm_mon, time0.tm_mday, time0.tm_hour, time0.tm_min)
+                        writer1.write(time_str)
+                        writer1.write(d_str)
+                        writer1.write('\n')
+                        nodata_id += 1
+                    else:
+                        writer1.write(d_str)
+                        writer1.write('\n')
+                # i_date += 1
+                continue
+            else:
+                f_path = '%s/%s' % (ascat_directory, npy_name)
+                tp_value = np.load(f_path)
+                ascat_dict[att0][:, :, i_date] = tp_value
+                # i_date += 1
+    for att2 in ascat_atts:
+        ascat_name = 'result_08_01/area/combine_result/ascat_%s.npy' % att2
+        np.save(ascat_name, ascat_dict[att2])
+
+    # initial
+    att_value_all = {}
+    for att0 in att_list:
+        att_value_all[att0] = np.zeros([90, 100, len(date_str)])-999
+
+    i_date = 0
+    nodata_id = 0
+    for i_date, d_str in enumerate(date_str):
+        h5_fname = 'SMAP_alaska_A_GRID_%s.h5' % d_str
+        if h5_fname not in h5_list:
+            print 'no data on %s' % d_str
+            with open('smap_series_no_data.out', 'a') as writer1:
+                if nodata_id == 0:  # add a line of current time
+                    time0 = datetime.now().timetuple()
+                    time_str = '%d-%d, %d: %d \n' % (time0.tm_mon, time0.tm_mday, time0.tm_hour, time0.tm_min)
+                    writer1.write(time_str)
+                    writer1.write(d_str)
+                    writer1.write('\n')
+                    nodata_id += 1
+                else:
+                    writer1.write(d_str)
+                    writer1.write('\n')
+            i_date += 1
+            continue
+        else:
+            h0 = h5py.File(h5_path+'/'+h5_fname)
+            for att0 in att_list:
+                if (h0[att0].value==0).any():
+                    pause=0
+                att_value_all[att0][:, :, i_date] = h0[att0].value
+            i_date += 1
+                # tbv_a_ak_series[i_date], tbh_a_ak_series[i_date] = h0['cell_tb_v_aft'].value, h0['cell_tb_h_aft'].value
+    for att0 in att_list:
+        save_name = 'result_08_01/area/combine_result/smap_%s.npy' % att0
+        np.save(save_name, att_value_all[att0])
+
+
+    # np.savetxt('result_08_01/area/combine_result/ascat_smap_doy.txt', doy0, fmt='%d', delimiter=',')
+    return 0
+    # onset
+
+
+def combine_detection(thaw_window, freeze_window,
+                      ascat_detect=False, tb_detect=False, npr_detect=True,
+                      odd_plot=False, odd_plot_ascat=False, sigma_npr=7):
+    smap_tbv = np.load('result_08_01/area/combine_result/smap_cell_tb_v_aft.npy')
+    smap_tbh = np.load('result_08_01/area/combine_result/smap_cell_tb_h_aft.npy')
+    ascat_sigma = np.load('result_08_01/area/combine_result/ascat_resample.npy')
+    ascat_incidence = np.load('result_08_01/area/combine_result/ascat_incidence.npy')
+    tbv_2d = smap_tbv.reshape(-1, smap_tbv.shape[2])
+    tbh_2d = smap_tbh.reshape(-1, smap_tbh.shape[2])
+    row_table = np.loadtxt('ascat_row_table.txt', delimiter=',')
+    col_table = np.loadtxt('ascat_col_table.txt', delimiter=',')
+    # output initial
+    smap_onset0 = np.zeros([smap_tbv.shape[0], smap_tbv.shape[1]])
+    nan_out_idx = 0
+    # check locations:
+    # h00 = h5py.File('result_08_01/area/smap_area_result/SMAP_alaska_A_GRID_20160103.h5')
+    # ease_lat, ease_lon = h00[u'cell_lat'].value, h00[u'cell_lon'].value
+    # rc = bxy.geo_2_row([ease_lon, ease_lat], [-146.73390, 65.12422])
+    # check_series = smap_tbv[rc[0], rc[1], :]
+    # h5_list = sorted(glob.glob('result_08_01/area/smap_area_result/SMAP_alaska_A_GRID_*.h5'))
+    # check_series2 = np.zeros(len(h5_list)) - 88
+    # for i0, h5_name0 in enumerate(h5_list):
+    #     daily_h0 = h5py.File(h5_name0, 'r')
+    #     daily_tbv = daily_h0[u'cell_tb_v_aft'].value
+    #     check_series2[i0] = daily_tbv[45, 48]
+    #     daily_h0.close()
+    # check_series3 = smap_tbv[45, 48, :]
+
+    t_date = np.arange(-60, 366+55)
+    onset_map_0_1d = np.zeros(tbv_2d.shape[0]) - 999
+    onset_map_1_1d = np.zeros(tbv_2d.shape[0]) - 999
+    onset_map_0_1d_tb, onset_map_1_1d_tb = np.zeros(tbv_2d.shape[0]) - 999, np.zeros(tbv_2d.shape[0]) - 999
+
+    # ascat_sigma = np.load('result_08_01/area/combine_result/ascat_resample.npy')
+    # ascat_incidence = np.load('result_08_01/area/combine_result/ascat_incidence.npy')
+    sigma_2d = ascat_sigma.reshape(-1, ascat_sigma.shape[2])
+    incidence_2d = ascat_incidence.reshape(-1, ascat_incidence.shape[2])
+    onset_map_0_1d_ascat, onset_map_1_1d_ascat = np.zeros(sigma_2d.shape[0])-999, np.zeros(sigma_2d.shape[0])-999
+    nan_out_idx = 0
+    ascat_mask = np.load('./result_05_01/other_product/mask_ease2_125N.npy')
+    ascat_mask_1d = ascat_mask.ravel()
+    land_id_ascat = np.where(ascat_mask_1d == True)[0]
+     # check odd pixel
+    if odd_plot_ascat is not False:
+        simga0, incidence0 = sigma_2d[odd_plot_ascat], incidence_2d[odd_plot_ascat]
+        incidence0[incidence0==0]=np.nan
+        incidence0[incidence0==-999]=np.nan
+        simga0 -= (incidence0-45)*-0.12
+        max_value, min_value, conv = test_def.edge_detect(t_date, simga0, sigma_npr, seriestype='sig')
+        max_value_thaw = max_value[(max_value[:, 1] > 60) & (max_value[:, 1] < 150)]
+        min_value_freeze = min_value[(min_value[:, 1] > 250) & (min_value[:, 1] < 340)]
+        fig0 = plt.figure()
+        ax0 = fig0.add_subplot(1, 1, 1)
+        id_nonan = ~np.isnan(simga0)
+        ax0.plot(t_date[id_nonan], simga0[id_nonan])
+        ax01 = ax0.twinx()
+        ax01.plot(conv[0], conv[1], 'g-')
+        # thaw_edge = max_value_thaw[:, 1][max_value_thaw[:, -1].argmax()]
+        # ax0.axvline(x=thaw_edge)
+        # print 'target no. %d thawed on doy %d' % (siries_plot, thaw_edge)
+        print onset_map_0_1d[odd_plot]
+        plt.savefig('result_08_01/tbv_test_ascat_w20151102_series.png')
+        plt.close()
+
+    if ascat_detect == True:
+        for i2 in land_id_ascat:
+            print i2
+            simga0, incidence0 = sigma_2d[i2], incidence_2d[i2]
+            if all(np.isnan(simga0)):
+                bxy.odd_out('nan_value_smap.out', i2, nodata_id=nan_out_idx)
+                nan_out_idx += 1
+                continue
+            else:
+                incidence0[incidence0==0]=np.nan
+                simga0 -= (incidence0-45)*-0.12
+                max_value, min_value, conv = test_def.edge_detect(t_date, simga0, sigma_npr, seriestype='sig')
+                max_value_thaw = max_value[(max_value[:, 1] > 365+60) & (max_value[:, 1] < 365+150)]
+                min_value_freeze = min_value[(min_value[:, 1] > 365+250) & (min_value[:, 1] < 365+340)]
+                if max_value_thaw.size == 0:
+                    with open('onset_non_ascat.txt', 'a-') as writer0:
+                        writer0.writelines('no thaw onset was find at: %d' % i2)
+                else:
+                    onset_map_0_1d_ascat[i2] = max_value_thaw[:, 1][max_value_thaw[:, -1].argmax()]
+                    onset_map_1_1d_ascat[i2] = min_value_freeze[:, 1][min_value_freeze[:, -1].argmin()]
+                    if i2 == 4263:
+                        print 'thaw edge target is: ', onset_map_0_1d[i2]
+        np.save('test_onset0_ascat.npy', onset_map_0_1d_ascat.reshape(smap_tbv.shape[0], smap_tbv.shape[1]))
+        np.save('test_onset1_ascat.npy', onset_map_1_1d_ascat.reshape(smap_tbv.shape[0], smap_tbv.shape[1]))
+
+    if odd_plot is not False:
+        # print 'tbv_2d shape', tbv_2d.shape
+        npr_plot = (tbv_2d[odd_plot] - tbh_2d[odd_plot])*1.0/(tbv_2d[odd_plot] + tbh_2d[odd_plot])
+        npr_plot[npr_plot==-0] = np.nan
+        max_value, min_value, conv = test_def.edge_detect(t_date, npr_plot, sigma_npr, seriestype='npr')
+        max_value_thaw = max_value[(max_value[:, 1] > 60) & (max_value[:, 1] < 150)]
+        fig0 = plt.figure()
+        ax0 = fig0.add_subplot(1, 1, 1)
+        id_nonan = ~np.isnan(npr_plot)
+        x00, y00 = t_date[id_nonan], npr_plot[id_nonan]
+        ax0.plot(x00[y00>0], y00[y00>0])
+        ax01 = ax0.twinx()
+        ax01.plot(conv[0], conv[1], 'g-')
+        thaw_edge = max_value_thaw[:, 1][max_value_thaw[:, -1].argmax()]
+        ax0.axvline(x=thaw_edge)
+        print 'target no. %d thawed on doy %d' % (odd_plot, thaw_edge)
+        print onset_map_0_1d[odd_plot]
+        figname = 'result_08_01/npr_onset_test_odd_point_s%d_%d_%d_%d_%d.png' % \
+                  (sigma_npr, thaw_window[0], thaw_window[1], freeze_window[0], freeze_window[1])
+        plt.savefig(figname)
+        plt.close()
+
+    # only loops the land area
+    mask = np.load('./result_05_01/other_product/mask_ease2_360N.npy')
+    # onset0 = np.ma.masked_array(onset0, mask=[(onset0==0)|(mask==0)])
+    mask_1d = mask.reshape(1, -1)[0]
+    land_id = np.where(mask_1d != 0)[0]
+    for i0 in land_id:
+        smap_series_v, smap_series_h = tbv_2d[i0], tbh_2d[i0]
+        smap_series_v[smap_series_v<0] = np.nan
+        smap_series_h[smap_series_h<0] = np.nan
+        # smap_series_v[smap_series_v==0] = np.nan
+        # smap_series_h[smap_series_h==0] = np.nan
+        if sum(np.isnan(smap_series_h)) > 300:
+            bxy.odd_out('nan_value_smap.out', i0, nodata_id=nan_out_idx)
+            nan_out_idx += 1
+            continue
+        else:
+            # npr onset
+            if npr_detect is True:
+                if i0 == 4037:
+                    pause = 0
+                npr = (smap_series_v-smap_series_h)*1.0/(smap_series_v+smap_series_h)
+                max_value, min_value, conv = test_def.edge_detect(t_date, npr, sigma_npr, seriestype='npr')
+                max_value_thaw = max_value[(max_value[:, 1] > thaw_window[0]) & (max_value[:, 1] < thaw_window[1])]
+                min_value_freeze = min_value[(min_value[:, 1] > freeze_window[0]) & (min_value[:, 1] < freeze_window[1])]
+                # check positions where onsets doesn't exist.
+                if max_value_thaw.size == 0:
+                    with open('onset_map0.txt', 'a-') as writer0:
+                        writer0.writelines('no thaw onset was find at: %d' % i0)
+                else:
+                    onset_map_0_1d[i0] = max_value_thaw[:, 1][max_value_thaw[:, -1].argmax()]
+                    if min_value_freeze.size>0:
+                        onset_map_1_1d[i0] = min_value_freeze[:, 1][min_value_freeze[:, -1].argmin()]
+                    else:
+                        onset_map_1_1d[i0] = 0
+                    if i0 == 4263:
+                        print 'thaw edge target is: ', onset_map_0_1d[i0]
+
+            # tb onset
+            if tb_detect is True:
+                max_value, min_value, conv = test_def.edge_detect(t_date, smap_series_v, sigma_npr, seriestype='tb')
+                max_value_freeze = max_value[(max_value[:, 1] >= 365+150) & (max_value[:, 1] <= 365+340)]
+                min_value_thaw = min_value[(min_value[:, 1] >= 365+60) & (min_value[:, 1] <= 365+150)]
+                if max_value_thaw.size == 0:
+                    with open('onset_map0.txt', 'a-') as writer0:
+                        writer0.writelines('no thaw onset was find at: %d' % i0)
+                else:
+                    if i0 == 3920:
+                        pause = 0
+                    onset_map_1_1d_tb[i0] = max_value_freeze[:, 1][max_value_freeze[:, -1].argmax()]
+                    onset_map_0_1d_tb[i0] = min_value_thaw[:, 1][min_value_thaw[:, -1].argmin()]
+                    if i0 == 4263:
+                        print 'thaw edge target is: ', onset_map_0_1d[i0]
+
+
+
+    th_name = 'test_onset0_%s.npy' % sigma_npr
+    fr_name = 'test_onset1_%s.npy' % sigma_npr
+    np.save(th_name, onset_map_0_1d.reshape(smap_tbv.shape[0], smap_tbv.shape[1]))
+    np.save(fr_name, onset_map_1_1d.reshape(smap_tbv.shape[0], smap_tbv.shape[1]))
+    np.save('test_onset0_tb.npy', onset_map_0_1d_tb.reshape(smap_tbv.shape[0], smap_tbv.shape[1]))
+    np.save('test_onset1_tb.npy', onset_map_1_1d_tb.reshape(smap_tbv.shape[0], smap_tbv.shape[1]))
+    print onset_map_0_1d.reshape(smap_tbv.shape[0], smap_tbv.shape[1])[47, 67]
+
+
+
+
+        # edge detection
+        # for i1 in range(0, 9):
+        #     row_num, col_num = row_table[i0, i1], col_table[i0, i1]
+        #     if row_num < 0 or col_num < 0:
+        #         continue
+        #     else:
+        #         sigma1 = ascat_sigma[row_num, col_num, :]
+        #         incidence1 = ascat_incidence[row_table[i0, i1], col_table[i0, i1], :]
+        #         sigma1[(sigma1==0) | (sigma1==-999)] = np.nan
+        #         if ~np.isnan(sigma1).all():
+        #             pause = 0
+        #         # normalized and edge detection
+
+    return 0
+
+
 if __name__ == "__main__":
+    site_nos = ['947', '949', '950', '960', '962', '967', '968', '1090', '1175', '1177', '1233', '2065', '2081', '2210', '2211', '2212', '2213']
+    # site_nos = ['947', '949']
+    new_process(site_nos)
+    quit0()
+    # 0716/2018, revision
+    discuss_combining(site_nos=['1090'])
+    # plot_funcs.plot_tair_npr_onset('result_08_01/onset_result/onset_tair_npr_0726.txt')
+    # quit0()
+    # # 0704/2018
+    # # data_process.smap_ascat_position()
+    # # ak_series(np.arange(-60, 366+55)
+    # new_process(['947'])
+    # draw_pie_landcover()
+    quit0()
+    site_nos = ['947', '949', '950', '960', '962', '967', '968', '1090', '1175', '1177', '1233', '2065', '2081', '2210', '2211', '2212', '2213']
+    onset_latlon = np.loadtxt('result_08_01/point/onset_result/onset_result.csv', delimiter=',')
+    for kernel0 in [7]:
+        s_info = site_infos.change_site('968')
+        # 70.26666, -148.56666
+        # s_info = [0, 61.6155, -142.9327]
+        s_info = [0, 68.02, -149.97]
+        # s_info = [0, -1, -1]
+        odd_latlon = [s_info[2], s_info[1]]
+        thaw_win = [60, 150]
+        fr_win = [250, 340]
+        odd_points_rc, odd_points_1d = data_process.latlon2rc(odd_latlon)
+        if s_info[1]>0:
+            combine_detection(thaw_win, fr_win, sigma_npr=kernel0, odd_plot=odd_points_1d)
+        else:
+            combine_detection(thaw_win, fr_win, sigma_npr=kernel0)
+        print 'the target is (%.3f, %.3f)' % (s_info[2], s_info[1])
+
+        # data_process.ascat_onset_map('A', odd_point=[odd_points_rc[0], odd_points_rc[1], s_info[2], s_info[1]], product='grid_test', mask=False, mode=['_norm_'],
+        #                             version='old', std=kernel0, f_win=fr_win, t_win=thaw_win)
+        data_process.ascat_onset_map('A', odd_point=onset_latlon[:, 4:9], product='grid_test', mask=False, mode=['_norm_'],
+                                    version='old', std=kernel0, f_win=fr_win, t_win=thaw_win)
+    quit0()
+    doy = np.arange(-60, 366+60)
+    for doy0 in doy:
+        Read_radar.read_ascat_alaska(doy0, year0=2016)
+    for doy0 in doy:
+        t_str = bxy.doy2date(doy0, fmt="%Y%m%d")  # 1 is 20160101
+        spt_quick.ascat_area_plot2(t_str)
+    ak_series(np.arange(-60, 366+55))
+    quit0()
+
+    for doy0 in range(365, 366+60):
+        t_str = bxy.doy2date(doy0, fmt="%Y%m%d")  # 1 is 20160101
+        # spt_quick.smap_area_plot(t_str, save_dir='./result_08_01/area/smap/', orbit='A')
+        spt_quick.ascat_area_plot2(t_str)
+    #ak_series()  # save as smap 3d array
+    #data_process.smap_alaska_grid()
+
+    s_info = site_infos.change_site('968')
+    # 70.26666, -148.56666
+    odd_latlon = [s_info[2], s_info[1]]
+    odd_points_rc, odd_points_1d = data_process.latlon2rc(odd_latlon)
+    print 'the target is (%.3f, %.3f)' % (s_info[2], s_info[1])
+    combine_detection(odd_plot=odd_points_1d, odd_plot_ascat=6534)
+
+    data_process.ascat_onset_map('A', odd_point=[odd_points_rc[0], odd_points_rc[1], s_info[2], s_info[1]], product='grid_test', mask=False, std=4, mode=['_norm_'],
+                                version='old')
+    data_process.ascat_onset_map(['AS'], odd_point=[ s_info[2], s_info[1]])
+    data_process.ascat_onset_map(['AS'], product='npr', odd_point=[s_info[2], s_info[1]], mask=True, version='new')
+    quit0()
+    for m in ['area_5']:
+        print 'test series of pixel in %s' % m
+        for ob in ['AS']:
+            for mo in ['_norm_']:
+                print 'mode is %s, orbit is %s' % (mo, ob)
+                data_process.ascat_result_test(m, mode=mo, key=ob, odd_rc=(89, 190))
+    quit0()
+
+    # 0614/2018, read alaska again
+    Read_radar.radar_read_alaska('_A_', ['alaska'], ['2015.12.01', '2016.12.31'], 'vv')
+    # quit0()
+    # spt_quick.smap_mask()
+    doy = np.arange(-60, 366)
+    doy_id = 0
+    for doy0 in doy:
+        t_str = bxy.doy2date(doy0, fmt="%Y%m%d")
+        print doy0, t_str
+        spt_quick.smap_area_plot(t_str, save_dir='./result_08_01/area/smap/', orbit='A')
+        doy_id += 1
+        if doy_id > 10:
+            break
+    data_process.ascat_onset_map('A', odd_point=[], product='grid_test', mask=False, std=4, mode=['_norm_'],
+                                version='old')
+
+    quit0()
+    ak_series()  # save as smap 3d array
+    data_process.smap_alaska_grid(2017)
+    quit0()
+    combine_detection()
+    quit0()
+    doy = np.arange(-90, 366+60)
+    for doy0 in doy:
+        Read_radar.read_ascat_alaska(doy0, year0=2016)
+    quit0()
+    # 0612/2018, t_air, edges and SNR
+    site_nos = ['947', '949', '950', '960', '962', '967', '968', '1090', '1175', '1177', '1233', '2065', '2081', '2210',
+                '2212', '2213']  #'1089'\
+    site_nos = ['967', '1090', '2210']
+    # site_nos = ['968']
+    for site0 in site_nos:
+        print site0
+        t_air_edges(site0)
+    quit0()
+    # 0508/2018, some area work
+    site_nos_new = ['9001', '9002', '9003', '9004', '9005', '9006', '9007',
+                     '947', '949', '950',
+                    '960', '962', '967', '968', '1090', '1175', '1177', '1233',
+                    '2065', '2081', '2210', '2211', '2212', '2213']  # '957', '948', '958', '963', '2080',
+    for sno in site_nos_new:
+        print sno
+        # 1. read corner infomation
+        # s_info = site_infos.change_site(sno)
+        # s_info_t = np.array([s_info[2], s_info[1], int(s_info[0])]).reshape(3, -1)
+        # print sno
+        # spt_quick.ascat_sub_pixel(s_info_t, dis0=4, site_nos=[sno])
+        # 2. after shape file
+        # gdal_clips(sno, ipt='lc')
+        # gdal_clips(sno, ipt='snowf')
+        # ascat_snow_lc(sno)
+
+    # 3. combine snow and landcover
+    # for sno in site_nos_new:
+    #     print sno
+    #     check_lc_snow_ascat(sno)
+    ascat_snowlc_npy(site_nos_new)
+    rid = 1
+    sno_sp = regions_extract(rid)
+    beams = 'fore'
+    # land_cover(rid, sno_sp, ['ever', 'decid', 'shrub'], False)  # 2nd var is a list of sites
+    # check_pass_time(rid)
+    regions_plotting(region_id=rid, att_xyz=['# date', beams, 'snowf'], xlim0=[1, 366])
+    regions_plotting(region_id=rid, att_xyz=['# date', beams, 'tair'], xlim0=[1, 366])
+
+    # # 0516/2018
+    t0 = 130
+    for sno in site_nos_new:
+        tb_melt_window(sno)
+    beams = 'fore'
+    sno_sp = regions_extract(rid)
+    print sno_sp
+    for sno in sno_sp:
+        #regions_plotting(sno)
+        # regions_plotting(region_id=rid, site_no=sno, att_xyz=['tair', beams, '# date'])  # xlim0=[1, 366]
+        regions_plotting(region_id=rid, site_no=sno, att_xyz=['# date', beams, 'ID'], xlim0=[1, 366], xv=t0)
+    quit0()
+    ## 0514/2018 updated, transient freezing effect
+    test_method('thaw', txt=True)
+    # disscus_sm_variation()
+    # site_nos = ['947', '968']
+    # sub_no = 1
+    # for sn in site_nos:
+    #     onset_01, dist = smap_ft_compare(sn, period=['all', 0, 365], orb=1, subplot_id=sub_no)
+    #     # change sub_no to draw two rows
+    #     if sub_no > 1:
+    #         sub_no = 1
+    #     else:
+    #         sub_no = 2
+    new_process(['947'])
+    #discuss_combining()
+    quit0()
+    plot_funcs.plot_tair_npr_onset('result_08_01/onset_result/onset_tair_npr.txt')
+    # quit0()
     # 0508/2018, some area work
     site_nos_new = ['957', 'ns1', 'ns2', 'ns3', 'ns4', 'ns5', 'ns6', 'ns7']
     site_nos_new = ['957', '9001', '9002', '9003', '9004', '9005', '9006', '9007']  # '957',
@@ -1960,17 +2656,16 @@ if __name__ == "__main__":
                     '2065', '2081', '2210', '2211', '2212', '2213'
                     ]
     for sno in site_nos_new:
+        print sno
         # s_info = site_infos.change_site(sno)
         # s_info_t = np.array([s_info[2], s_info[1], int(s_info[0])]).reshape(3, -1)
         # print sno
         # spt_quick.ascat_sub_pixel(s_info_t, dis0=4, site_nos=[sno])
         # after shape file
-        gdal_clips(sno, ipt='lc')
-        gdal_clips(sno, ipt='snowf')
-        ascat_snow_lc(sno)
-        print sno
-        check_lc_snow_ascat(sno)
-    quit0()
+        # gdal_clips(sno, ipt='lc')
+        # gdal_clips(sno, ipt='snowf')
+        # ascat_snow_lc(sno)
+        # check_lc_snow_ascat(sno)
     ascat_snowlc_npy(site_nos_new)
     rid = 5
     sno_sp = regions_extract(rid)
@@ -1978,7 +2673,7 @@ if __name__ == "__main__":
     land_cover(rid, sno_sp, ['ever', 'decid', 'shrub'], False)  # 2nd var is a list of sites
     check_pass_time(rid)
     regions_plotting(region_id=rid, att_xyz=['# date', beams, 'snowf'], xlim0=[1, 366])
-    regions_plotting(region_id=rid, att_xyz=['# date', beams, 'ID'], xlim0=[1, 366])
+    regions_plotting(region_id=rid, att_xyz=['# date', beams, 'tair'], xlim0=[1, 366])
     # regions_plotting(region_id=rid, att_xyz=['tair', beams, 'snowf'])
     # regions_plotting(region_id=rid, att_xyz=['tair', beams, 'swe'])
     # regions_plotting(region_id=rid, att_xyz=['tair', beams, 'ID'])
@@ -1987,9 +2682,16 @@ if __name__ == "__main__":
     for sno in sno_sp:
         #regions_plotting(sno)
         # regions_plotting(region_id=rid, site_no=sno, att_xyz=['tair', beams, '# date'])  # xlim0=[1, 366]
-        regions_plotting(region_id=rid, site_no=sno, att_xyz=['# date', beams, 'snowf'], xlim0=[1, 366])
+        regions_plotting(region_id=rid, site_no=sno, att_xyz=['# date', beams, 'ID'], xlim0=[1, 366])
         # regions_plotting(region_id=rid, site_no=sno, att_xyz=['dswe', beams, 'swe'])
     # bxy.test_read_txt()
+    quit0()
+    tp = [[-147.02034702, 68.58702006],  [-157.93985569, 69.16732504],
+        [-156.55042833, 66.33659274], [-162.97367991, 68.26540917], [-161.23434328, 65.2680856],
+        [-150.86761887, 65.78373252], [-156.36380702, 62.78914008]]
+
+    data_process.ascat_onset_map(['AS'], odd_point=tp)
+    data_process.ascat_onset_map(['AS'], product='npr', odd_point=tp, mask=True, version='new')
     quit0()
     odd_points = [[-156.55042833, 66.33659274], ]
     tp = [[-153.38525605, 60.80840073],
@@ -2087,7 +2789,7 @@ if __name__ == "__main__":
     quit0()
 
     # plot_snow_depth()
-    #discuss_combining()
+    discuss_combining()
     # thawing_snow_depth()
     # check_distance()
     quit0()

@@ -75,7 +75,7 @@ def change_site(site_no, names=False):  # the No, lat and long of each site
         site_no_list = [row[0] for row in site_list]
         siteinfo = site_list[site_no_list.index(site_no)]
         return siteinfo
-    elif len(names) < 5:
+    elif names is True:
         site_nos = ['947', '949', '950', '960', '962', '967', '968', '1090', '1175', '1177', '1233', '2065', '2081',
                     '2210', '2211', '2212', '2213']
         name_list = ['Little Chena Ridge', 'Monument Creek', 'Munson Ridge', 'Eagle Summit', 'Gobblers Knob',
@@ -103,6 +103,8 @@ def get_data_root(site_no, date='0702'):
 
 def get_data_path(date='_05_01'):
     path = '/home/xiyu/PycharmProjects/R3/result' + date + '/'
+    if date == '_08_01':
+        path = '/home/xiyu/PycharmProjects/R3/result' + date + '/point/smap_pixel/'
     return path
 
 
@@ -221,3 +223,22 @@ def ascat_heads(id):
             'f_f0, f_f1, f_f2, f_v0, f_v1, f_v2, f_oa0, f_oa1, f_oa2, f_sa0, f_sa1, f_sa2, f_tel0, f_tel1, f_tel2,' \
             'f_ref0, f_ref1, f_ref2, as_des'
         return heads
+
+
+def all_att_smap_l1c():
+    att_list = [u'cell_antenna_scan_angle_aft', u'cell_antenna_scan_angle_fore', u'cell_boresight_incidence_aft',
+                u'cell_boresight_incidence_fore', u'cell_column', u'cell_lat', u'cell_lat_centroid_aft',
+                u'cell_lat_centroid_fore', u'cell_lon', u'cell_lon_centroid_aft', u'cell_lon_centroid_fore',
+                u'cell_number_measurements_3_aft', u'cell_number_measurements_3_fore',
+                u'cell_number_measurements_4_aft', u'cell_number_measurements_4_fore', u'cell_number_measurements_h_aft',
+                u'cell_number_measurements_h_fore', u'cell_number_measurements_v_aft', u'cell_number_measurements_v_fore',
+                u'cell_row', u'cell_solar_specular_phi_aft', u'cell_solar_specular_phi_fore', u'cell_solar_specular_theta_aft',
+                u'cell_solar_specular_theta_fore', u'cell_tb_3_aft', u'cell_tb_3_fore', u'cell_tb_4_aft', u'cell_tb_4_fore',
+                u'cell_tb_error_3_aft', u'cell_tb_error_3_fore', u'cell_tb_error_4_aft', u'cell_tb_error_4_fore',
+                u'cell_tb_error_h_aft', u'cell_tb_error_h_fore', u'cell_tb_error_v_aft', u'cell_tb_error_v_fore',
+                u'cell_tb_h_aft', u'cell_tb_h_fore', u'cell_tb_qual_flag_3_aft', u'cell_tb_qual_flag_3_fore',
+                u'cell_tb_qual_flag_4_aft', u'cell_tb_qual_flag_4_fore', u'cell_tb_qual_flag_h_aft',
+                u'cell_tb_qual_flag_h_fore', u'cell_tb_qual_flag_v_aft', u'cell_tb_qual_flag_v_fore',
+                u'cell_tb_time_seconds_aft', u'cell_tb_time_seconds_fore', u'cell_tb_time_utc_aft',
+                u'cell_tb_time_utc_fore', u'cell_tb_v_aft', u'cell_tb_v_fore']
+    return att_list

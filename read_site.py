@@ -107,7 +107,7 @@ def read_region(file_name, attribute, site_no, disref=0.5):
             return value[inner[0]], -99, -99, -99
 
 
-def get_h5_list(time_st, time_end, site_no, orbit, excep=None):
+def get_h5_list(time_st, time_end, site_no, orbit, result_path='_05_01', excep=None):
     """
         A list of h5 files based on a time window functions that read data in array call this function Site No. and orbit are specified
     :param
@@ -122,7 +122,7 @@ def get_h5_list(time_st, time_end, site_no, orbit, excep=None):
         final_list contains all the available files
         date_list contains the date string corresponding to finalist
     """
-    h5_root = site_infos.get_data_path('_05_01') + 's' + site_no + '/'  # previous result saved in document named by site no
+    h5_root = site_infos.get_data_path(result_path) + 's' + site_no + '/'  # previous result saved in document named by site no
     h5_list = []
     h5_date_list = []
     for filename in os.listdir(h5_root):  # selected orbit for a period of time
