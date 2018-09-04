@@ -61,6 +61,7 @@ def check_9001():
     testc_xy = testc1[testc1[:, -1] == 1009200]
     print testc_xy
 
+
 def check_corner_value():
     value0 = np.load('test_value.npy')
     corner0 = np.load('test_corner.npy')
@@ -198,6 +199,7 @@ def find_bias(std):
     print 's equals 7, thaw onset is ', onset0[rc_2d[0, 0], rc_2d[1, 0]]
     return [taget_lons[idx00], taget_lats[idx00], gt18[idx00], rc_2d]
 
+
 def discuss_combining():
     # site_nos = ['2213']
     site_nos = ['2211', '2213']
@@ -310,11 +312,23 @@ def plot_compare_smap_interpolation(txt0, txt1):
     return 0
 
 
+def check_ascat_timeseries():
+    row_nums = 10
+    ascat_series = np.load('ascat_s1090_2016.npy')
+    # print 'the first %d rows: ' % row_nums, ascat_series[0: row_nums]
+    heads = 'the first %d rows: ' % row_nums
+    np.savetxt('test_ascat_timeseries.txt', ascat_series[0: row_nums], fmt='%.4f', delimiter=',', header=heads)
+    return 0
+
+
 if __name__ == "__main__":
+    check_ascat_timeseries()
+    doy = bxy.get_doy(['20160101'])
+    print doy
+    # fname = 'tb_968_A_2016.txt'
+    # plot_compare_smap_interpolation('tp/temp_timeseries_0730/'+fname, 'result_07_01/txtfiles/site_tb/'+fname)
 
 
-    fname = 'tb_968_A_2016.txt'
-    plot_compare_smap_interpolation('tp/temp_timeseries_0730/'+fname, 'result_07_01/txtfiles/site_tb/'+fname)
     # ipt0 = {'thaw_npr':  [-2, -4, 2], 'thaw_tb': [-2, 5, 2], 'thaw_ascat': [-2, 3, 2],
     #         'freeze_npr': [-1, 8, 2], 'freeze_tb': [-1, 6, 2], 'freeze_ascat': [-1, 4, 2]}
     # for key0 in ipt0.keys():

@@ -234,10 +234,7 @@ def return_ind(filenamez, siten, sensor, prj='North_Polar_Projection',thsig=[0.4
         # read all ascat swath in one date
         # nc_dict = read_netcdf(filenamez, ['latitude', 'longitude', 'sigma0_trip', 'f_usable', 'inc_angle_trip', 'f_land', 'as_des_pass'], anx=None)
         # nc_dict = read_netcdf(filenamez, ['latitude', 'longitude', 'sigma0_trip', 'f_usable', 'inc_angle_trip', 'f_land', 'utc_line_nodes', 'abs_line_number', 'as_des_pass'], anx=None)
-        headers = ['latitude', 'longitude', 'sigma0_trip', 'f_usable', 'inc_angle_trip', 'f_land'
-                                          , 'utc_line_nodes', 'abs_line_number', 'sat_track_azi', 'swath_indicator',
-                                          'kp', 'azi_angle_trip', 'num_val_trip', 'f_f', 'f_v', 'f_oa', 'f_sa', 'f_tel',
-                                          'f_ref', 'as_des_pass']
+        headers = site_infos[sensor]
         nc_dict = read_netcdf(filenamez, headers, anx=None)
         # check_ak_ascat(nc_dict)
         # sys.exit()

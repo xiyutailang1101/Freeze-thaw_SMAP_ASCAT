@@ -148,9 +148,9 @@ def time_transform_check(time_utc, reftime, fms, tzone=False):
     return sec_ascat
 
 
-def time_getlocaltime(utc_sec, ref_time=[2000, 1, 1, 12]):  # default ob: asc
-    tz_utc = pytz.timezone('utc')
-    tz_ak = pytz.timezone('US/Alaska')
+def time_getlocaltime(utc_sec, ref_time=[2000, 1, 1, 12], t_source = 'utc', t_out = 'US/Alaska'):  # default ob: asc
+    tz_utc = pytz.timezone(t_source)
+    tz_ak = pytz.timezone(t_out)
     passtime_obj_list = [datetime(ref_time[0], ref_time[1], ref_time[2], ref_time[3], 0, tzinfo=tz_utc)+timedelta(seconds=sec_i) for sec_i in utc_sec]
     doy_passhr = np.array([[p_time0.astimezone(tz=tz_ak).timetuple().tm_year,
                             p_time0.astimezone(tz=tz_ak).timetuple().tm_mon,
@@ -160,6 +160,9 @@ def time_getlocaltime(utc_sec, ref_time=[2000, 1, 1, 12]):  # default ob: asc
                            for p_time0 in passtime_obj_list]).T
     return doy_passhr  # year, month, day, doy, hour
 
+def get_secs(t_list, reftime=[2000, 1, 1, 0]):
+    return (datetime(t_list[0], t_list[1], t_list[2], t_list[3], t_list[4], t_list[5])
+            - datetime(reftime[0], reftime[1], reftime[2], reftime[3], 0, 0)).total_seconds()
 
 def zone_trans(secs, zone0, zone1, ref_time=[2000, 1, 1, 0]):
     tz0 = pytz.timezone(zone0)
@@ -348,6 +351,21 @@ def geo_2_row(grid, target):
     idx_1d = np.argmin(dis)
     rc = trans_in2d(idx_1d, grid[0].shape)
     return rc
+
+
+def hampel(vals_orig, k=7, t0=3):
+    vals = vals_orig.copy()
+    L = 1.4826
+    rolling_median = np.roll(vals, k).median()
+    difference = np.abs(rolling_median-vals)
+    median_abs_deviation = np.roll(difference, k).median()
+
+
+def reject_outliers(data, m=3.):
+    d = np.abs(data - np.mean(data))
+    mdev = np.median(d)
+    s = d/mdev if mdev else 0.
+    return s<m
 
 
 

@@ -190,12 +190,15 @@ def get_layer(key):
     return layer1[key]
 
 
-def in_situ_measurement():
+def in_situ_measurement(site_no):
     measured = 'Date,' \
                'Soil Moisture Percent -2in (pct),Soil Moisture Percent -8in (pct),Soil Moisture Percent -20in (pct),' \
                'Soil Temperature Observed -2in (degC),Soil Temperature Observed -8in (degC),Soil Temperature Observed -20in (degC),' \
                'Air Temperature Average (degC),Air Temperature Maximum (degC),Air Temperature Minimum (degC),Air Temperature Observed (degC),' \
                'Precipitation Accumulation (mm),Precipitation Increment (mm),Snow Water Equivalent (mm)'
+    air0 = "Air Temperature Observed (degC)"
+    if site_no in ['2065', '2081']:
+        air0 = "Air Temperature Average (degC)"
     return 0
 
 
@@ -213,16 +216,21 @@ def site_onset(site_no, orbit='A'):
     return onset_value
 
 
-def ascat_heads(id):
-    if id == 0:
-        heads = \
-            'latitude, longitude, sigma0_trip0, sigma0_trip1, sigma0_trip2, f_usable0, f_usable1, ' \
-            'f_usable2, inc_angle_trip0, inc_angle_trip1, inc_angle_trip2, f_land0, f_land1, f_land2, ' \
-            'utc_line_nodes, abs_line_number, sat_track_azi, swath_indicator, kp0, kp1, kp2, ' \
-            'azi_angle_trip0, azi_angle_trip1, azi_angle_trip2,  num_val_trip0, num_val_trip1, num_val_trip2, ' \
-            'f_f0, f_f1, f_f2, f_v0, f_v1, f_v2, f_oa0, f_oa1, f_oa2, f_sa0, f_sa1, f_sa2, f_tel0, f_tel1, f_tel2,' \
-            'f_ref0, f_ref1, f_ref2, as_des'
-        return heads
+def ascat_heads(key0):
+
+    heads = {}
+    heads['ascat0'] = ['latitude, longitude, sigma0_trip0, sigma0_trip1, sigma0_trip2, f_usable0, f_usable1, ' \
+        'f_usable2, inc_angle_trip0, inc_angle_trip1, inc_angle_trip2, f_land0, f_land1, f_land2, ' \
+        'utc_line_nodes, abs_line_number, sat_track_azi, swath_indicator, kp0, kp1, kp2, ' \
+        'azi_angle_trip0, azi_angle_trip1, azi_angle_trip2,  num_val_trip0, num_val_trip1, num_val_trip2, ' \
+        'f_f0, f_f1, f_f2, f_v0, f_v1, f_v2, f_oa0, f_oa1, f_oa2, f_sa0, f_sa1, f_sa2, f_tel0, f_tel1, f_tel2,' \
+        'f_ref0, f_ref1, f_ref2, as_des']
+
+    heads['ascat'] = ['latitude', 'longitude', 'sigma0_trip', 'f_usable', 'inc_angle_trip', 'f_land'
+                                      , 'utc_line_nodes', 'abs_line_number', 'sat_track_azi', 'swath_indicator',
+                                      'kp', 'azi_angle_trip', 'num_val_trip', 'f_f', 'f_v', 'f_oa', 'f_sa', 'f_tel',
+                                      'f_ref', 'as_des_pass']
+    return heads[key0]
 
 
 def all_att_smap_l1c():
@@ -242,3 +250,20 @@ def all_att_smap_l1c():
                 u'cell_tb_time_seconds_aft', u'cell_tb_time_seconds_fore', u'cell_tb_time_utc_aft',
                 u'cell_tb_time_utc_fore', u'cell_tb_v_aft', u'cell_tb_v_fore']
     return att_list
+
+
+def cols_nums(name_str):
+    # ascat
+    ascat_dict = {'orbit': [-2]}
+    return ascat_dict[name_str][0]
+
+
+def get_sno_list(type_str='string'):
+    site_dic = {}
+    site_dic['string'] = \
+        ['947', '949', '950', '960', '962', '967', '968', '1090', '1175',
+         '1177', '1233', '2065', '2081', '2210', '2211', '2212', '2213']
+    site_dic['int'] = [947, 949, 950, 960, 962, 967, 968, 1090, 1175,
+         1177, 1233, 2065, 2081, 2210, 2211, 2212, 2213]
+    site_dic['test'] = ['968', '1090']
+    return site_dic[type_str]
