@@ -19,9 +19,7 @@ from basic_xiyu import h5_writein
 
 prefix = './result_07_01/'
 site_nos = ['947', '949', '950', '960', '962', '967', '968', '1090', '1175', '1177', '1233', '2065', '2081', '2210', '2211', '2212', '2213'] #'1089'
-# site_nos = ['1233','2065', '2213']
-# site_nos = ['1090']
-thaw_win = [60, 150]
+site_nos = ['947', '968']
 sha = {'947': [[90, 115], [60, 120]], '968': [[120, 145], [90, 150]], '2213': [100, 120], '1177': [[100, 150], [100, 150]]}
 # '947', '949', '950', '960', '962', '968','1090', '1175', '1177'
 #'967', '2065', '2081', '2210', '2213', '1089', '1233', '2212', '2211',
@@ -66,6 +64,15 @@ for site_no in site_nos:
         stats_t, tair5 = read_site.read_sno(site_file, "Air Temperature Average (degC)", si0)
         tair_daily, tair_date = data_process.cal_emi(tair5, y2_empty, doy, hrs=obs[2])
     tair_date-=365
+    # to get a melting onsets based on air temperature
+    length0 = 5
+    a_filter = (np.zeros(length0)+1)/length0
+    smooth_tair = np.convolve(a_filter, tair_daily, 'same')
+    index01 = (tair_date>60) & (tair_date<150)  # index for thawing window
+    index02 = smooth_tair > 0
+    t0_onset = tair_date[index01 & index02][0]
+    with open('tair_eq_0_date.txt', 'a') as tair_eq_0:
+        tair_eq_0.write('%s, %.2f\n' % (site_no, t0_onset))
     if pp:
         stats_swe, swe = read_site.read_sno(site_file, "Precipitation Increment (mm)", si0)
     else:
@@ -90,8 +97,8 @@ for site_no in site_nos:
         # if str(site_no) == '968' & orders == 2:
         #     k_width = 8
         sigconv, sigseries, ons_new, gg, sig_pass, peakdate_sig = \
-                data_process.ascat_plot_series(site_no, orb_no=obs[0], inc_plot=True, sigma_g=k_width+3, pp=precip,
-                                               order=1, txt_path='./result_08_01/point/ascat/ascat_site_series/')
+                data_process.ascat_plot_series(site_no, orb_no=obs[0], inc_plot=True, sigma_g=k_width, pp=precip,
+                                               order=1)
         # if orders == 2:
         #     print 'second order of guassian'
         #     sigconv, sigseries, ons_new, gg, sig_pass, peakdate_sig = \
@@ -115,10 +122,10 @@ for site_no in site_nos:
         tbv0, tbh0, npr0, gau0, ons0, tb_pass, peakdate0 = test_def.main(site_no, [], sm_wind=7, mode='annual',
                                                                          seriestype='tb', tbob=obs[1], sig0=k_width, order=1)  # result tb
         tb_onsetnew = data_process.tb_1st(ons0, gau0)
-        # plot_funcs.simple_plot(tbv0)
+        plot_funcs.simple_plot(tbv0)
         gau0_tb.append(gau0)
         tbv1, tbh1, npr1, gau1, ons1, sitetime, peakdate1 = test_def.main(site_no, [], sm_wind=7, mode='annual',
-                                                                          tbob=obs[1], sig0=k_width, order=1, thaw_win=thaw_win)  # result npr
+                                                                          tbob=obs[1], sig0=k_width, order=1)  # result npr
         gau1_npr.append(gau1)  # gau1: normalized E(t), peakdate: the date when E(t) reaches max/min
         npr_end = data_process.edge_2nd(ons1, gau1)
 
@@ -218,8 +225,7 @@ for site_no in site_nos:
         plotting
         """
         # 1 general plot
-        print 'the onset at this station ', site_no, 'are ', ons_new
-        print onset_value[0]
+        print ons_new
         print gau0[0].size, gau0[2].size
         plt_npr_gaussian_all([tbv0, tbh0, [gau0[0], gau0[2]]],  # row 1, tb
                              [[npr1[0], npr1[1]*100], [gau1[0], gau1[2]*100]],  # row 2, npr
@@ -228,10 +234,10 @@ for site_no in site_nos:
                              [['Soil moisture (%)', sm[0], sm[1]],  # row4 temp/moisture
                               # swe_date, swe_daily
                               ['Soil temperature (DegC)', tsoil[0], tsoil[1]]],
-                             ['SWE (mm)', swe[0], swe[1]], np.array(ons_new),  # onset_value[0] change to np.array(ons_new) 20180807
+                             ['SWE (mm)', swe[0], swe[1]], onset_value[0], # row5 swe/percipitation, onset
                              figname=prefix+'all_plot_'+site_no+'_'+str(k_width)+'.png', size=(8, 8), xlims=[1, 366],
                              title=False, site_no=site_no, pp=precip, s_symbol='k.', tair=[tair_date, tair_daily], snow_plot=False,
-                             shade=[[thaw_win[0], thaw_win[1]], [250, 340]])
+                             shade=[[60, 150], [250, 340]])
                              #day_tout=day2, end_ax1=tb_onsetnew, end_ax2=npr_end, end_ax3=ascat_end)
         ons_new.append(int(site_no))
         onset_save.append(ons_new)

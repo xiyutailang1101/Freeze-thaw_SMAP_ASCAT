@@ -225,12 +225,11 @@ def ascat_area_plot2(datez, save_dir='./result_05_01/test_area_result_9km_', orb
             continue
     sigma_mid, land_mid, inc_mid, orbit_id, f_use = \
         ascat_data[:, 3], ascat_data[:, 12], ascat_data[:, 9], ascat_data[:, -1], ascat_data[:, 6]  # read values
-    id_land_orb = (land_mid > 0.5) & (orbit_id == orbit_no) & (f_use < 1)  # 0: good, 1: acceptable, 2: unusable
+    id_land_orb = (land_mid > 0.5) & (orbit_id == orbit_no) & (f_use < 2)  # remove unusable data
     sigma_land, inc_land = sigma_mid[id_land_orb], inc_mid[id_land_orb]
     lon_land, lat_land, pass_time = ascat_data[:, 1][id_land_orb], ascat_data[:, 0][id_land_orb], ascat_data[:, 14][id_land_orb]
     pass_array = bxy.time_getlocaltime(pass_time)
     pass_hr = pass_array[-1, :]
-    # pass_hr = pass_time
     print np.min(pass_hr)
 
     id_loc_time00 = data_process.time_mosaic(tzone, pass_hr)
@@ -246,22 +245,42 @@ def ascat_area_plot2(datez, save_dir='./result_05_01/test_area_result_9km_', orb
             sigma_land0, inc_land0, pass_hr0, pass_time0 = \
                 sigma_land[id_loc_time0], inc_land[id_loc_time0], pass_hr[id_loc_time0], pass_time[id_loc_time0]
             lon_land0, lat_land0 = lon_land[id_loc_time0], lat_land[id_loc_time0]
-            # select attributes that we want to save !! 08/29/2018
-            sigma_dict0 = {'sigma': sigma_land0, 'incidence': inc_land0,
-                           'pass_utc': pass_time0}  # pass_hr0 --> pass_time0, 0829/2018
-            resampled_ascat0 = res.resample_to_grid(sigma_dict0, lon_land0, lat_land0, lon_gd, lat_gd, search_rad=9000)
-            mean_pass = np.mean(pass_hr0)
-
-            resample_name = './result_08_01/ascat_resample_%s/new/ascat_%s_%d_resample' % (ob, datez, 0.5*(tz[0]+tz[1]))
-            incidence_name = './result_08_01/ascat_resample_%s/new/ascat_%s_%d_incidence' % (ob, datez, 0.5*(tz[0]+tz[1]))
-            pass_name = './result_08_01/ascat_resample_%s/new/ascat_%s_%d_pass_utc' % (ob, datez, 0.5*(tz[0]+tz[1]))
-            np.save(resample_name, resampled_ascat0['sigma'].data)
-            np.save(incidence_name, resampled_ascat0['incidence'].data)
-            np.save(pass_name, resampled_ascat0['pass_utc'].data)
-                # fig_name = 'zone_%s_%.2f' % (str(tzone[n0][0]*10), mean_pass)
+            sigma_dict0 = {'sigma': sigma_land0, 'incidence': inc_land0, 'pass': pass_hr0}
+            if n1 < 1:
+                resampled_ascat0 = res.resample_to_grid(sigma_dict0, lon_land0, lat_land0, lon_gd, lat_gd, search_rad=9000)
+                mean_pass = np.mean(pass_hr0)
+                fig_name = 'zone_%s_%.2f' % (str(tzone[n0][0]*10), mean_pass)
                 # data_process.pass_zone_plot(lon_gd, lat_gd, resampled_ascat0['sigma'], pre_path, fname=fig_name)
+            else:
+                resampled_ascat_tp = res.resample_to_grid(sigma_dict0, lon_land0, lat_land0, lon_gd, lat_gd, search_rad=9000)
+                mean_pass = np.mean(pass_hr0)
+                fig_name = 'zone_%s_%.2f' % (str(tzone[n0][0]*10), mean_pass)
+                # data_process.pass_zone_plot(lon_gd, lat_gd, resampled_ascat_tp['sigma'], pre_path, fname=fig_name)
+                # get the mosaic part
+                id_same_mask = resampled_ascat0['sigma'].mask == resampled_ascat_tp['sigma'].mask
+                id_mosaic = id_same_mask == resampled_ascat_tp['sigma'].mask
+                # the intersect part of unmasked area
+                id_overlay2 = (resampled_ascat0['sigma'].mask == False) & (resampled_ascat_tp['sigma'].mask == False)
+                # resampled_ascat0['sigma'].mask[id_overlay2] = True
+                ## data_process.pass_zone_plot(lons_grid, lats_grid, resampled_ascat0['sigma'], pre_path, fname='_overlay'+str(tzone[n0][0]*10))
+                for key in ['sigma', 'incidence']:
+                    resampled_ascat0[key][id_mosaic] = resampled_ascat_tp[key][id_mosaic]
+                    resampled_ascat0[key].mask[id_mosaic] = resampled_ascat_tp[key].mask[id_mosaic]
+                    if all(sum(id_overlay2) < 1):
+                        print 'No overlay occurs from hour %.1f to %.1f' % (tz[0], tz[1])
+                    else:
+                        resampled_ascat0[key][id_overlay2] = 0.5*(resampled_ascat0[key][id_overlay2] + resampled_ascat_tp[key][id_overlay2])
+                # data_process.pass_zone_plot(lon_gd, lat_gd, resampled_ascat0['sigma'], pre_path, fname='zone'+str(tzone[n0][0]*10)+'added')
+    # apply normalization
+    if n1 < 0:
+        print 'No morning data in %s' % datez
+        return 0
+    # save not normalized data
+    np.save('./result_08_01/ascat_resample_'+ob+'/ascat_'+datez+'_resample', resampled_ascat0['sigma'].data)
+    np.save('./result_08_01/ascat_resample_'+ob+'/ascat_'+datez+'_incidence', resampled_ascat0['incidence'].data)
     # resampled_ascat0['sigma'] -= (resampled_ascat0['incidence']-45.0)*-0.11  # normalization
     # np.save('./result_05_01/ascat_resample_norms/ascat_resample_'+ob+'/ascat_'+datez+'_resample', resampled_ascat0['sigma'].data)
+    np.save('./result_08_01/ascat_resample_'+ob+'/ascat_'+datez+'_mask', resampled_ascat0['sigma'].mask)
     # add the station location
     # for i_tp in ['merc', 'laea']:
     #     fig = plt.figure(figsize=[8, 8])
@@ -460,7 +479,7 @@ def ascat_test_nn(id_as, id_des, site_file):
 
 def ascat_point_plot(center=False, dis0=19,
                      site_nos=['947', '2081', '2065', '967', '2213', '949', '950', '960', '962', '968', '1090', '1175',
-                               '1177', '2210', '1233', '2212', '2211']):
+                               '1177', '2210', '1089', '1233', '2212', '2211']):
 
     site_dic = {'sno_': ['1089', '967', '1062', '947', '949', '950', '960', '962', '968', '1090', '1175', '1177'],
                     'scan_': ['2081', '2213', '2210', '2065', '2212', '2211', '1233']}
@@ -468,7 +487,7 @@ def ascat_point_plot(center=False, dis0=19,
         all_subcenter = np.loadtxt(center, delimiter=',').T # the subcenters
         site_nos = all_subcenter[0].astype(int)
     for site_no in site_nos:
-        main_sid = site_nos[0]
+        main_sid = site_nos[0]/100
         site_no = str(site_no)
         ascat_point = []
         loc_as = np.array([])  # Location of nn for ascending pass
@@ -479,11 +498,10 @@ def ascat_point_plot(center=False, dis0=19,
             center_tb = [site_subcenter[0], site_subcenter[1]]
             txt_path = '/home/xiyu/PycharmProjects/R3/result_05_01/site_ascat/' + 's' + str(main_sid)+ '/'
         else:
-            txt_path = '/home/xiyu/PycharmProjects/R3/result_08_01/point/ascat/' + 's' + str(site_no) + '/'
+            txt_path = '/home/xiyu/PycharmProjects/R3/result_05_01/site_ascat/' + 's' + str(site_no) + '/'
         n = 0
         n_warning, n_inc = 0, 0
         file_list = sorted(os.listdir(txt_path))
-        ascat_all_neighbor1d = np.array([])
         for txt_file in file_list:
             # get dt
             n+=1
@@ -507,30 +525,27 @@ def ascat_point_plot(center=False, dis0=19,
                     t_utc = txt_i[:, 14]
                     orb = txt_i[:, -1]
                 # print 'DATE:', datei
-                id_nn, dis = data_process.ascat_nn\
-                    (locs.T[1], locs.T[0], sig.T, orb.T, site_no, f=f_u.T, disref=dis0, pass_sec=t_utc)
+                id_nn, dis = data_process.ascat_nn(locs.T[1], locs.T[0], sig.T, orb.T, site_no, f=f_u.T, disref=dis0)
                 # test
                 as_loc = ascat_test_nn(id_nn[0], id_nn[1], txt_i)
                 loc_as = np.append(loc_as, as_loc)
                 # pass_hr = 24*np.modf(t_utc/3600/24)[0]
                 pass_hr = t_utc
+                pass_time = [pass_hr[id_nn[0]], pass_hr[id_nn[1]],
+                             [np.fix(t_utc/3600/24 - (dtime(2016, 1, 1) - dtime(2000, 1, 1)).days)],
+                             pass_hr]
                 items = ['NN as_pass', 'NN des_pass', 'DOY', 'passing hours']
+                for i in range(0, len(pass_time)):
+                    isprint = False
+                    # print items[i], ':', pass_time[i], '\n'
                 idn = np.concatenate((id_nn[0], id_nn[1])).astype(int)
-                dis_all = np.concatenate((dis[0], dis[1]))
-                ascat_all_neighbor = np.zeros((txt_i[idn].shape[0], txt_i[idn].shape[1]+1))
-                ascat_all_neighbor[:, 0:-1] = txt_i[idn]
-                ascat_all_neighbor[:, -1] = dis_all
-                ascat_all_neighbor1d = np.append(ascat_all_neighbor1d, ascat_all_neighbor.ravel())
-
-                # sig_daily = data_process.ascat_ipt(dis, txt_i[:, [2, 3, 4, 8, 9, 10, 11, 12, 13, 0, 1]][idn].T, pass_hr[idn], orb[idn])
-                # doy = np.fix(t_utc/3600/24 - (dtime(2016, 1, 1) - dtime(2000, 1, 1)).days)[0]
-                # sig_table = [[doy]+t for t in sig_daily]
-                # for v in sig_table:
-                #     ascat_point.append(v)
-                # tt = 0
-
-        # np.save('./result_08_01/point/ascat/ascat_site_series/ascat_s'+str(site_no)+'_2016', np.array(ascat_point))
-        np.save('./result_08_01/point/ascat/ascat_site_series/ascat_s'+str(site_no)+'_2016', ascat_all_neighbor1d.reshape(-1, 47))
+                sig_daily = data_process.ascat_ipt(dis, txt_i[:, [2, 3, 4, 8, 9, 10, 11, 12, 13, 0, 1]][idn].T, pass_hr[idn], orb[idn])
+                doy = np.fix(t_utc/3600/24 - (dtime(2016, 1, 1) - dtime(2000, 1, 1)).days)[0]
+                sig_table = [[doy]+t for t in sig_daily]
+                for v in sig_table:
+                    ascat_point.append(v)
+                tt = 0
+        np.save('./result_05_01/ascat_point/ascat_s'+str(site_no)+'_2016', np.array(ascat_point))
         # np.save('./result_05_01/ascat_point/loc_a_s'+site_no+'_2016', loc_as.reshape(-1, 2))
     st = 0
     return 0

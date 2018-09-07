@@ -579,28 +579,3 @@ def plot_interp_time_series(series_list, label, odd_threshold=0):
         ax.set_ylabel(label0)
     plt.savefig('tp/temp_timeseries_0730/test.png')
     plt.close()
-
-
-def quick_plot(x, y, figname='test_quick.png', lsymbol='o'):
-    fig0 = plt.figure()
-    ax0 = fig0.add_subplot(1, 1, 1)
-    ax0.plot(x, y, lsymbol)
-    # ax0.set_ylim([0.9*np.min(y), 1.1*np.max(y)])
-    plt.savefig(figname)
-    plt.close()
-
-
-def plot_subplot(main_axe, second_axe, figname='result_08_01/test_plot_subplot.png', vline=[0]):
-    fig0 = plt.figure()
-    n = len(main_axe)
-    for i0, item0 in enumerate(main_axe):
-        ax0 = fig0.add_subplot(n, 1, i0+1)
-        ax0.plot(item0[0], item0[1], 'k.')
-        if i0 < len(second_axe):
-            for vl0 in vline:
-                ax0.axvline(x=vl0)
-            ax0_0 = ax0.twinx()
-            ax0_0.plot(second_axe[i0][0], second_axe[i0][1], 'g-')
-    plt.savefig(figname)
-    plt.close()
-    return 0

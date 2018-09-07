@@ -34,7 +34,7 @@ def read_h5(peroid):
 
 
 def main(site_no, period, sm_wind=17, mode='all', seriestype='sig', tbob='_A_', sig0=2, norm=False, center=False, order=1,
-         value_series=False, thaw_win=[60, 150]):
+         value_series=False):
 
     """
     period:
@@ -226,7 +226,7 @@ def main(site_no, period, sm_wind=17, mode='all', seriestype='sig', tbob='_A_', 
             g_npr, i_gaussian = data_process.gauss_conv(edge_series, sig=kwidth, size=2*g_size+1)  # option: ffnpr-t_h; var_npv-t_h
             g_npr_valid_non = g_npr[g_size: -g_size]
             max_gnpr, min_gnpr = peakdetect.peakdet(g_npr_valid_non, peaks_iter, t_series[i_gaussian][g_size: -g_size])
-            onset = data_process.find_inflect(max_gnpr, min_gnpr, typez='annual', typen=seriestype, t_win=thaw_win)  # !!
+            onset = data_process.find_inflect(max_gnpr, min_gnpr, typez='annual', typen=seriestype)  # !!
         elif order == 2:
             g_npr, i_gaussian = data_process.gauss2nd_conv(edge_series, sig=kwidth)  # option: ffnpr-t_h; var_npv-t_h
             g_npr_valid_non = g_npr[g_size: -g_size]
@@ -766,7 +766,7 @@ def get_axis_limits(ax, scale=.9):
     return ax.get_xlim()[1]*scale, ax.get_ylim()[1]*scale
 
 
-def plt_npr_gaussian_all(tb, npr, sigma, soil, snow, onset, figname='all_plot_test0420', size=(12, 8), xlims=[0, 365],
+def plt_npr_gaussian_all(tb, npr, sigma, soil, snow, onset, figname='all_plot_test0420', size=(8, 8), xlims=[0, 365],
                          shade=False, title=False, site_no='947', pp=False, subs=5, s_symbol='k.',
                          day_tout=-1, end_ax1=[0, 0], end_ax2=[0, 0], end_ax3=[0, 0], tair=[], snow_plot=False):
     """
@@ -789,7 +789,7 @@ def plt_npr_gaussian_all(tb, npr, sigma, soil, snow, onset, figname='all_plot_te
     # ylim for each station
     site_lim = {'947': [-17, -7], '949': [-13, -7], '950': [-13, -7], '960': [-14, -8], '962': [-15, -8], '967': [-12, -8], '968': [-17, -7],
                 '1089': [-13, -7], '1090': [-14, -7], '1175': [-15, -8], '1177': [-19, -10],
-                '1233': [-17, -6], '2065': [-14, -8], '2081': [-15, -7], '2210': [-16, -8], '2211': [-16, -8], '2212': [-16, -8],
+                '1233': [-17, -9], '2065': [-14, -8], '2081': [-15, -7], '2210': [-16, -8], '2211': [-16, -8], '2212': [-16, -8],
                 '2213': [-17, -10]}
     axs = []
     fig = plt.figure(figsize=size)
@@ -881,7 +881,7 @@ def plt_npr_gaussian_all(tb, npr, sigma, soil, snow, onset, figname='all_plot_te
     _, ax3_2, l2 = plot_funcs.pltyy(sigma[0][0], sigma[0][1], 'test_comp2', '$\sigma^0_{45} (dB)$',
                              t2=sigma[1][0], s2=sigma[1][1], label_y2='$E_{\sigma^0_{45}}$\n(dB/day)',
                              symbol=[s_symbol, 'g-'], handle=[fig, ax3], nbins2=6)
-    # ax3.set_ylim(site_lim[site_no])
+    ax3.set_ylim(site_lim[site_no])
     # ax3.locator_params(axis='y', nbins=4)
 
     # moisture and temperature
@@ -889,20 +889,25 @@ def plt_npr_gaussian_all(tb, npr, sigma, soil, snow, onset, figname='all_plot_te
     axs.append(ax4)
     if snow_plot is False:
         _, ax4_2, l2 = plot_funcs.pltyy(soil[0][1], soil[0][2], 'test_comp2', 'VWC (%)',
-                                 t2=soil[1][1], s2=soil[1][2], label_y2='T$_{soil}$ ($^\circ$C)',
+                                 t2=soil[1][1], s2=soil[1][2], label_y2='T ($^\circ$C)',  # 'T$_{soil}$ ($^\circ$C)'
                                  symbol=['k-', 'b-'], handle=[fig, ax4], nbins2=6)
         for ax_2 in [ax4_2]:
             ax_2.axhline(ls='--', lw=1.5)
     else:
         ax4.plot(snow[1], snow[2], 'k', linewidth=2.0)
         ax4_2 = ax4.twinx()
-        if len(tair) > 0:
-            tair[1][tair[1] < -60] = np.nan
-            ax4_2.plot(tair[0], tair[1], 'k:')
-            ax4_2.set_ylim([-30, 30])
-            ax4_2.axhline(ls='--', lw=1.5)
-            ax4_2.yaxis.set_major_locator(MaxNLocator(5))
-            ax4_2.set_ylabel('T$_{air}$ ($^o$C)')
+
+    if len(tair) > 0:
+        tair[1][tair[1] < -60] = np.nan
+        l_tair = ax4_2.plot(tair[0], tair[1], 'b:', linewidth=2.0)
+        ax4_2.set_ylim([-30, 30])
+        # ax4_2.axhline(ls='--', lw=1.5)
+        ax4_2.yaxis.set_major_locator(MaxNLocator(5))
+        melt_dates = np.loadtxt('snow_melt_date_v1.txt', delimiter=',')
+        print melt_dates[melt_dates[:, 0] == int(site_no)]
+        melt_onset = melt_dates[melt_dates[:, 0] == int(site_no)][0, 1]
+        ax4_2.axvline(x=melt_onset, ls=':', color='r')
+        # ax4_2.set_ylabel('T$_{air}$ ($^o$C)')
 
 
     ax2s = [ax1_2, ax2_2, ax3_2, ax4_2]
@@ -997,18 +1002,14 @@ def plt_npr_gaussian_all(tb, npr, sigma, soil, snow, onset, figname='all_plot_te
         ax.get_yaxis().set_label_coords(1.10, 0.5)  # position of labels
 
     # ylims
-    ax3_2.set_ylim([-3, 2])
     ax1.set_ylim([210, 280])
-    if site_no == '1233':
-        ax1.set_ylim([180, 275])
-        ax3_2.set_ylim([-3, 3])
     # ax1_2.set_ylim([-9, 9])
     if site_no == '1177':
         st = 0
     else:
         ax2.set_ylim([0, 6])
         ax2_2.set_ylim([-2, 2])
-
+    ax3_2.set_ylim([-3, 2])
     # x_label
     for i3 in range(0, 4):
         axs[i3].set_xlabel('')
@@ -1026,17 +1027,12 @@ def plt_npr_gaussian_all(tb, npr, sigma, soil, snow, onset, figname='all_plot_te
     # legend setting
     leg1 = ax1.legend([l1_le[0][0], l1_le[1]], ['T$_{bv}$', 'T$_{bh}$'],
                loc=3, ncol=1, prop={'size': 12}, numpoints=1)
+    leg2 = ax4_2.legend([l2[1], l_tair[0]], ['Soil', 'Air'], loc=1, ncol=1, prop={'size': 12}, numpoints=1)
     # for leg in [leg1]:
     #     leg.get_frame().set_linewidth(0.0)
     # layout setting
     ax4.set_xlabel('Day of year 2016')
     plt.tight_layout()
-
-    # if site_no == '1233':
-    #     ax1.set_visible(False)
-    #     ax1_2.set_visible(False)
-    #     ax3.set_visible(False)
-    #     ax3_2.set_visible(False)
 
     fig.subplots_adjust(hspace=0.05)
 
@@ -1172,6 +1168,8 @@ def plot_snow_effect(tbv, tbh, obd_v, obd_h, swe, dswe=False, air_change=False, 
     shade0 = [onset_value[0][16], swe[0][(swe[1]>-1)&(swe[1]<5)][0]]
     # swe[0][(swe[1]>0)(swe[1]<5)][0]
     print onset_value.size, 'the t_air0 time is ', shade0[0]
+    with open('snow_melt_date.txt', 'a') as melt_file:
+        melt_file.write('%s, %.1f\n' % (sno, shade0[0]))
     ax1.set_ylim([-10, 40])
     i=0
     for ax in [ax0, ax1, ax2]:
@@ -1723,7 +1721,7 @@ def edge_detect(t_series, edge_series, s, order=1, seriestype='tb'):
         t_valid = t_series[i_gaussian][g_size: -g_size]
         i_winter = (t_valid > 1+365) & (t_valid < 60+365)
         conv_winter = conv_valid[i_winter]
-        # conv_noise = np.nanmean(np.abs(conv_winter))
+        conv_noise = np.nanmean(np.abs(conv_winter))
         # snr = max_gnpr[:, -1]/conv_noise
         # max_npr_valid = max_gnpr[np.abs(snr) > snr_threshold]
         # snr = np.abs(min_gnpr[:, -1])/conv_noise
