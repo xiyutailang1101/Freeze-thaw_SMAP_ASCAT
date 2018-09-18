@@ -234,10 +234,8 @@ def return_ind(filenamez, siten, sensor, prj='North_Polar_Projection',thsig=[0.4
         # read all ascat swath in one date
         # nc_dict = read_netcdf(filenamez, ['latitude', 'longitude', 'sigma0_trip', 'f_usable', 'inc_angle_trip', 'f_land', 'as_des_pass'], anx=None)
         # nc_dict = read_netcdf(filenamez, ['latitude', 'longitude', 'sigma0_trip', 'f_usable', 'inc_angle_trip', 'f_land', 'utc_line_nodes', 'abs_line_number', 'as_des_pass'], anx=None)
-        headers = ['latitude', 'longitude', 'sigma0_trip', 'f_usable', 'inc_angle_trip', 'f_land'
-                                          , 'utc_line_nodes', 'abs_line_number', 'sat_track_azi', 'swath_indicator',
-                                          'kp', 'azi_angle_trip', 'num_val_trip', 'f_f', 'f_v', 'f_oa', 'f_sa', 'f_tel',
-                                          'f_ref', 'as_des_pass']
+        # headers = site_infos[sensor]
+        headers = site_infos.ascat_heads(sensor)
         nc_dict = read_netcdf(filenamez, headers, anx=None)
         # check_ak_ascat(nc_dict)
         # sys.exit()
@@ -1070,7 +1068,7 @@ def read_netcdf_ds(ind, fname, att=[':f_usable', ':inc_angle_trip']):
     return np_ds
 
 
-def readascat(file_daily, site_no, orbit, timestr, center=False):  # from 16 to 17
+def readascat(file_daily, site_no, orbit, timestr, center=False, satellite='A'):  # from 16 to 17
     '''
 
     :param file_daily: files available of a specified date
@@ -1083,7 +1081,7 @@ def readascat(file_daily, site_no, orbit, timestr, center=False):  # from 16 to 
     value, lat, lon, axillary, orb_all = [], np.array([]), np.array([]), [], np.array([])
     stat = 0
     file_ncread = file_daily
-    return_ind(file_ncread, site_no, 'ascat', thsig=[2, 2], orbz=orbit, fname='result_08_01/point/ascat/ascat_'+timestr, center=center)
+    return_ind(file_ncread, site_no, 'ascat', thsig=[2, 2], orbz=orbit, fname='result_08_01/point/ascat/ascat_'+timestr+'_metop'+satellite, center=center)
     return 0
     for filenc in file_daily:
         file_ncread = 'NETCDF:'+ filenc
@@ -1121,7 +1119,7 @@ def readascat(file_daily, site_no, orbit, timestr, center=False):  # from 16 to 
         return -9999, -9999, -9999, -9999, -9999, -1
 
 
-def getascat(site_no, doy, year0=2015, orbit=1, center=False):
+def getascat(site_no, doy, year0=2015, orbit=1, center=False, sate='B'):
     '''
 
     :param site_no: a list of stations
@@ -1130,7 +1128,10 @@ def getascat(site_no, doy, year0=2015, orbit=1, center=False):
     :param orbit:
     :return:
     '''
-    path_ascat = '/media/327A50047A4FC379/ASCAT/ascat_l1/'
+    if sate=='B':
+        path_ascat = '/media/327A50047A4FC379/ASCAT/ascat_l1/'
+    else:
+        path_ascat = '/media/Seagate Expansion Drive/ASCAT/ascat_1a/'
     filelist = os.listdir(path_ascat)
     yr = year0 + 1 + doy/365
     dayz = doy - (doy/365 * 365)  # get the year and j
@@ -1143,7 +1144,7 @@ def getascat(site_no, doy, year0=2015, orbit=1, center=False):
             print '     file was being loading: %s' % ncfile
             file_daily.append(path_ascat+ncfile)
     # read all daily nc files
-    sigma0 = readascat(file_daily, site_no, orbit, dtime_str, center=center)
+    sigma0 = readascat(file_daily, site_no, orbit, dtime_str, center=center, satellite=sate)
     return 0
     # txt_name = 'ascat_'+site_no+'_'+dtime_str+'.txt'
     #     #h1 = h5py.File('ASCAT_'+site_no+'_'+dtime_str+'.h5', 'w')

@@ -941,7 +941,7 @@ def discuss_combining(site_nos = ['2213']):
                 x_tick.set_visible(False)
             # plot_funcs.make_patch_spines_invisible(ax_vh)
 
-            # add in situ
+            # add in situ 07/2018
             soil_t, soil_t_date = read_site.read_measurements(site_no, "Soil Temperature Observed -2in (degC)",
                                                               np.arange(366, 366+365), hr=18)
             soil_sm, soil_sm_date = read_site.read_measurements(site_no, "Soil Moisture Percent -2in (pct)",
@@ -956,7 +956,7 @@ def discuss_combining(site_nos = ['2213']):
             ax_3rd.set_xlim(xlimit)
             ax_3rd.set_ylim([0, 60])
             ax_3rd2.set_ylim([-30, 10])
-
+            ax_3rd2.axhline(y=0, ls='--')
             ax_3rd.text(0.92, 0.2, 'c', transform=ax_3rd.transAxes, va='top')
 
         # fill colors 07/2018
@@ -1544,7 +1544,7 @@ def check_ascat_sub(fname, fname2):
     print value0[0, 1:5, 0]
     print value0[0, 1:5, 1]
     print value0[0, 1:5, 2]
-    hr0 = site_infos.ascat_heads(0)
+    hr0 = site_infos.ascat_heads('ascat0')
     value01 = value01[value01[:, -1] > -999]
     value_corner01 = value_corner01[value_corner01[:, -1]>-999]
 
@@ -2198,6 +2198,7 @@ def t_air_edges(site, orbit=0):
 
 
 def ak_series(doy_array, att_list=['cell_tb_v_aft', 'cell_tb_h_aft'], ascat_atts=['resample', 'incidence']):
+
     # read smap
     date_str = []
     for doy0 in doy_array:
@@ -2208,40 +2209,67 @@ def ak_series(doy_array, att_list=['cell_tb_v_aft', 'cell_tb_h_aft'], ascat_atts
     h5_list = sorted(os.listdir(h5_path))
 
     # read asacat
-    ascat_directory = 'result_08_01/ascat_resample_AS'
-    npy_list = os.listdir(ascat_directory)
-    nodata_id = 0
-    i_date = 0
-
-    ascat_dict = {} # initial
-    for att1 in ascat_atts:
-        ascat_dict[att1] = np.zeros([300, 300, len(date_str)])-999
-
-    for i_date, d_str in enumerate(date_str):
+    if len(ascat_atts)>0:
+        ascat_directory = 'result_08_01/ascat_resample_AS'
+        match_list = []  # a list for matching the re-sampled data such as re-sampled sigma
         for att0 in ascat_atts:
-            npy_name = 'ascat_%s_%s.npy' % (d_str, att0)
-            if npy_name not in npy_list:  # no data in a certain date
-                with open('ascat_series_no_data.out', 'a') as writer1:
-                    if nodata_id == 0:  # add a line of current time
-                        time0 = datetime.now().timetuple()
-                        time_str = '%d-%d, %d: %d \n' % (time0.tm_mon, time0.tm_mday, time0.tm_hour, time0.tm_min)
-                        writer1.write(time_str)
-                        writer1.write(d_str)
-                        writer1.write('\n')
-                        nodata_id += 1
-                    else:
-                        writer1.write(d_str)
-                        writer1.write('\n')
-                # i_date += 1
+            match0 = 'result_08_01/ascat_resample_AS/new/*_%s.npy' % att0
+            match_list.append(sorted(glob.glob(match0)))
+            # resample_match = 'result_08_01/ascat_resample_AS/new/*_resample.npy'  # an example
+        resample_list, inc_list, pass_list = match_list[0], match_list[1], match_list[2]
+        #     sorted(glob.glob('result_08_01/ascat_resample_AS/new/*_resample.npy'))
+        # inc_list = sorted(glob.glob('result_08_01/ascat_resample_AS/new/*_incidence.npy'))
+        if len(inc_list) != len(resample_list):
+            print 'ascat files number error: %d are resampled, %d have incidence' % (len(inc_list), len(resample_list))
+            return 0
+        ascat_dict = {} # initial
+        for att1 in ascat_atts:
+            ascat_dict[att1] = np.zeros([300, 300, len(resample_list)])-999
+
+        for i_date in range(0, len(resample_list)):  # read resample
+            tp_value = np.load(resample_list[i_date])
+            ascat_dict['resample'][:, :, i_date] = tp_value  # resample value
+            tp_value2 = np.load(inc_list[i_date])
+            ascat_dict['incidence'][:, :, i_date] = tp_value2
+            tp_value3 = np.load(pass_list[i_date])
+            ascat_dict['pass_utc'][:, :, i_date] = tp_value3
+        # for i_date, resample0_path in enumerate(resample_list):  # read resample
+        #     ymd_hr = resample0_path.split('/')[3].split('_')[1:3]
+        #     doy = bxy.get_doy([ymd_hr[0]])
+        #     hr = int(ymd_hr[1])*1.0/24
+        #     # time_array[i_date] = doy + hr  # time
+        #     f_path = resample0_path
+        #     tp_value = np.load(f_path)
+        #     ascat_dict['resample'][:, :, i_date] = tp_value  # resample value
+        #     f_path2 = 'result_08_01/ascat_resample_AS/new/ascat_%s_%s_incidence.npy' % (ymd_hr[0], ymd_hr[1])  # ascat_20160101_1_incidence.npy
+        #     tp_value2 = np.load(f_path2)
+        #     ascat_dict['incidence'][:, :, i_date] = tp_value2
+        # initial a h5 file
+        h50 = h5py.File('result_08_01/area/combine_result/ascat_2016_3d.h5', 'a')
+        # 'resample', 'incidence'
+        for att in ascat_atts:
+            print 'the h5 attribute is ', att
+            if att in h50.keys():
+                print 'the %s existed, no modification' % att
                 continue
             else:
-                f_path = '%s/%s' % (ascat_directory, npy_name)
-                tp_value = np.load(f_path)
-                ascat_dict[att0][:, :, i_date] = tp_value
-                # i_date += 1
-    for att2 in ascat_atts:
-        ascat_name = 'result_08_01/area/combine_result/ascat_%s.npy' % att2
-        np.save(ascat_name, ascat_dict[att2])
+                h50[att] = ascat_dict[att]
+        # add latitude, longitude of h5 files
+        for ll_i, ll in enumerate(['latitude', 'longitude']):
+            if ll in h50.keys():
+                print 'the %s existed, no modification' % ll
+                continue
+            elif ll_i == 0:
+                print 'the %s has been added' % ll
+                h50[ll] = np.load('./result_05_01/onset_result/lon_ease_grid.npy')
+            elif ll_i == 1:
+                print 'the %s has been added' % ll
+                h50[ll] = np.load('./result_05_01/onset_result/lat_ease_grid.npy')
+        print 'the keys in h5 file include', h50.keys()
+        h50.close()
+        for att2 in ascat_atts:
+            ascat_name = 'result_08_01/area/combine_result/ascat_%s_3d.npy' % att2
+            np.save(ascat_name, ascat_dict[att2])
 
     # initial
     att_value_all = {}
@@ -2250,34 +2278,35 @@ def ak_series(doy_array, att_list=['cell_tb_v_aft', 'cell_tb_h_aft'], ascat_atts
 
     i_date = 0
     nodata_id = 0
-    for i_date, d_str in enumerate(date_str):
-        h5_fname = 'SMAP_alaska_A_GRID_%s.h5' % d_str
-        if h5_fname not in h5_list:
-            print 'no data on %s' % d_str
-            with open('smap_series_no_data.out', 'a') as writer1:
-                if nodata_id == 0:  # add a line of current time
-                    time0 = datetime.now().timetuple()
-                    time_str = '%d-%d, %d: %d \n' % (time0.tm_mon, time0.tm_mday, time0.tm_hour, time0.tm_min)
-                    writer1.write(time_str)
-                    writer1.write(d_str)
-                    writer1.write('\n')
-                    nodata_id += 1
-                else:
-                    writer1.write(d_str)
-                    writer1.write('\n')
-            i_date += 1
-            continue
-        else:
-            h0 = h5py.File(h5_path+'/'+h5_fname)
-            for att0 in att_list:
-                if (h0[att0].value==0).any():
-                    pause=0
-                att_value_all[att0][:, :, i_date] = h0[att0].value
-            i_date += 1
-                # tbv_a_ak_series[i_date], tbh_a_ak_series[i_date] = h0['cell_tb_v_aft'].value, h0['cell_tb_h_aft'].value
-    for att0 in att_list:
-        save_name = 'result_08_01/area/combine_result/smap_%s.npy' % att0
-        np.save(save_name, att_value_all[att0])
+    if len(att_list)>0:
+        for i_date, resample0_path in enumerate(date_str):
+            h5_fname = 'SMAP_alaska_A_GRID_%s.h5' % resample0_path
+            if h5_fname not in h5_list:
+                print 'no data on %s' % resample0_path
+                with open('smap_series_no_data.out', 'a') as writer1:
+                    if nodata_id == 0:  # add a line of current time
+                        time0 = datetime.now().timetuple()
+                        time_str = '%d-%d, %d: %d \n' % (time0.tm_mon, time0.tm_mday, time0.tm_hour, time0.tm_min)
+                        writer1.write(time_str)
+                        writer1.write(resample0_path)
+                        writer1.write('\n')
+                        nodata_id += 1
+                    else:
+                        writer1.write(resample0_path)
+                        writer1.write('\n')
+                i_date += 1
+                continue
+            else:
+                h0 = h5py.File(h5_path+'/'+h5_fname)
+                for att0 in att_list:
+                    if (h0[att0].value==0).any():
+                        pause=0
+                    att_value_all[att0][:, :, i_date] = h0[att0].value
+                i_date += 1
+                    # tbv_a_ak_series[i_date], tbh_a_ak_series[i_date] = h0['cell_tb_v_aft'].value, h0['cell_tb_h_aft'].value
+        for att0 in att_list:
+            save_name = 'result_08_01/area/combine_result/smap_%s.npy' % att0
+            np.save(save_name, att_value_all[att0])
 
 
     # np.savetxt('result_08_01/area/combine_result/ascat_smap_doy.txt', doy0, fmt='%d', delimiter=',')
@@ -2287,15 +2316,38 @@ def ak_series(doy_array, att_list=['cell_tb_v_aft', 'cell_tb_h_aft'], ascat_atts
 
 def combine_detection(thaw_window, freeze_window,
                       ascat_detect=False, tb_detect=False, npr_detect=True,
-                      odd_plot=False, odd_plot_ascat=False, sigma_npr=7):
+                      odd_plot=False, odd_plot_ascat=False, sigma_npr=7, sigma_ascat=3, single_pixel=False):
+    melt_zone = 30
     smap_tbv = np.load('result_08_01/area/combine_result/smap_cell_tb_v_aft.npy')
     smap_tbh = np.load('result_08_01/area/combine_result/smap_cell_tb_h_aft.npy')
-    ascat_sigma = np.load('result_08_01/area/combine_result/ascat_resample.npy')
-    ascat_incidence = np.load('result_08_01/area/combine_result/ascat_incidence.npy')
+    h5_name = 'result_08_01/area/smap_area_result/SMAP_alaska_A_GRID_%s.h5' % '20151102'
+    h0 = h5py.File(h5_name)
+    lons_1d = h0['cell_lon'].value.copy().ravel()
+    lats_1d = h0['cell_lat'].value.copy().ravel()
+    h0.close()
+    # updated, read ascat data from h5 files
+    ascat_h0 = h5py.File('result_08_01/area/combine_result/ascat_2016_3d.h5')
+    ascat_sigma = ascat_h0['resample'].value.copy()
+    ascat_incidence = ascat_h0['incidence'].value.copy()
+    ascat_pass_utc = ascat_h0['pass_utc'].value.copy()
+    ascat_lat = ascat_h0['latitude'].value.copy()
+    ascat_lon = ascat_h0['longitude'].value.copy()
+    ascat_h0.close()
+    # ascat_sigma = np.load('result_08_01/area/combine_result/ascat_resample_3d.npy')
+    # ascat_incidence = np.load('result_08_01/area/combine_result/ascat_incidence_3d.npy')
     tbv_2d = smap_tbv.reshape(-1, smap_tbv.shape[2])
     tbh_2d = smap_tbh.reshape(-1, smap_tbh.shape[2])
     row_table = np.loadtxt('ascat_row_table.txt', delimiter=',')
     col_table = np.loadtxt('ascat_col_table.txt', delimiter=',')
+    # thaw window for ascat1
+    thaw_ini_sec = bxy.get_secs([2016, 1, 30, 0, 0, 0], reftime=[2015, 1, 1, 0])
+    thaw_end_sec = bxy.get_secs([2016, 6, 30, 0, 0, 0], reftime=[2015, 1, 1, 0])
+    # change window into seconds
+    ini_seconds = bxy.get_secs([2016, 1, 1, 0, 0, 0], reftime=[2015, 1, 1, 0])
+    seconds_2015 = bxy.get_secs([2015, 1, 1, 0, 0, 0], reftime=[2000, 1, 1, 0])
+    thaw_window = (thaw_window-1) * 3600 * 24 + ini_seconds
+    freeze_window = (freeze_window-1) * 3600 * 24 + ini_seconds
+
     # output initial
     smap_onset0 = np.zeros([smap_tbv.shape[0], smap_tbv.shape[1]])
     nan_out_idx = 0
@@ -2313,9 +2365,12 @@ def combine_detection(thaw_window, freeze_window,
     #     daily_h0.close()
     # check_series3 = smap_tbv[45, 48, :]
 
-    t_date = np.arange(-60, 366+55)
+    t_date = (np.arange(-60, 366+60)-1) * 3600 * 24 + ini_seconds
+    t_ascat = np.loadtxt('ascat_secs_series.txt')
     onset_map_0_1d = np.zeros(tbv_2d.shape[0]) - 999
     onset_map_1_1d = np.zeros(tbv_2d.shape[0]) - 999
+    onset_thaw_ascat, onset_melt_ascat, conv_melt_ascat = \
+        np.zeros(tbv_2d.shape[0]) - 999, np.zeros(tbv_2d.shape[0]) - 999, np.zeros(tbv_2d.shape[0]) - 999
     onset_map_0_1d_tb, onset_map_1_1d_tb = np.zeros(tbv_2d.shape[0]) - 999, np.zeros(tbv_2d.shape[0]) - 999
 
     # ascat_sigma = np.load('result_08_01/area/combine_result/ascat_resample.npy')
@@ -2349,64 +2404,20 @@ def combine_detection(thaw_window, freeze_window,
         plt.savefig('result_08_01/tbv_test_ascat_w20151102_series.png')
         plt.close()
 
-    if ascat_detect == True:
-        for i2 in land_id_ascat:
-            print i2
-            simga0, incidence0 = sigma_2d[i2], incidence_2d[i2]
-            if all(np.isnan(simga0)):
-                bxy.odd_out('nan_value_smap.out', i2, nodata_id=nan_out_idx)
-                nan_out_idx += 1
-                continue
-            else:
-                incidence0[incidence0==0]=np.nan
-                simga0 -= (incidence0-45)*-0.12
-                max_value, min_value, conv = test_def.edge_detect(t_date, simga0, sigma_npr, seriestype='sig')
-                max_value_thaw = max_value[(max_value[:, 1] > 365+60) & (max_value[:, 1] < 365+150)]
-                min_value_freeze = min_value[(min_value[:, 1] > 365+250) & (min_value[:, 1] < 365+340)]
-                if max_value_thaw.size == 0:
-                    with open('onset_non_ascat.txt', 'a-') as writer0:
-                        writer0.writelines('no thaw onset was find at: %d' % i2)
-                else:
-                    onset_map_0_1d_ascat[i2] = max_value_thaw[:, 1][max_value_thaw[:, -1].argmax()]
-                    onset_map_1_1d_ascat[i2] = min_value_freeze[:, 1][min_value_freeze[:, -1].argmin()]
-                    if i2 == 4263:
-                        print 'thaw edge target is: ', onset_map_0_1d[i2]
-        np.save('test_onset0_ascat.npy', onset_map_0_1d_ascat.reshape(smap_tbv.shape[0], smap_tbv.shape[1]))
-        np.save('test_onset1_ascat.npy', onset_map_1_1d_ascat.reshape(smap_tbv.shape[0], smap_tbv.shape[1]))
-
-    if odd_plot is not False:
-        # print 'tbv_2d shape', tbv_2d.shape
-        npr_plot = (tbv_2d[odd_plot] - tbh_2d[odd_plot])*1.0/(tbv_2d[odd_plot] + tbh_2d[odd_plot])
-        npr_plot[npr_plot==-0] = np.nan
-        max_value, min_value, conv = test_def.edge_detect(t_date, npr_plot, sigma_npr, seriestype='npr')
-        max_value_thaw = max_value[(max_value[:, 1] > 60) & (max_value[:, 1] < 150)]
-        fig0 = plt.figure()
-        ax0 = fig0.add_subplot(1, 1, 1)
-        id_nonan = ~np.isnan(npr_plot)
-        x00, y00 = t_date[id_nonan], npr_plot[id_nonan]
-        ax0.plot(x00[y00>0], y00[y00>0])
-        ax01 = ax0.twinx()
-        ax01.plot(conv[0], conv[1], 'g-')
-        thaw_edge = max_value_thaw[:, 1][max_value_thaw[:, -1].argmax()]
-        ax0.axvline(x=thaw_edge)
-        print 'target no. %d thawed on doy %d' % (odd_plot, thaw_edge)
-        print onset_map_0_1d[odd_plot]
-        figname = 'result_08_01/npr_onset_test_odd_point_s%d_%d_%d_%d_%d.png' % \
-                  (sigma_npr, thaw_window[0], thaw_window[1], freeze_window[0], freeze_window[1])
-        plt.savefig(figname)
-        plt.close()
 
     # only loops the land area
-    mask = np.load('./result_05_01/other_product/mask_ease2_360N.npy')
-    # onset0 = np.ma.masked_array(onset0, mask=[(onset0==0)|(mask==0)])
-    mask_1d = mask.reshape(1, -1)[0]
-    land_id = np.where(mask_1d != 0)[0]
+    if odd_plot is False:
+        mask = np.load('./result_05_01/other_product/mask_ease2_360N.npy')
+        # onset0 = np.ma.masked_array(onset0, mask=[(onset0==0)|(mask==0)])
+        mask_1d = mask.reshape(1, -1)[0]
+        land_id = np.where(mask_1d != 0)[0]
+    else:
+        land_id = [odd_plot]
     for i0 in land_id:
         smap_series_v, smap_series_h = tbv_2d[i0], tbh_2d[i0]
+        lon0, lat0 = lons_1d[i0], lats_1d[i0]
         smap_series_v[smap_series_v<0] = np.nan
         smap_series_h[smap_series_h<0] = np.nan
-        # smap_series_v[smap_series_v==0] = np.nan
-        # smap_series_h[smap_series_h==0] = np.nan
         if sum(np.isnan(smap_series_h)) > 300:
             bxy.odd_out('nan_value_smap.out', i0, nodata_id=nan_out_idx)
             nan_out_idx += 1
@@ -2425,39 +2436,190 @@ def combine_detection(thaw_window, freeze_window,
                     with open('onset_map0.txt', 'a-') as writer0:
                         writer0.writelines('no thaw onset was find at: %d' % i0)
                 else:
-                    onset_map_0_1d[i0] = max_value_thaw[:, 1][max_value_thaw[:, -1].argmax()]
+                    thaw_onset0 = max_value_thaw[:, 1][max_value_thaw[:, -1].argmax()]
+                    thaw_onset0_tuple = bxy.time_getlocaltime([thaw_onset0], ref_time=[2015, 1, 1, 0], t_source='US/Alaska')
+                    onset_map_0_1d[i0] = thaw_onset0_tuple[-2][0]
+                    melt_zone0 = np.array([thaw_onset0-melt_zone*24*3600, thaw_onset0+melt_zone*24*3600])
                     if min_value_freeze.size>0:
                         onset_map_1_1d[i0] = min_value_freeze[:, 1][min_value_freeze[:, -1].argmin()]
                     else:
                         onset_map_1_1d[i0] = 0
-                    if i0 == 4263:
-                        print 'thaw edge target is: ', onset_map_0_1d[i0]
+            if ascat_detect == True:
+                test = 0
+                # 9xN array for ascat measurements within 36km
+                lat_9 = ascat_lat[row_table[i0].astype(int), col_table[i0].astype(int)]
+                lon_9 = ascat_lon[row_table[i0].astype(int), col_table[i0].astype(int)]
+                dis_9 = bxy.cal_dis(lat0, lon0, lat_9, lon_9)  # distance to the center of 36 km  pixel
+                sigma_series_9 = ascat_sigma[row_table[i0].astype(int), col_table[i0].astype(int), :]
+                incidence_series_9 = ascat_incidence[row_table[i0].astype(int), col_table[i0].astype(int), :]
+                t_ascat_9 = ascat_pass_utc[row_table[i0].astype(int), col_table[i0].astype(int), :]
+                index_invalid_0 = (incidence_series_9) < 30 | (incidence_series_9 > 55) \
+                                                         | (sigma_series_9 == -999) | (sigma_series_9 == 0)
+                sigma_series_9[index_invalid_0], incidence_series_9[index_invalid_0], t_ascat_9[index_invalid_0] = \
+                    np.nan, np.nan, np.nan
+
+                # 2rd distance interpolation if necessary
+                for daily_9 in sigma_series_9:
+                    index_9 = (daily_9 != -999) & (daily_9 != 0)
+                    if sum(index_9) > 0:
+                        iter = 0
+                        # sigma_series_mean
+                    else:
+                        iter = 1
+                # index9 = (sigma_series_9 != -999) & (sigma_series_9 != 0)
+                # if sum(index9) > 0:
+                #     interp = 0
+                #     d, vals = dis_9[index9], sigma_series_9[index9]
+                # else:
+                #     interp = -
+                # sigma_series_mean = np.zeros(sigma_series_9.shape[1])
+                # incidence_series_mean = np.zeros(sigma_series_9.shape[1])
+                # t_ascat = np.zeros(sigma_series_9.shape[1])
+                #
+                # for i2 in range(0, sigma_series_9.shape[1]):
+                #     sigma_series_mean[i2] = np.nanmean(sigma_series_9[:, i0]) \
+                #         if np.isnan(sigma_series_9[:, i0]).all() else np.nan
+                #     incidence_series_mean = np.nanmean(incidence_series_9[:, i0]) \
+                #         if np.isnan(incidence_series_9[:, i0]).all() else np.nan
+                #     t_ascat = np.nanmean(t_ascat_9[:, i0]) \
+                #         if np.isnan(t_ascat_9[:, i0]).all() else np.nan
+                sigma_series_mean = np.nanmean(sigma_series_9, axis=0)
+                incidence_series_mean = np.nanmean(incidence_series_9, axis=0)
+                t_ascat = np.nanmean(t_ascat_9, axis=0)
+
+                # sigma_series_9_ma = np.ma.masked_array(sigma_series_9, mask=0])
+                # sigma_series_9_ma = np.ma.masked_array(sigma_series_9, mask=-999])
+                valid_index = (sigma_series_mean > -25) & (sigma_series_mean < -0.1)
+
+
+                if sum(valid_index)<150:
+                        # set a unvalid label
+                    continue
+                else:
+                    a, b = np.polyfit(incidence_series_mean[valid_index], sigma_series_mean[valid_index], 1)  # angular
+                    secs_valid = t_ascat[valid_index]
+                    secs_valid-=seconds_2015
+                    series_valid = sigma_series_mean[valid_index] - (incidence_series_mean[valid_index]-45)*a
+                    # calculate the daily average based on pass seconds
+                    ini_seconds_tp = secs_valid[0]
+                    ini_tuple_tp = bxy.time_getlocaltime([ini_seconds_tp], ref_time=[2015, 1, 1, 0], t_out='US/Alaska')
+                    # ini_tuple_tp2 = bxy.time_getlocaltime(secs_valid, ref_time=[2015, 1, 1, 0], t_out='utc')
+                    # ini_secs = bxy.get_secs\
+                    #     ([ini_tuple_tp[0], ini_tuple_tp[0], ini_tuple_tp[0], 18, 0, 0], reftime=[2015, 1, 1, 0])
+                    non_outlier = bxy.reject_outliers(series_valid, m=100)
+                    secs_valid = secs_valid[non_outlier]
+                    series_valid = series_valid[non_outlier]
+                    max_value_a, min_value_a, conv_a =\
+                        test_def.edge_detect(secs_valid, series_valid, sigma_npr, seriestype='sig')
+                    max_value_no_use, min_value_a, conv_a =\
+                        test_def.edge_detect(secs_valid, series_valid, sigma_ascat, seriestype='sig')
+                    # thaw onset and melt onset
+                    max_value_a_thaw = max_value_a[(max_value_a[:, 1] > thaw_window[0]) & (max_value_a[:, 1] < thaw_window[1])]
+                    if max_value_a_thaw[:, -1].size<1: # temp check get time tuple of thaw onsets candidate
+                        # save index of pixels where thaw onset cannot be located
+                        with open('ascat_no_thawing_onset.txt', mode='w') as f00:
+                            f00.write('no thawing onset was located at 1d index: %d' % i0)
+                        # temp_t_tuple = bxy.time_getlocaltime(max_value_a[:, 1], ref_time=[2015, 1, 1, 0], t_out='utc')
+                        # temp_doy = temp_t_tuple[-2]
+                        # doy_0 = bxy.time_getlocaltime(secs_valid, ref_time=[2015, 1, 1, 0], t_out='utc')[-2]
+                        # plot_funcs.quick_plot(doy_0, series_valid)
+                        # pause = 0
+                        # ascat_thaw_onset0 = 0
+                        # check finished
+                    else:
+                        ascat_thaw_onset0 = max_value_a_thaw[:, 1][max_value_a_thaw[:, -1].argmax()]  # thaw
+                    # melt_zone0 = [ini_seconds*30*24*3600, ascat_thaw_onset0]
+                    min_value_snowmelt = min_value_a[(min_value_a[:, 1] > melt_zone0[0]) & (min_value_a[:, 1] < melt_zone0[1])]
+                    if min_value_snowmelt[:, -1].size < 1:
+                        melt_onset0 = 0
+                        melt_conv = -999
+                    else:
+                        melt_onset0 = min_value_snowmelt[:, 1][min_value_snowmelt[:, -1].argmin()]
+                        melt_conv = min_value_snowmelt[:, -1][min_value_snowmelt[:, -1].argmin()]
+                        if melt_conv > -0.5:
+                            melt_onset0 = 0
+                        # bxy.time_getlocaltime([melt_onset0], ref_time=[2015, 1, 1, 0], t_source='US/Alaska')
+                    pause = 0
+                    # secs to day of year
+                    thaw_onset0_tuple2 = bxy.time_getlocaltime([ascat_thaw_onset0], ref_time=[2015, 1, 1, 0], t_source='US/Alaska')
+                    melt_onset0_tuple2 = bxy.time_getlocaltime([melt_onset0], ref_time=[2015, 1, 1, 0], t_source='US/Alaska')
+                    onset_thaw_ascat[i0] = thaw_onset0_tuple2[-2][0]
+                    onset_melt_ascat[i0] = melt_onset0_tuple2[-2][0]
+                    conv_melt_ascat[i0] = melt_conv
+
+            if i0 == odd_plot:
+                # time series:
+                print odd_plot
+                print sum(valid_index)
+                print 'the angular coefficient is: ', a
+                max_value, min_value, conv = test_def.edge_detect(t_date, npr, sigma_npr, seriestype='npr')
+                # max_value_a, min_value_a, conv_a =\
+                #         test_def.edge_detect(secs_valid, series_valid, sigma_npr, seriestype='sig')
+                # smap
+                max_value_thaw = max_value[(max_value[:, 1] > thaw_window[0]) & (max_value[:, 1] < thaw_window[1])]
+                thaw_onset0 = max_value_thaw[:, 1][max_value_thaw[:, -1].argmax()]
+                thaw_onset0_tuple = bxy.time_getlocaltime([thaw_onset0], ref_time=[2015, 1, 1, 0], t_source='US/Alaska')
+                onset_odd_smap = thaw_onset0_tuple[-2][0]
+                # ascat
+                max_value_thaw_a = max_value_a[(max_value_a[:, 1] > thaw_window[0]) & (max_value_a[:, 1] < thaw_window[1])]
+                if max_value_thaw_a[:, -1].size<1:
+                    pause = 0
+                ascat_thaw_onset0 = max_value_thaw_a[:, 1][max_value_thaw_a[:, -1].argmax()]  # thaw
+                # melt_zone0 = [ini_seconds*30*24*3600, ascat_thaw_onset0]
+                min_value_snowmelt = min_value_a[(min_value_a[:, 1] > melt_zone0[0]) & (min_value_a[:, 1] < melt_zone0[1])]
+                if min_value_snowmelt[:, -1].size < 1:
+                    melt_onset0 = 0
+                else:
+                    melt_onset0 = min_value_snowmelt[:, 1][min_value_snowmelt[:, -1].argmin()]
+                # transform to doy then plot
+                t_x_odd = []
+                for item0 in [t_date, secs_valid, conv[0], conv_a[0]]:
+                    t0 = bxy.time_getlocaltime(item0, ref_time=[2015, 1, 1, 0])
+                    t0_doy = (t0[0]-2016)*366 + t0[-2]+t0[-1]/24.0
+                    t_x_odd.append(t0_doy)
+                plot_funcs.plot_subplot([[t_x_odd[0], npr], [t_x_odd[1], series_valid], [t_x_odd[1], incidence_series_mean[valid_index]]],
+                                        [[t_x_odd[2], conv[1]], [t_x_odd[3], conv_a[1]]],
+                                        vline=[onset_map_0_1d[i0], onset_thaw_ascat[i0], onset_melt_ascat[i0]])
+
+                # for row_i, col_i in zip(row_table[i0], col_table[i0]):  # 9 corresponded ascat measurements
+                #     sigma_series_i = ascat_sigma[row_i, col_i, :]
+                #     sigma_incidence_i = ascat_incidence[row_i, col_i, :]
+                #     valid_index = (sigma_series_i > -25) & (sigma_series_i < -0.1)
+                #     print 'The days with valid ascat measurements was %d' % sum(valid_index)
 
             # tb onset
-            if tb_detect is True:
-                max_value, min_value, conv = test_def.edge_detect(t_date, smap_series_v, sigma_npr, seriestype='tb')
-                max_value_freeze = max_value[(max_value[:, 1] >= 365+150) & (max_value[:, 1] <= 365+340)]
-                min_value_thaw = min_value[(min_value[:, 1] >= 365+60) & (min_value[:, 1] <= 365+150)]
-                if max_value_thaw.size == 0:
-                    with open('onset_map0.txt', 'a-') as writer0:
-                        writer0.writelines('no thaw onset was find at: %d' % i0)
-                else:
-                    if i0 == 3920:
-                        pause = 0
-                    onset_map_1_1d_tb[i0] = max_value_freeze[:, 1][max_value_freeze[:, -1].argmax()]
-                    onset_map_0_1d_tb[i0] = min_value_thaw[:, 1][min_value_thaw[:, -1].argmin()]
-                    if i0 == 4263:
-                        print 'thaw edge target is: ', onset_map_0_1d[i0]
+            # if tb_detect is True:
+            #     max_value, min_value, conv = test_def.edge_detect(t_date, smap_series_v, sigma_npr, seriestype='tb')
+            #     max_value_freeze = max_value[(max_value[:, 1] >= 365+150) & (max_value[:, 1] <= 365+340)]
+            #     min_value_thaw = min_value[(min_value[:, 1] >= 365+60) & (min_value[:, 1] <= 365+150)]
+            #     if max_value_thaw.size == 0:
+            #         with open('onset_map0.txt', 'a-') as writer0:
+            #             writer0.writelines('no thaw onset was find at: %d' % i0)
+            #     else:
+            #         if i0 == 3920:
+            #             pause = 0
+            #         onset_map_1_1d_tb[i0] = max_value_freeze[:, 1][max_value_freeze[:, -1].argmax()]
+            #         onset_map_0_1d_tb[i0] = min_value_thaw[:, 1][min_value_thaw[:, -1].argmin()]
+            #         if i0 == 4263:
+            #             print 'thaw edge target is: ', onset_map_0_1d[i0]
 
 
-
-    th_name = 'test_onset0_%s.npy' % sigma_npr
-    fr_name = 'test_onset1_%s.npy' % sigma_npr
-    np.save(th_name, onset_map_0_1d.reshape(smap_tbv.shape[0], smap_tbv.shape[1]))
-    np.save(fr_name, onset_map_1_1d.reshape(smap_tbv.shape[0], smap_tbv.shape[1]))
-    np.save('test_onset0_tb.npy', onset_map_0_1d_tb.reshape(smap_tbv.shape[0], smap_tbv.shape[1]))
-    np.save('test_onset1_tb.npy', onset_map_1_1d_tb.reshape(smap_tbv.shape[0], smap_tbv.shape[1]))
-    print onset_map_0_1d.reshape(smap_tbv.shape[0], smap_tbv.shape[1])[47, 67]
+    if odd_plot is False:
+        # save npr onset
+        th_name = 'test_onset0_%s.npy' % sigma_npr
+        fr_name = 'test_onset1_%s.npy' % sigma_npr
+        np.save(th_name, onset_map_0_1d.reshape(smap_tbv.shape[0], smap_tbv.shape[1]))
+        np.save(fr_name, onset_map_1_1d.reshape(smap_tbv.shape[0], smap_tbv.shape[1]))
+        np.save('test_onset0_tb.npy', onset_map_0_1d_tb.reshape(smap_tbv.shape[0], smap_tbv.shape[1]))
+        np.save('test_onset1_tb.npy', onset_map_1_1d_tb.reshape(smap_tbv.shape[0], smap_tbv.shape[1]))
+        # save ascat
+        th_ascat = 'thaw_onset_ascat_%d.npy' % sigma_npr
+        ml_ascat = 'melt_onset_ascat_%d.npy' % sigma_npr
+        ml_conv = 'melt_conv_ascat_%d.npy' % sigma_npr
+        np.save(th_ascat, onset_thaw_ascat.reshape(smap_tbv.shape[0], smap_tbv.shape[1]))
+        np.save(ml_ascat, onset_melt_ascat.reshape(smap_tbv.shape[0], smap_tbv.shape[1]))
+        np.save(ml_conv, conv_melt_ascat.reshape(smap_tbv.shape[0], smap_tbv.shape[1]))
+        print onset_map_0_1d.reshape(smap_tbv.shape[0], smap_tbv.shape[1])[47, 67]
 
 
 
@@ -2478,31 +2640,179 @@ def combine_detection(thaw_window, freeze_window,
     return 0
 
 
+def get_ascat_sec():
+    file_list = sorted(glob.glob('result_08_01/ascat_resample_AS/new/*resample.npy'))
+    sec_list = []
+    for f0 in file_list:
+        string0 = f0.split('/')[-1].split('_')[1]  # yyymmdd
+        string1 = f0.split('/')[-1].split('_')[2]  # hour
+        t_list_i = [int(string0[0:4]), int(string0[4:6]), int(string0[6:]), int(string1), 0, 0]
+        # obj_list.append(t_obj_i)
+        sec_i = bxy.get_secs(t_list_i,reftime=[2015, 1, 1, 0])
+        sec_list.append(sec_i)
+    np.savetxt('ascat_secs_series.txt', np.array(sec_list).T, delimiter=',', fmt='%.2f')
+
+
+def station_sigma():
+    '''
+    quick plot: time series of sigma
+    :return:
+    '''
+    site_nos = site_infos.get_sno_list('string')
+    obs=['_D_', '_A_']  # orbit of smap
+    k_width = 7
+    for site_no in site_nos:
+        sigconv, sigseries, ons_new, gg, sig_pass, peakdate_sig = \
+        data_process.ascat_plot_series(site_no, orb_no=0, inc_plot=True, sigma_g=10,
+                                               order=1, txt_path='./result_08_01/point/ascat/ascat_site_series/')
+        tbv0, tbh0, npr0, gau0, ons0, tb_pass, peakdate0 = test_def.main(site_no, [], sm_wind=7, mode='annual',
+                                                                         seriestype='tb', tbob=obs[1], sig0=k_width, order=1)  # result tb
+        tbv1, tbh1, npr1, gau1, ons1, sitetime, peakdate1 = test_def.main(site_no, [], sm_wind=7, mode='annual',
+                                                                          tbob=obs[1], sig0=k_width, order=1)  # result npr
+        doy_ascat = np.modf(sigseries[0])
+        if site_no in ['2065', '2081']:
+            air_ascat, t_ascat = read_site.read_measurements(site_no, "Air Temperature Average (degC)", doy=doy_ascat[1], hr=doy_ascat[0]*24)
+        else:
+            air_ascat, t_ascat = read_site.read_measurements(site_no, "Air Temperature Observed (degC)", doy=doy_ascat[1], hr=doy_ascat[0]*24)
+        # plot ascat series, ascat edge, and air temperature
+        fig0 = plt.figure()
+        ax0 = fig0.add_subplot(2, 1, 1)
+        ax1 = fig0.add_subplot(2, 1, 2)
+        # m1 = ax.scatter(x_value, sigma_mid, c=z_value, cmap=plt.get_cmap('rainbow'))
+        valid_air = air_ascat > -99
+        m1 = ax0.scatter(air_ascat[valid_air], sigseries[1][valid_air],
+                    c=sigseries[0][valid_air], cmap=plt.get_cmap('coolwarm'))
+        cax = fig0.add_axes([0.12, 0.9, 0.5, 0.05])
+        plt.colorbar(m1, cax=cax, orientation='horizontal')
+        ax1.plot(sigseries[0], sigseries[1], 'k.')
+        ax1_1 = ax1.twinx()
+        ax1_1.plot(sigconv[0]-365, sigconv[1], 'g-')
+        figname = 'result_08_01/point/ascat_thaw/%s.png' % site_no
+        plt.savefig(figname)
+        plt.close()
+    return 0
+
+
+def melt_map(s_info_list):
+    # s_info_list = [[0,  -162.7, 69.1], [0,  -155.2, 70.1], [0, -153.5, 68.8], [0, -147.5, 68.8], [0, -153.5, 67.8],
+    #                [0, -159.1, 60.5], [0, -159.0, 61.7], [0, -150.3, 64.7], [0, -147.3, 64.4], [0, -150.0, 62.0], [0, -162.5, 65.5]
+    #                ,[0, -162.5, 63.0],  [0, -150.3, 66.7], [0, -147.3, 66.7]]
+    # # s_info_list = [[1, 1, 1]]  # no special pixel
+    points_index = []
+    for s_info in s_info_list:
+        for kernel0 in [7]:
+            # 70.26666, -148.56666
+            # s_info = [0, -1, -1]
+            odd_latlon = [s_info[2], s_info[1]]
+            thaw_win = np.array([30, 180])
+            fr_win = np.array([250, 340])
+            odd_points_rc, odd_points_1d = data_process.latlon2rc(odd_latlon)
+            # calculate onset
+            if s_info[1]<0:
+                # get 1d index
+                for d_str in ['20151102']:
+                    h5_name = 'result_08_01/area/smap_area_result/SMAP_alaska_A_GRID_%s.h5' % d_str
+                    h0 = h5py.File(h5_name)
+                    lons_1d = h0['cell_lon'].value.ravel()
+                    lats_1d = h0['cell_lat'].value.ravel()
+                    dis_1d = bxy.cal_dis(s_info[1], s_info[2], lons_1d, lats_1d)
+                    p_index = np.argmin(dis_1d)
+                    points_index.append(p_index)
+                combine_detection(thaw_win, fr_win, sigma_npr=kernel0, sigma_ascat=3, ascat_detect=True, odd_plot=p_index)
+                # write the sepcific pixel infos in a txt file
+                with open('odd_pixel_infos.txt', 'a') as odd_info0:
+                    odd_info0.write('Odd pixel: %d \n' % p_index)
+                    odd_info0.write('1d index (36 km grid): %d \n' % p_index)
+                    odd_info0.write('location info: %.2f, %.2f, %.2f \n' % (s_info[0], s_info[1], s_info[2]))
+                    odd_info0.close()
+                # copy time series map to the target folder and named by odd pixel_no
+                cm_line = "cp result_08_01/test_plot_subplot.png result_08_01/temp/temp_comparison/pixel_no_%d.png" % p_index
+                os.system(cm_line)
+            else:
+                combine_detection(thaw_win, fr_win, sigma_npr=kernel0, sigma_ascat=3, ascat_detect=True)
+    np.savetxt('pixel_index.txt', np.array(points_index), delimiter=',', fmt='%d')
+
 if __name__ == "__main__":
-    site_nos = ['947', '949', '950', '960', '962', '967', '968', '1090', '1175', '1177', '1233', '2065', '2081', '2210', '2211', '2212', '2213']
-    # site_nos = ['947', '949']
-    new_process(site_nos)
+    # 07/09, 2018
+    # doy = np.arange(-60, 366+60)
+    # site_nos = ['947', '949', '950', '960', '962', '967', '968', '1090', '1175', '1177', '1233', '2065', '2081', '2210', '2211', '2212', '2213']
+    # for doy0 in doy:
+    #     Read_radar.getascat(site_nos, doy0, sate='A')
+    spt_quick.ascat_point_plot()
     quit0()
-    # 0716/2018, revision
-    discuss_combining(site_nos=['1090'])
-    # plot_funcs.plot_tair_npr_onset('result_08_01/onset_result/onset_tair_npr_0726.txt')
+    melt_map([[1, 1, 1]])
+    # melt_map([[0,  -162.7, 69.1], [0,  -155.2, 69.5], [0, -153.5, 68.8], [0, -147.5, 68.2], [0, -153.5, 67.8],
+    #                [0, -159.1, 60.5], [0, -159.0, 62.2], [0, -163.0, 61.2], [0, -150.3, 64.7], [0, -147.3, 64.4], [0, -150.0, 62.0], [0, -162.5, 65.5]
+    #                ,[0, -162.5, 63.0],  [0, -150.3, 66.7], [0, -147.3, 66.2]])
+    # melt_map([[0,  0, 0]])
     # quit0()
+    # add all odd pixels and labeled in the melt map
+    if os.path.exists('pixel_index.txt'):
+        odd_pixel_index = np.loadtxt('pixel_index.txt')
+        data_process.ascat_onset_map('A', product='customize', mask=False, mode=['_norm_'],
+                                    version='old', std=7, f_win=np.array([250, 340]), t_win=np.array([30, 180]),
+                                     custom=['test_onset0_7.npy', 'melt_onset_ascat_7.npy', 'melt_conv_ascat_7.npy'])
+        # points_index=odd_pixel_index.astype(int)
+    quit0()
+    # # 0827/2018
+    # s_info_list = [[0,  -162.7, 69.1], [0,  -163.5, 68.1], [0,  -163.0, 68.1], [0,  -162.7, 69.1]]
+    # for s_info in s_info_list:
+    #     melt_map(s_info)
+    # quit0()
+    # doy = np.arange(-60, 366+60)
+    # # # Read_radar.read_ascat_alaska(doy)
+    # # for doy0 in doy:
+    # #     t_str = bxy.doy2date(doy0, fmt="%Y%m%d")  # 1 is 20160101
+    # #     spt_quick.ascat_area_plot2(t_str)
+    # ak_series(doy, ascat_atts=['resample', 'incidence', 'pass_utc'])
+    # quit0()
+    # station_sigma()
+    # quit0()
+    # # 0821/2018
+    # spt_quick.ascat_point_plot()
+    # # 0815/2018
+    for kernel0 in [7]:
+        s_info = site_infos.change_site('1090')
+        # 70.26666, -148.56666
+        #
+        s_info = [0, s_info[2], s_info[1]]
+        s_info = [0,  -162.7, 69.1]
+        # s_info = [0, -1, -1]
+        odd_latlon = [s_info[2], s_info[1]]
+        thaw_win = np.array([30, 180])
+        fr_win = np.array([250, 340])
+        odd_points_rc, odd_points_1d = data_process.latlon2rc(odd_latlon)
+        # calculate onset
+        if s_info[1]<0:
+            # get 1d index
+            for d_str in ['20151102']:
+                h5_name = 'result_08_01/area/smap_area_result/SMAP_alaska_A_GRID_%s.h5' % d_str
+                h0 = h5py.File(h5_name)
+                lons_1d = h0['cell_lon'].value.ravel()
+                lats_1d = h0['cell_lat'].value.ravel()
+                dis_1d = bxy.cal_dis(s_info[1], s_info[2], lons_1d, lats_1d)
+                p_index = np.argmin(dis_1d)
+            combine_detection(thaw_win, fr_win, sigma_npr=kernel0, ascat_detect=True, odd_plot=p_index)
+        else:
+            combine_detection(thaw_win, fr_win, sigma_npr=kernel0, ascat_detect=True)
+    data_process.ascat_onset_map('A', odd_point=np.array([odd_points_rc[0], odd_points_rc[1], s_info[2], s_info[1]]), product='customize', mask=False, mode=['_norm_'],
+                                    version='old', std=kernel0, f_win=fr_win, t_win=thaw_win, custom=['thaw_onset_ascat_7.npy', 'melt_onset_ascat_7.npy'])
+    quit0()
     # # 0704/2018
     # # data_process.smap_ascat_position()
     # # ak_series(np.arange(-60, 366+55)
     # new_process(['947'])
     # draw_pie_landcover()
-    quit0()
     site_nos = ['947', '949', '950', '960', '962', '967', '968', '1090', '1175', '1177', '1233', '2065', '2081', '2210', '2211', '2212', '2213']
     onset_latlon = np.loadtxt('result_08_01/point/onset_result/onset_result.csv', delimiter=',')
     for kernel0 in [7]:
         s_info = site_infos.change_site('968')
         # 70.26666, -148.56666
         # s_info = [0, 61.6155, -142.9327]
-        s_info = [0, 68.02, -149.97]
-        # s_info = [0, -1, -1]
+        s_info = [0, 59.5, -157.8]
+        s_info = [0, -1, -1]
         odd_latlon = [s_info[2], s_info[1]]
-        thaw_win = [60, 150]
+        thaw_win = [30, 180]
         fr_win = [250, 340]
         odd_points_rc, odd_points_1d = data_process.latlon2rc(odd_latlon)
         if s_info[1]>0:
@@ -2511,10 +2821,10 @@ if __name__ == "__main__":
             combine_detection(thaw_win, fr_win, sigma_npr=kernel0)
         print 'the target is (%.3f, %.3f)' % (s_info[2], s_info[1])
 
-        # data_process.ascat_onset_map('A', odd_point=[odd_points_rc[0], odd_points_rc[1], s_info[2], s_info[1]], product='grid_test', mask=False, mode=['_norm_'],
-        #                             version='old', std=kernel0, f_win=fr_win, t_win=thaw_win)
-        data_process.ascat_onset_map('A', odd_point=onset_latlon[:, 4:9], product='grid_test', mask=False, mode=['_norm_'],
+        data_process.ascat_onset_map('A', odd_point=np.array([odd_points_rc[0], odd_points_rc[1], s_info[2], s_info[1]]), product='grid_test', mask=False, mode=['_norm_'],
                                     version='old', std=kernel0, f_win=fr_win, t_win=thaw_win)
+        # data_process.ascat_onset_map('A', odd_point=onset_latlon[:, 4:9], product='grid_test', mask=False, mode=['_norm_'],
+        #                             version='old', std=kernel0, f_win=fr_win, t_win=thaw_win)
     quit0()
     doy = np.arange(-60, 366+60)
     for doy0 in doy:
