@@ -846,9 +846,9 @@ def plt_npr_gaussian_all(tb, npr, sigma, soil, snow, onset, figname='all_plot_te
     axs.append(ax1)
     # l1, = ax1.plot(tb[0][0], tb[0][1], 'bo', markersize=2)
     _, ax1_2, l1 = plot_funcs.pltyy(tb[0][0], tb[0][1], 'test_comp2', 'T$_b$ (K)',
-                             t2=tb[2][0], s2=tb[2][1], label_y2= '$E_{Tbv}$\n(K/day)',
+                             t2=tb[2][0], s2=tb[2][1], label_y2='$E_{Tbv}$\n(K/day)',
                              symbol=['k.', 'g-'],
-                             handle=[fig, ax1], nbins2=6)  # plot tbv
+                             handle=[fig, ax1], nbins2=6, ylim2=[-10, 10])  # plot tbv
     l1_le = plot_funcs.plt_more(ax1, tb[1][0], tb[1][1], line_list=[l1])
     # ax1.locator_params(axis='y', nbins=4)
     # ax1_2.axhline(y=0)

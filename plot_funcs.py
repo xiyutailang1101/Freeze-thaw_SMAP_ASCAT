@@ -49,7 +49,8 @@ def pltyy(t1, s1, fname, label_y1, t2=None, s2=None, label_y2=None, symbol=['bo'
         ax2 = ax1.twinx()
         line2, = ax2.plot(t2, s2, symbol[1], linewidth=2.0, markersize=5)
         if nbins2 is not None:  # set numbers of ticks in y2
-            ax2.locator_params(axis='y', nbins=nbins2)
+            # ax2.locator_params(axis='y', nbins=nbins2)
+            ax2.yaxis.set_major_locator(MaxNLocator(nbins2))
         if label_y2 is not None:  # set y2 label
             # set_label = False
             ax2.set_ylabel(label_y2)
