@@ -20,8 +20,8 @@ from basic_xiyu import h5_writein
 prefix = './result_07_01/'
 site_nos = ['947', '949', '950', '960', '962', '967', '968', '1090', '1175', '1177', '1233', '2065', '2081', '2210', '2211', '2212', '2213'] #'1089'
 # site_nos = ['1233','2065', '2213']
-site_nos = ['947', '968']
-site_nos = ['1177']
+# site_nos = ['947']
+
 thaw_win = [60, 150]
 sha = {'947': [[90, 115], [60, 120]], '968': [[120, 145], [90, 150]], '2213': [100, 120], '1177': [[100, 150], [100, 150]]}
 # '947', '949', '950', '960', '962', '968','1090', '1175', '1177'
@@ -91,8 +91,8 @@ for site_no in site_nos:
         # if str(site_no) == '968' & orders == 2:
         #     k_width = 8
         sigconv, sigseries, ons_new, gg, sig_pass, peakdate_sig = \
-                data_process.ascat_plot_series(site_no, orb_no=obs[0], inc_plot=True, sigma_g=k_width+3, pp=precip,
-                                               order=1, txt_path='./result_08_01/point/ascat/ascat_site_series/')
+                data_process.ascat_plot_series(site_no, orb_no=obs[0], inc_plot=True, sigma_g=k_width-4, pp=precip,
+                                               order=1, txt_path='./result_08_01/point/ascat/ascat_site_series/', x_unit='sec')  #
         # if orders == 2:
         #     print 'second order of guassian'
         #     sigconv, sigseries, ons_new, gg, sig_pass, peakdate_sig = \
@@ -100,7 +100,10 @@ for site_no in site_nos:
         # else:
         #     sigconv, sigseries, ons_new, gg, sig_pass, peakdate_sig = \
         #         data_process.ascat_plot_series(site_no, orb_no=obs[0], inc_plot=False, sigma_g=k_width, pp=precip)# 0 for ascending
-        sigconv[0]-=365
+        if np.min(sigconv[0]) < 0:
+            pasue = 0
+        else:
+            sigconv[0]-=365
         x_time, sigma0, date_list, out_ascat, inc45_55 = [], [], [], [], []
         print 'station ID is %s' % site_no
 

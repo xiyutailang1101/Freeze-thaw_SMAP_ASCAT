@@ -13,6 +13,7 @@ import basic_xiyu as bs
 import plot_funcs
 import matplotlib.pyplot as plt
 import data_process
+import basic_xiyu as bxy
 abvalue = []
 
 
@@ -395,7 +396,7 @@ def read_measurements(site_no, measure_name, doy, hr=0):
         f_no = -1
     else:
         f_no = 0
-    stats_t, t5 = read_sno(site_file, measure_name, site_no, field_no=f_no)
+    stats_t, t5 = read_sno(site_file, measure_name, site_no, field_no=f_no)  # t5: doy and measurements
     m_daily, m_doy = data_process.cal_emi(t5, [], doy, hrs=hr)
     return m_daily, m_doy
 
@@ -447,7 +448,11 @@ def read_sno(sno_file, filed_name, station_id, field_no=0):
                 #     snow_id = 1
             elif index_row>-1:
                 t = datetime.datetime.strptime(row[0], "%Y-%m-%d %H:%M").timetuple()
-                doy = t.tm_yday + t.tm_hour/24.0 + 365*(t.tm_year - 2015)
+                if t.tm_year - 2016 > 0:
+                    leap = 1
+                else:
+                    leap = 0
+                doy = t.tm_yday + t.tm_hour/24.0 + 365*(t.tm_year - 2015) + leap
                 if row[field_no] == abvalue:
                     filed_value.append(float(-99))
                     filed_date.append(doy)
@@ -604,6 +609,22 @@ def read_diurnal(date, hr_as, hr_des, siteno, att_name):
     sm_as, sm_date_as = data_process.cal_emi(sm5, y2_empty, date, hrs=hr_as)
     return 0
 
+
+def read_tibet(site_no):
+    site_dict = {'20000': 'Ali01_2016.txt', '20001': 'CST05_2016.txt', '20002': 'NST01_2016.txt',
+                 '20003': 'SQ02 _2016.txt'}
+    path = '/home/xiyu/Data/tibet/%s' % site_dict[site_no]
+    m_out = []
+    with open(path) as f0:
+        row_no = 0
+        for row in f0:
+            row_list = row.split('\t')
+            if row_no > 2:
+                row_list = row.split('\t')  # time, vwc, temp
+                m_out.append([bxy.get_total_sec(row_list[0], fmt='%m/%d/%Y %H:%M', reftime=[2000, 1, 1, 12]),
+                              float(row_list[1]), float(row_list[2])])
+            row_no += 1
+    return np.array(m_out)
 
 # def read_measurement(t0, var_name, site_no):
 #     """

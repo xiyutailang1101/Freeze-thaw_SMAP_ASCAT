@@ -590,19 +590,94 @@ def quick_plot(x, y, figname='test_quick.png', lsymbol='o'):
     plt.close()
 
 
-def plot_subplot(main_axe, second_axe, figname='result_08_01/test_plot_subplot.png', vline=[0]):
-    fig0 = plt.figure()
+def plot_subplot(main_axe, second_axe, main_label=[], vline=[],
+                 figname='result_08_01/test_plot_subplot.png', text='test', x_unit='normal',
+                 h_line=[], red_dots=True, symbol2='g-', x_lim=False, y_lim=False,
+                 y_lim2=False, main_check=-1, time_fmt='%Y%j'):
     n = len(main_axe)
-    for i0, item0 in enumerate(main_axe):
-        ax0 = fig0.add_subplot(n, 1, i0+1)
-        ax0.plot(item0[0], item0[1], 'k.')
+    fig0, axs = plt.subplots(n, sharex=True)
+    if len(main_label) < 1:
+        for ax0 in range(0, n):
+            main_label.append('test_label')
+    print main_label
+    print 'the number of main_axes', n
+    for i0, ax0 in enumerate(axs):
+        print 'plotting the %d main axes: %s' % (i0, main_label[i0])
+        ax0.plot(main_axe[i0][0], main_axe[i0][1], 'k.')
+        ax0.set_ylabel(main_label[i0])
+        if y_lim is not False:
+            for axis_id in y_lim[0]:
+                    if i0 == axis_id:
+                        ax0.set_ylim(y_lim[1][y_lim[0].index(axis_id)])
+        if x_lim is not False:
+            ax0.set_xlim(x_lim)
+        if (i0 == 0) & (red_dots is True):
+            ax0.set_title(text)
+            # ax0.plot(main_axe[i0+len(axs)-2][0], main_axe[i0+len(axs)-2][1], 'r.')
         if i0 < len(second_axe):
-            for vl0 in vline:
-                ax0.axvline(x=vl0)
+            if len(vline) > 0:
+                # ax1.text((insitu_frz*1.0-250)/x_length, y_text, 'DOY '+str(int(insitu_frz)), transform=ax1.transAxes,
+                #          va='top', ha='center', size=16)
+                for vl0, st0 in zip(vline[0], vline[1]):
+                    print bxy.time_getlocaltime([vl0])
+                    ax0.axvline(x=vl0, color=st0[0], ls=st0[1])
             ax0_0 = ax0.twinx()
-            ax0_0.plot(second_axe[i0][0], second_axe[i0][1], 'g-')
+            ax0_0.plot(second_axe[i0][0], second_axe[i0][1], symbol2)
+            if y_lim2 is not False:
+                for axis_id in y_lim2[0]:
+                    if i0 == axis_id:
+                        ax0_0.set_ylim(y_lim2[1][y_lim2[0].index(axis_id)])
+    for i0, ax0 in enumerate(axs):
+        if i0 == main_check:  # plot outliers of a given main axes variable
+            ## first crit, the outlier greater than double stds.
+            # diff = np.diff(main_axe[i0][1])
+            # d_std = np.nanstd(diff)
+            # crit = np.where(np.abs(diff) > 2 * d_std)
+            # crit2 = [ix +1 for ix in crit[0]]
+            # new crit, sigma greater than -13.5
+            x_t0, y_t0 = main_axe[i0][0], main_axe[i0][1]
+            p_sp = [bxy.get_total_sec(str0, fmt=time_fmt, reftime=[2000, 1, 1, 0])
+                    for str0 in ['2015308', '2016130', '2016288', '2017030']]
+            th_high = -13.3
+            period_index = ((x_t0 > p_sp[0]) & (x_t0 < p_sp[1])) | ((x_t0 > p_sp[2]) & (x_t0 < p_sp[3]))
+            crit2 = (y_t0 > th_high) & (period_index)
+            # ax0.plot(main_axe[i0][0][crit2], main_axe[i0][1][crit2], 'r.')
+            # if i0+1 < n:
+            #     axs[i0+1].plot(main_axe[i0+1][0][crit2], main_axe[i0+1][1][crit2], 'r.')
+            # check wether the dropping of sigma is outlier
+            p_sp_thaw = [bxy.get_total_sec(str0, fmt=time_fmt, reftime=[2000, 1, 1, 0])
+                         for str0 in ['2016130', '2016132']]
+            p_thaw_index = (x_t0 > p_sp_thaw[0]) & (x_t0 < p_sp_thaw[1])
+            # ax0.plot(main_axe[i0][0][p_thaw_index], main_axe[i0][1][p_thaw_index], 'rs')
+            if i0+1 < n:
+                axs[i0+1].plot(main_axe[i0+1][0][p_thaw_index], main_axe[i0+1][1][p_thaw_index], 'rs')
+    # set ticks
+    ax0.ticklabel_format(style='plain')
+    if x_unit != 'normal':
+        plt.draw()
+        tick_labels = ax0.get_xticklabels(which='major')
+        # labels = [item.get_text() for item in tick_labels]
+        labels = [item._x for item in tick_labels]
+        new_labels = []
+        for label0 in labels:
+            sec_int = int(label0)
+            sec2time = bxy.time_getlocaltime([sec_int], ref_time=[2000, 1, 1, 0])
+            if x_unit=='sec':
+                x_tick0 = '%d/%d\n%d:00' % (sec2time[1], sec2time[2], sec2time[-1])
+                new_labels.append(x_tick0)
+            elif x_unit=='doy':
+                x_tick0 = '%d/%d\n%d:00' % (sec2time[0], sec2time[3], sec2time[-1])
+                new_labels.append(x_tick0)
+            elif x_unit=='mmdd':
+                x_tick0 = '%d/%d/%d\n%d:00' % (sec2time[0], sec2time[1], sec2time[2], sec2time[-1])
+                new_labels.append(x_tick0)
+        ax0.set_xticklabels(new_labels)
+    # h_line or v_line
+    if len(h_line) > 0:
+       ax0_0.axhline(y=h_line[0])
     plt.savefig(figname)
     plt.close()
+    del main_label[0: ]
     return 0
 
 

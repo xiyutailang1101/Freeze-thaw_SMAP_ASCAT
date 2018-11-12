@@ -775,7 +775,8 @@ def radar_read_main(orbit, site_number, peroid, polars, r_range=False):
             else:
                 site_ind, hdf5_slice = return_ind(tb_full_path, site_number, 'tbs', prj=proj)
             for sn in hdf5_slice.keys():
-                hf0 = h5py.File('./result_08_01/area/SMAP/SMAP_'+sn+orbit+time_str+'.h5', 'a')
+                h5_path = '%s/SMAP_%s%s%s.h5' % (pre_path, sn, orbit, time_str)
+                hf0 = h5py.File(h5_path, 'a')
                 for key in hdf5_slice[sn]:
                     hf0[key] = hdf5_slice[sn][key]
                 hf0.close()
@@ -1068,7 +1069,7 @@ def read_netcdf_ds(ind, fname, att=[':f_usable', ':inc_angle_trip']):
     return np_ds
 
 
-def readascat(file_daily, site_no, orbit, timestr, center=False, satellite='A'):  # from 16 to 17
+def readascat(file_daily, site_no, orbit, timestr, center=False, satellite='B'):  # from 16 to 17
     '''
 
     :param file_daily: files available of a specified date
@@ -1167,15 +1168,18 @@ def getascat(site_no, doy, year0=2015, orbit=1, center=False, sate='B'):
     # return 0
 
 
-def read_ascat_alaska(doy, year0=2015):
+def read_ascat_alaska(doy, year0=2015, sate='B'):
     site_no = ['alaska']
-    path_ascat = '/media/327A50047A4FC379/ASCAT/ascat_l1/'
+    if sate == 'B':
+        path_ascat = '/media/327A50047A4FC379/ASCAT/ascat_l1/'
+    elif sate == 'A':
+        path_ascat = '/media/Seagate Expansion Drive/ASCAT/ascat_1a/'
     filelist = os.listdir(path_ascat)
     yr = year0 + doy/365  # start from 2016
     dayz = doy - (doy/365 * 365)  # get the year and j
     dtime0 = datetime.datetime(yr, 01, 01) + datetime.timedelta(dayz-1)
     dtime_str = dtime0.strftime('%Y%m%d')  # get yyyymmdd formated string, matching it in file list
-    dtime_str = bxy.doy2date(doy, fmt='%Y%m%d')
+    dtime_str = bxy.doy2date(doy, fmt='%Y%m%d', year0=year0)
     print 'Now data at %s is searching' % (dtime_str)
     file_daily = []  # daily nc list
     for ncfile in filelist:
@@ -1184,7 +1188,7 @@ def read_ascat_alaska(doy, year0=2015):
             file_daily.append(path_ascat+ncfile)
     # read all daily nc files
     file_ncread = file_daily
-    return_ind(file_ncread, site_no, 'ascat', thsig=[8.58, 17.54], orbz=None, fname='./result_08_01/area/ascat/ascat_'+dtime_str)
+    return_ind(file_ncread, site_no, 'ascat', thsig=[8.58, 17.54], orbz=None, fname='./result_08_01/area/ascat/ascat_'+dtime_str+'_metop'+sate)
     # sigma0 = readascat(file_daily, site_no, orbit, dtime_str)
     # readascat(file_daily, site_no, orbit, timestr)
     return 0
@@ -1214,10 +1218,19 @@ def read_tb_site(h5_smap, dic_site, location, prj):
 
 
 def read_tb2txt(site_no, ob,
-                attribute_name='smap_tb', fname=[], year_type = 'water', is_inter=True, ipt_path='_05_01'):
-    site_path = site_infos.get_data_path(ipt_path) + 's' + site_no + '/'
+                attribute_name='smap_tb', fname=[], year_type = 'water', is_inter=True, ipt_path='_05_01', site_loc='al'):
+    if site_loc == 'ak':
+        site_path = site_infos.get_data_path(ipt_path) + 's' + site_no + '/'
+    else:
+        site_path = 'result_08_01/20181101/smap_series/' + 's' + site_no + '/'
+
     if year_type == 'water':
         file_list, d_list = read_site.get_h5_list('20151001', '20170301', site_no, ob, ipt_path)  #
+    elif year_type == 'tibet':
+        path_smap_match = 'result_08_01/20181101/smap_series/s%s/SMAP*%s*.h5' % (site_no, ob)
+        matched_path = glob.glob(path_smap_match)
+        file_list = sorted([f0.split('/')[-1] for f0 in matched_path])
+        d_list = [f0.split('.')[0].split('_')[-1] for f0 in file_list]
     else:
         file_list, d_list = read_site.get_h5_list('20160101', '20161225', site_no, ob)
     # initials
@@ -1290,7 +1303,7 @@ def read_tb2txt(site_no, ob,
             status = 0
 
 
-def read_amsr2(site_list, period, orb='A'):
+def read_amsr2(site_list, period, orb='A', th=[5, 5]):
     """
     :param site_list: e.g., ['947', '968']
     :param period: e.g., [date0, date1], fm='%Y%m%d'
@@ -1310,11 +1323,12 @@ def read_amsr2(site_list, period, orb='A'):
         datestr = doy_obj.strftime('%Y%m%d')
         print datestr
         h5_name_search = '*'+datestr+'*%s_*.h5' % orb
-        filelist = glob.glob(month_dir+h5_name_search)
-        loc_dicts, hdf5_slice = return_ind(filelist, site_list, 'amsr2')
+        h5_name_search = '%s/*%s*%s_*.h5' % (month_dir, datestr, orb)
+        filelist = glob.glob(h5_name_search)
+        loc_dicts, hdf5_slice = return_ind(filelist, site_list, 'amsr2', thtb=th)
         for sn in hdf5_slice.keys():
                 h5_newfile = 'AMSR2_l2r_%s_%s_%s.h5' % (datestr, sn, orb)
-                hf0 = h5py.File('./tp/'+h5_newfile, 'a')
+                hf0 = h5py.File('./result_08_01/area/amsr2/'+h5_newfile, 'a')
                 for key in hdf5_slice[sn]:
                     hf0[key] = hdf5_slice[sn][key]
                 if loc_dicts[1][sn].size>1:

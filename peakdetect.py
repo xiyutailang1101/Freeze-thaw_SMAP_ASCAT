@@ -12,7 +12,7 @@ def peakdet(v, delta, t, x = None):
     %        [MAXTAB, MINTAB] = PEAKDET(V, DELTA) finds the local
     %        maxima and minima ("peaks") in the vector V.
     %        MAXTAB and MINTAB consists of two columns.
-    %        Column 0 contains indices in V, column the date of value (365+ in 2016), and column 2 the found values.
+    %        Column 0 contains indices in V, column 1 the date of value (365+ in 2016), and column 2 the found values.
     %      
     %        With [MAXTAB, MINTAB] = PEAKDET(V, DELTA, X) the indices
     %        in MAXTAB and MINTAB are replaced with the corresponding

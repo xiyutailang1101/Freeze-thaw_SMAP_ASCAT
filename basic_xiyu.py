@@ -160,9 +160,16 @@ def time_getlocaltime(utc_sec, ref_time=[2000, 1, 1, 12], t_source='utc', t_out=
                            for p_time0 in passtime_obj_list]).T
     return doy_passhr  # year, month, day, doy, hour
 
+
 def get_secs(t_list, reftime=[2000, 1, 1, 0]):
-    return (datetime(t_list[0], t_list[1], t_list[2], t_list[3], t_list[4], t_list[5])
-            - datetime(reftime[0], reftime[1], reftime[2], reftime[3], 0, 0)).total_seconds()
+    return (datetime(t_list[0], t_list[1], t_list[2], t_list[3], t_list[4], t_list[5]) -
+            datetime(reftime[0], reftime[1], reftime[2], reftime[3], 0, 0)).total_seconds()
+
+
+def get_total_sec(date_str, fmt='%Y%m%d', reftime=[2000, 1, 1, 0]):
+    return (datetime.strptime(date_str, fmt) -
+            datetime(reftime[0], reftime[1], reftime[2], reftime[3], 0, 0)).total_seconds()
+
 
 def zone_trans(secs, zone0, zone1, ref_time=[2000, 1, 1, 0]):
     tz0 = pytz.timezone(zone0)
@@ -171,6 +178,10 @@ def zone_trans(secs, zone0, zone1, ref_time=[2000, 1, 1, 0]):
     passtime1 = passtime0.astimezone(tz=tz1)
     time1_tuple = passtime1.timetuple()
     return time1_tuple
+
+
+def get_time_now():
+    return datetime.now()
 
 
 def slice4plot(var, range):
@@ -307,6 +318,7 @@ def time_normalize(time_array):
 
 
 def trans_in2d(idx_1d, shape):
+    # change 1d index to 2d coordinate (column/row)
     row_num = idx_1d/shape[1]
     col_num = idx_1d - idx_1d/shape[1] * shape[1]
     idx_2d = np.array([row_num, col_num])
