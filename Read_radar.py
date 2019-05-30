@@ -17,7 +17,6 @@ import gdal
 from gdalconst import *
 from netCDF4 import Dataset
 import basic_xiyu as bs
-from plot_funcs import plt_more
 import test_def
 import glob
 import basic_xiyu as bxy
@@ -38,7 +37,337 @@ def return_region(filenamez, areas, sensor, prj='North_Polar_Projection'):
     return 0
 
 
-def return_ind(filenamez, siten, sensor, prj='North_Polar_Projection',thsig=[0.4, 0.4], thtb=[1, 1], orbz=1, fname=None, center=False):
+def return_ind(filenamez, siten, sensor, prj='North_Polar_Projection',thsig=[0.4, 0.4], thtb=[1, 1], orbz=1, fname=None,
+               center=False, atts=[], cube=1):
+    """
+    return the index of site value in the hdf5 files, which is array with element(s)
+    :param filenamez:
+    :param siten:
+    :param sensor: ascat: save as .npy form.
+    :param prj:
+    :return:
+    """
+    # return the index of site value in the hdf5 files, which is array with element(s)
+    # sensor :'sigma', 'TB', 'other'
+      # input 1, file name
+      # input 2, location
+    if sensor == 'sigma':
+        lat_t = siten[1]
+        lon_t = siten[2]
+        hf = h5py.File(filenamez, 'r')
+        dset_lon = np.array(hf['Sigma0_Data/cell_lon'])  # ##
+        dset_lon.shape = -1,
+        dset_lat = np.array(hf['Sigma0_Data/cell_lat'])  # ##
+        dset_lat.shape = -1,
+        lon_ind = np.where(np.abs(dset_lon[...] - lon_t) < thsig[0])
+        lat_ind = np.where(np.abs(dset_lat[...] - lat_t) < thsig[1])
+        region_ind = np.intersect1d(lon_ind, lat_ind)
+        # dis = (dset_lat[region_ind] - lat_t)**2 + (dset_lon[region_ind] - lon_t)**2
+        # if np.any(dis):
+        #     region_ind = region_ind[np.argmin(dis)]
+        print 'the radar index of this region is'
+        print region_ind, dset_lat[region_ind], dset_lon[region_ind]
+        return region_ind, dset_lat[region_ind], dset_lon[region_ind]
+        logging1.info(region_ind)
+    elif sensor == 'tbs':  # TBs, return only 1 pixels
+        # initialize
+        i_dic = 0
+        site_dict = {site_no0: dict() for site_no0 in siten}
+        lon_dic = {site_no0: [] for site_no0 in siten}
+        # a dict for each site, keys of the dict is the same with the smap_h5
+        for f0 in filenamez:
+            i_dic += 1
+            hf = h5py.File(f0, 'r')
+            dset_lon = np.array(hf[prj + '/cell_lon'])
+            dset_lat = np.array(hf[prj + '/cell_lat'])
+            for site_no0 in site_dict.keys():
+                ki = 0
+                #  hf_site = h5py.File('./h5_l1c/smap_'+site_no0[0]+'.h5', 'a')
+                site_info0 = site_infos.change_site(site_no0)
+                lat_t, lon_t = site_info0[1], site_info0[2]
+                loc_ind = np.where((np.abs(dset_lon[...] - lon_t) < thtb[0])&(np.abs(dset_lat[...] - lat_t) < thtb[1]))
+                lon_dic[site_no0].append(loc_ind)
+                if loc_ind[0].size > 0:
+                    #read_tb_site(hf, site_dict[site_no0], loc_ind, prj)
+                    att_keys = hf[prj].keys()
+                    for key in att_keys:
+                        if ki<1:
+                            site_dict[site_no0][prj+'/'+key] = (hf[prj+'/'+key].value[loc_ind])
+                        else:
+                            site_dict[site_no0][prj+'/'+key] = np.concatenate((site_dict[site_no0][prj+'/'+key], hf[prj+'/'+key].value[loc_ind]))
+                    ki += 1
+        return lon_dic, site_dict
+    elif sensor == 'tbak':
+        lat_t = siten[1]
+        lon_t = siten[2]
+        hf = h5py.File(filenamez, 'r')
+        dset_lon = np.array(hf[prj + '/cell_lon'])
+        dset_lat = np.array(hf[prj + '/cell_lat'])
+        lon_ind = np.where(np.abs(dset_lon[...] - lon_t) < thtb[0])
+        lat_ind = np.where(np.abs(dset_lat[...] - lat_t) < thtb[1])
+        region_ind = np.intersect1d(lon_ind, lat_ind)
+        # print '============', lon_t, lat_t, lon_ind, lat_ind, region_ind
+        return region_ind, 1
+    elif sensor == 'grid':
+        # initialize
+        i_dic = 0
+        ki = 0
+        site_dict = {site_no0: dict() for site_no0 in siten}
+        lon_dic = {site_no0: [] for site_no0 in siten}
+        # a dict for each site, keys of the dict is the same with the smap_h5
+        for f0 in filenamez:
+            i_dic += 1
+            hf = h5py.File(f0, 'r')
+            dset_col = np.array(hf[prj + '/cell_column'])
+            dset_row = np.array(hf[prj + '/cell_row'])
+            for site_no0 in site_dict.keys():
+                #  hf_site = h5py.File('./h5_l1c/smap_'+site_no0[0]+'.h5', 'a')
+                site_info0 = site_infos.change_site(site_no0)
+                lat_t, lon_t = site_info0[1], site_info0[2]
+                loc_ind = np.where((dset_col>159) & (dset_col<251) & (dset_row>139) & (dset_row<221))
+                lon_dic[site_no0].append(loc_ind)
+                if loc_ind[0].size > 0:
+                    #read_tb_site(hf, site_dict[site_no0], loc_ind, prj)
+                    att_keys = hf[prj].keys()
+                    for key in att_keys:
+                        if ki<1:
+                            site_dict[site_no0][prj+'/'+key] = hf[prj+'/'+key].value[loc_ind]
+                        else:
+                            site_dict[site_no0][prj+'/'+key] = np.concatenate((site_dict[site_no0][prj+'/'+key],
+                                                                               hf[prj+'/'+key].value[loc_ind]))
+                    ki += 1
+            hf.close()
+        return lon_dic, site_dict
+
+    elif sensor == 'amsr2':
+         # initialize
+        i_dic = 0
+        site_dict = {site_no0: dict() for site_no0 in siten}
+        lon_dic = {site_no0: np.array([]) for site_no0 in siten}
+        lat_dic = {site_no0: np.array([]) for site_no0 in siten}
+        ki = 0
+        for f0 in filenamez:
+            i_dic += 1
+            hf = h5py.File(f0, 'r')
+            dset_lat89 = hf['Latitude of Observation Point for 89A'].value
+            dset_lon89 = hf['Longitude of Observation Point for 89A'].value
+            ind_36 = np.arange(0, dset_lat89.shape[1], 2)
+            dset_lat = dset_lat89[:, ind_36]
+            dset_lon = dset_lon89[:, ind_36]
+
+            for site_no0 in site_dict.keys():
+                #  hf_site = h5py.File('./h5_l1c/smap_'+site_no0[0]+'.h5', 'a')
+                site_info0 = site_infos.change_site(site_no0)
+                lat_t, lon_t = site_info0[1], site_info0[2]
+                loc_ind = np.where((np.abs(dset_lon[...] - lon_t) < thtb[0])&(np.abs(dset_lat[...] - lat_t) < thtb[1]))
+                # h5_newfile = 'AMSR2_l2r_%s_%s_%s.h5' % (datestr, site0, orb)
+                if loc_ind[0].size > 0:
+                    lon_dic[site_no0] = np.concatenate((lon_dic[site_no0], dset_lon[loc_ind]))
+                    lat_dic[site_no0] = np.concatenate((lat_dic[site_no0], dset_lat[loc_ind]))
+                    #read_tb_site(hf, site_dict[site_no0], loc_ind, prj)
+                    att_keys = hf.keys()
+                    for key in att_keys:
+                        # TB dataset
+                        if 'Brightness Temperature' in key:
+                            if key in site_dict[site_no0].keys():
+                                site_dict[site_no0][key] = np.concatenate((site_dict[site_no0][key], hf[key].value[loc_ind]))
+                            else:
+                                # the first call
+                                if key in ['Brightness Temperature (res06,10.7GHz,H)',
+                                       'Brightness Temperature (res06,10.7GHz,V)',
+                                        'Brightness Temperature (res06,18.7GHz,H)',
+                                        'Brightness Temperature (res06,18.7GHz,V)',
+                                        'Brightness Temperature (res06,23.8GHz,H)',
+                                        'Brightness Temperature (res06,23.8GHz,V)',
+                                        'Brightness Temperature (res06,36.5GHz,H)',
+                                        'Brightness Temperature (res06,36.5GHz,V)',
+                                        'Brightness Temperature (res06,6.9GHz,H)',
+                                        'Brightness Temperature (res06,6.9GHz,V)',
+                                        'Brightness Temperature (res06,89.0GHz,H)',
+                                        'Brightness Temperature (res06,89.0GHz,V)',
+                                        'Brightness Temperature (res23,18.7GHz,V)',
+                                        'Brightness Temperature (res23,36.5GHz,V)',
+                                        'Brightness Temperature (res23,18.7GHz,H)',
+                                        'Brightness Temperature (res23,36.5GHz,H)']:
+                                    site_dict[site_no0][key] = hf[key].value[loc_ind]
+                        # non-TB data set  # size
+                        elif key in ['Earth Azimuth',  # (2040, 243)
+                                    'Earth Incidence',  # (2040, 243)
+                                    'Land_Ocean Flag 6 to 36',  #(4, 2040, 243)
+                                    'Land_Ocean Flag 89',  #(2, 2040, 486)
+                                    'Latitude of Observation Point for 89A',  # (2040, 486)
+                                    'Latitude of Observation Point for 89B',  # (2040 , 486)
+                                    'Longitude of Observation Point for 89A',  # (2040, 486)
+                                    'Longitude of Observation Point for 89B',  # (2040, 486)
+                                    # 'Navigation Data',  # (2040, 6)  # useless
+                                    'Pixel Data Quality 6 to 36',  # (2040, 486)
+                                    'Pixel Data Quality 89',  # (2040, 486)
+                                    'Position in Orbit',  # (2040,)
+                                    'Scan Data Quality',  # (2040, 512)
+                                    'Scan Time',  # (2040,)
+                                    'Sun Azimuth', # (2040, 243)
+                                    'Sun Elevation']:  #(2040, 243)]:
+                            dims = len(hf[key].value.shape)
+                            if key in site_dict[site_no0].keys():
+                                if dims == 3:
+                                    site_dict[site_no0][key] = np.concatenate((site_dict[site_no0][key], hf[key].value[:, loc_ind[0], loc_ind[1]].ravel()))
+                                elif dims == 2:
+                                    site_dict[site_no0][key] = np.concatenate((site_dict[site_no0][key], hf[key].value[loc_ind]))
+                                elif dims == 1:
+                                    site_dict[site_no0][key] = np.concatenate((site_dict[site_no0][key], hf[key].value[loc_ind[0]]))
+                            else:
+                                if dims == 3:
+                                    site_dict[site_no0][key] = hf[key].value[:, loc_ind[0], loc_ind[1]].ravel()
+                                elif dims == 2:
+                                    site_dict[site_no0][key] = hf[key].value[loc_ind]
+                                elif dims == 1:
+                                    print key
+                                    print hf[key].value.shape
+                                    print dims
+                                    site_dict[site_no0][key] = hf[key].value[loc_ind[0]]
+                        ki += 1
+            hf.close()
+        return [lon_dic, lat_dic], site_dict
+
+        # return_ind(filenamez, siten, sensor, prj='North_Polar_Projection',thsig=[0.4, 0.4], thtb=[1, 1], orbz=1, fname=None, center=False)
+    elif sensor in ['ease_n25', 'erq_25', 'EQMA', 'EQMD']:
+        # read amsr2_l3 global data
+        # find rows and cols of interested pixles
+        pause = 0
+        site_dict = {}
+        site_name_int = []
+        m_no = len(filenamez)  # the total number of data, including the unvalid
+        row_list, col_list = [], []
+        # alaska region 63.25, -151.5 lat: 8.58, lon: 17.54
+        for site in siten:
+            site_dict[site] = np.zeros([m_no, 3]) - 999
+            if site == 'alaska':
+                print 'read amsr2 l3 data in whole AK'
+                site_name_int = 0  # 0 for AK
+                # all rows/cols of pixel
+            else:
+                site_name_int.append(int(site))  # save the site name into a list
+                s_info = site_infos.change_site(site)
+                grid_info0 = site_infos.grid_info(sensor)
+                grid_size = grid_info0['resolution']
+                row_no = (grid_info0['lat_ul'] - s_info[1])/grid_size
+                col_no = (180 + s_info[2] - grid_info0['lon_ul'])/grid_size
+                row_list.append(int(round(row_no)))
+                col_list.append(int(round(col_no)))
+        pixel_info = np.array([site_name_int, row_list, col_list])  # name, row, col of interested pixels
+
+        # read measurements from h5 file
+        daily_temp = np.zeros([len(atts), len(row_list), cube]) - 999  # 2 dimensions: attributes & pixels
+        # total_value dimensions: ('date', 'atts', 'location', 'variables') e.g., variable: SND & SWE
+        total_value = np.zeros([len(filenamez), len(atts), len(row_list), cube]) - 999
+        date_sec = np.zeros(len(filenamez)) - 999  # saving the date str
+        for i_f0, f0 in enumerate(filenamez):  # sort the file list
+            #  file name example: GW1AM2_20160102_01D_PNMD_L3SGSNDLG2210210.h5
+            time_str = f0.split('/')[-1].split('_')[1]
+            time_sec = bxy.get_total_sec(time_str)
+            date_sec[i_f0] = time_sec
+        time_order = np.argsort(date_sec)
+        date_sec = date_sec[time_order]
+        filenamez_sorted = []
+        for i0 in time_order:
+            filenamez_sorted.append(filenamez[i0])
+        for i_f0, f0 in enumerate(filenamez_sorted):
+            hf_in = h5py.File(f0, 'r')
+            for i_att, att0 in enumerate(atts):
+                temp_value = hf_in[att0].value[row_list, col_list].reshape(len(row_list), -1)
+                n00 = temp_value.size/temp_value.shape[0]
+                daily_temp[i_att, :, 0:n00] = temp_value
+            total_value[i_f0, :, :, :] = daily_temp
+            hf_in.close()
+        return pixel_info, total_value, date_sec
+
+    elif sensor == 'ascat':
+        # read all ascat swath in one date
+        # nc_dict = read_netcdf(filenamez, ['latitude', 'longitude', 'sigma0_trip', 'f_usable', 'inc_angle_trip', 'f_land', 'as_des_pass'], anx=None)
+        # nc_dict = read_netcdf(filenamez, ['latitude', 'longitude', 'sigma0_trip', 'f_usable', 'inc_angle_trip', 'f_land', 'utc_line_nodes', 'abs_line_number', 'as_des_pass'], anx=None)
+        # headers = site_infos[sensor]
+        headers = site_infos.ascat_heads(sensor)
+        nc_dict = read_netcdf(filenamez, headers, anx=None)
+        # check_ak_ascat(nc_dict)
+        # sys.exit()
+        for site in siten:
+            info = site_infos.change_site(site)
+            lat_t = info[1]
+            lon_t = info[2]
+            if center is not False:
+                center_tb = test_def.main(site, [], sm_wind=7, mode='annual', seriestype='tb', tbob='_A_', sig0=7, center=True)
+                lat_t = center_tb[1]
+                lon_t = center_tb[0]
+            table = np.array([])
+            ind_count = 0
+            for file_no in range(0, len(nc_dict['latitude'])):
+                region_ind = np.where((np.abs(nc_dict['latitude'][file_no] - lat_t) < thsig[0]) & (np.abs(nc_dict['longitude'][file_no] - lon_t) < thsig[1]))
+                if np.any(region_ind[0]):  # region_ind 2-d coordinate
+                    band_no = region_ind[0]
+                    node_no = region_ind[1]
+                    # statck them all
+                    stacks = np.array([nc_dict['latitude'][file_no][region_ind], nc_dict['longitude'][file_no][region_ind]])
+                    col_no = 0
+                    for key00 in headers:
+                        with open('meta_ascat_ak.txt', 'a') as meta0:
+                            incrm = 1 if nc_dict[key00][file_no].ndim < 3 else 3
+                            meta0.write('%s, %d, %d \n' % (key00, col_no, col_no+incrm))
+                            col_no+=incrm
+                        if key00 == 'latitude' or key00 == 'longitude':
+                            continue
+                        if nc_dict[key00][file_no].ndim==3:
+                            for i in range(0, 3):
+                                #stacks = np.vstack([stacks, nc_dict[keyi][file_no][(band_no, node_no, i)]])
+                                stacks = np.append(stacks, [nc_dict[key00][file_no][(band_no, node_no, i)]], axis=0)
+                        elif nc_dict[key00][file_no].ndim == 2:
+                            key_indicator = nc_dict[key00][file_no][band_no, node_no]
+                            stacks=np.append(stacks, [key_indicator], axis=0)
+                        elif nc_dict[key00][file_no].ndim == 1:
+                            key_indicator = nc_dict[key00][file_no][band_no]
+                            stacks=np.append(stacks, [key_indicator], axis=0)
+
+                    # # statcks: attributes read in alaska region
+                    # stacks = np.array([nc_dict['latitude'][file_no][region_ind], nc_dict['longitude'][file_no][region_ind]])  # 2
+                    # for keyi in ['sigma0_trip', 'f_usable', 'inc_angle_trip', 'f_land']:  # 3+3+3+3
+                    #     for i in range(0, 3):
+                    #         #stacks = np.vstack([stacks, nc_dict[keyi][file_no][(band_no, node_no, i)]])
+                    #         stacks = np.append(stacks, [nc_dict[keyi][file_no][(band_no, node_no, i)]], axis=0)
+                    # # stack the orbit, and passing time
+                    # for keyi in ['utc_line_nodes', 'abs_line_number', 'as_des_pass']:  # 1+1+1
+                    #     key_indicator = nc_dict[keyi][file_no][band_no]
+                    #     stacks=np.append(stacks, [key_indicator], axis=0)
+                    if ind_count < 1:
+                        ind_count += 1
+                        # table is the each stack concatenate together along rows
+                        table = stacks
+                    else:
+                        table = np.append(table, stacks, axis=1)
+        # save this site
+            if table.size < 12:
+                np.save(fname+'_'+site+'.npy', np.transpose(table))
+                continue
+            np.save(fname+'_'+site+'.npy', np.transpose(table))
+                       #fmt='%.6f, %.6f, %.6f, %.6f, %.6f, %d, %d, %d, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %d')
+
+
+                #else:
+
+                    # for i in range(0, region_ind[0].size, 1):
+                    #     #sig_tp = o_sig.GetRasterBand(region_ind[0][i]+1).ReadAsArray()
+                    #     for j in range(0, 3):
+                    #         sig0[j].append(sig_tp[band_no[i], node_no[i], j])  #
+                    #     #sig_tp = None
+                    # sigma0 = sig0
+                    # center_lat = dset_lat[region_ind]
+                    # center_lon = dset_lon[region_ind]
+            #hf.close()
+            #return [np.array([[sig_tp.shape[0]-1], [sig_tp.shape[1]-1]])-region_ind, sigma0], center_lat, center_lon, orb_indicator, 1
+    else:
+            #hf.close()
+        return -1, -1, -1, -1, -1  # fail to read data
+
+
+def return_ind2(filenamez, siten, sensor, prj='North_Polar_Projection',thsig=[0.4, 0.4], thtb=[1, 1], orbz=1, fname=None, center=False):
     """
     return the index of site value in the hdf5 files, which is array with element(s)
     :param filenamez:
@@ -133,7 +462,8 @@ def return_ind(filenamez, siten, sensor, prj='North_Polar_Projection',thsig=[0.4
                         if ki<1:
                             site_dict[site_no0][prj+'/'+key] = hf[prj+'/'+key].value[loc_ind]
                         else:
-                            site_dict[site_no0][prj+'/'+key] = np.concatenate((site_dict[site_no0][prj+'/'+key], hf[prj+'/'+key].value[loc_ind]))
+                            site_dict[site_no0][prj+'/'+key] = np.concatenate((site_dict[site_no0][prj+'/'+key],
+                                                                               hf[prj+'/'+key].value[loc_ind]))
                     ki += 1
             hf.close()
         return lon_dic, site_dict
@@ -227,6 +557,43 @@ def return_ind(filenamez, siten, sensor, prj='North_Polar_Projection',thsig=[0.4
                         ki += 1
             hf.close()
         return [lon_dic, lat_dic], site_dict
+    elif sensor in ['ease_n25', 'erq_25']:
+        # read amsr2_l3 global data
+        # find rows and cols of interested pixles
+        pause = 0
+        atts = []
+        site_dict = {}
+        site_name_int = []
+        m_no = len(filenamez)  # the total number of data, including the unvalid
+        row_list, col_list = [], []
+        # alaska region 63.25, -151.5 lat: 8.58, lon: 17.54
+        for site in siten:
+            site_dict[site] = np.zeros([m_no, 3]) - 999
+            if site == 'alaska':
+                print 'read amsr2 l3 data in whole AK'
+                site_name_int = 0  # 0 for AK
+                # all rows/cols of pixel
+            else:
+                site_name_int.append(int(site))  # save the site name into a list
+                s_info = site_infos.change_site(site)
+                grid_info0 = site_infos.grid_info(sensor)
+                grid_size = grid_info0['resolution']
+                row_no = (grid_info0['lat_ul'] - s_info[1])/grid_size
+                col_no = (180 + s_info[2] - grid_info0['lon_ul'])/grid_size
+                row_list.append(row_no)
+                col_list.append(col_no)
+        pixel_info = np.array([site_name_int, row_list, col_list])  # name, row, col of interested pixels
+
+        # read measurements from h5 file
+        daily_temp = np.zeros([len(atts), len(row_list)]) - 999  # 2 dimensions: attributes & pixels
+        total_value = np.zeros([len(filenamez), len(atts), len(row_list)]) - 999  # dates, attributes, pixels
+        for i_f0, f0 in enumerate(filenamez):
+            hf_in = h5py.File(f0, 'r')
+            for i_att, att0 in enumerate(atts):
+                daily_temp[i_att] = hf_in[att0].value()[row_list, col_list]  # array shape: 1 * N, N is no. of pixels
+            total_value[i_f0] = daily_temp
+            hf_in.close()
+        return pixel_info, total_value
 
         # return_ind(filenamez, siten, sensor, prj='North_Polar_Projection',thsig=[0.4, 0.4], thtb=[1, 1], orbz=1, fname=None, center=False)
 
@@ -359,7 +726,16 @@ def read_netcdf(file, att, anx=None):
         rootgrp = Dataset(f, 'r', format='NETCDF4')
         for keyi in nc_dict.keys():  # value for each key
             #o_key = gdal.Open(f+':'+keyi)
-            v_key = rootgrp.variables[keyi][:]
+            net_key = rootgrp.variables.keys()
+            # check key latitude
+            if keyi == 'longitude':
+                pause = 0
+            if (keyi == 'longitude') & (keyi not in net_key):
+                v_key = rootgrp.variables['lon'][:]
+            elif (keyi == 'latitude') & (keyi not in net_key):
+                v_key = rootgrp.variables['lat'][:]
+            else:
+                v_key = rootgrp.variables[keyi][:]
             nc_dict[keyi].append(v_key)
             o_key = None
             v_key = None
@@ -910,12 +1286,13 @@ def radar_read_main(orbit, site_number, peroid, polars, r_range=False):
 # print(Site_sig0)
 
 
-def radar_read_alaska(orbit, site_number, peroid, polars, r_range=False, ):
+def radar_read_alaska(orbit, site_number, peroid, polars, r_range=False, year=2016):
     n = 1
     # orbit = '_D_'
-
     rootdir = '/media/Seagate Expansion Drive/Data_Xy/CloudFilm/'  # directory: sigma
     TBdir = '/media/327A50047A4FC379/SMAP/SPL1CTB.003/'  # directory: TB, listed by date document
+    # if year == 2018:
+    #     TBdir = '/media/327A50047A4FC379/SMAP/smap_2018/'
     TB_date_list = sorted(os.listdir(TBdir))
     TB_date = []
     TB_date2, TB_ind = [], -1  # use to find yyyy.mm.dd format documents
@@ -978,7 +1355,7 @@ def radar_read_alaska(orbit, site_number, peroid, polars, r_range=False, ):
         proj_n = 'North_Polar_Projection'
         count_tb = 0  # remains 1 if no tb file was found
         d_att = {'_key': 'dict for global tb'}  # create dictionary for store tb data temporally
-        for proj in [proj_n]:  # two projection method:
+        for proj in [proj_n]:
             count_tb = 0
             for namez in tb_attr_name:
                 d_att[namez] = np.array([])
@@ -1169,16 +1546,22 @@ def getascat(site_no, doy, year0=2015, orbit=1, center=False, sate='B'):
 
 
 def read_ascat_alaska(doy, year0=2015, sate='B'):
+    '''
+    :param doy:  day of year based on year0
+    :param year0:
+    :param sate: metopB and metop A saved in different pathes
+    :return: the .npy, include 47 fileds, see in '../meta0_ascat_ak.txt'
+    '''
     site_no = ['alaska']
     if sate == 'B':
         path_ascat = '/media/327A50047A4FC379/ASCAT/ascat_l1/'
     elif sate == 'A':
         path_ascat = '/media/Seagate Expansion Drive/ASCAT/ascat_1a/'
     filelist = os.listdir(path_ascat)
-    yr = year0 + doy/365  # start from 2016
-    dayz = doy - (doy/365 * 365)  # get the year and j
-    dtime0 = datetime.datetime(yr, 01, 01) + datetime.timedelta(dayz-1)
-    dtime_str = dtime0.strftime('%Y%m%d')  # get yyyymmdd formated string, matching it in file list
+    # yr = year0 + doy/365  # start from 2016
+    # dayz = doy - (doy/365 * 365)  # get the year and j
+    # dtime0 = datetime.datetime(yr, 01, 01) + datetime.timedelta(dayz-1)
+    # dtime_str = dtime0.strftime('%Y%m%d')  # get yyyymmdd formated string, matching it in file list
     dtime_str = bxy.doy2date(doy, fmt='%Y%m%d', year0=year0)
     print 'Now data at %s is searching' % (dtime_str)
     file_daily = []  # daily nc list
@@ -1189,9 +1572,13 @@ def read_ascat_alaska(doy, year0=2015, sate='B'):
     # read all daily nc files
     file_ncread = file_daily
     return_ind(file_ncread, site_no, 'ascat', thsig=[8.58, 17.54], orbz=None, fname='./result_08_01/area/ascat/ascat_'+dtime_str+'_metop'+sate)
+    save_name_npy = './result_08_01/area/ascat/ascat_'+dtime_str+'_metop'+sate+'_alaska.npy'
     # sigma0 = readascat(file_daily, site_no, orbit, dtime_str)
     # readascat(file_daily, site_no, orbit, timestr)
-    return 0
+    if os.path.isfile(save_name_npy):
+        return 0
+    else:
+        return -1
 
 
 def get_peroid(st, en):
@@ -1379,3 +1766,27 @@ def check_ak_ascat(dict):
         lines += dict[key][0].ndim
         print key, ': ', dict[key][0].ndim
         print 'in total are %d lines' % lines
+
+
+def read_amsr2_l3(site=['947', '968'], prj='EQMA'):
+    # get h5 list, file name example: GW1AM2_20160102_01D_PNMD_L3SGSNDLG2210210.h5
+    h5_list = []
+    l3_path = '/media/Seagate Expansion Drive/AMSR2_SND'
+    month = ['01', '02', '03', '04', '05', '06', '07']
+    for month0 in month:
+        match_name = '%s/%s/*01D_%s*.h5' % (l3_path, month0, prj)
+        monthly_file_list = glob.glob(match_name)
+        h5_list += monthly_file_list
+    # read measurements of interested pixels
+    pixels, p_values, p_sec = return_ind(h5_list, site, prj, atts=['Geophysical Data', 'Time Information'], cube=2)
+    # dimensions: ('date', 'atts', 'location', 'variables')
+    # temp_check:
+    p_doy = bxy.time_getlocaltime(p_sec, ref_time=[2000, 1, 1, 0], t_out='utc')[3]
+    swe_947 = p_values[:, 0, 1, 0]
+    snd_947 = p_values[:, 0, 1, 1]
+    i_swe0 = np.where(swe_947 == 0)
+    i_snd0 = np.where(swe_947 == 0)
+    date_snd0 = p_doy[i_snd0]
+    pause=0
+    # save in h5 files
+    return pixels, p_values, p_sec

@@ -30,6 +30,7 @@ import site_infos
 #                      'cell_tb_v_fore', 'cell_tb_qual_flag_v_fore', 'cell_tb_error_v_fore',
 #                      'cell_tb_h_fore', 'cell_tb_qual_flag_h_fore', 'cell_tb_error_h_fore',
 #                      'cell_boresight_incidence_fore', 'cell_tb_time_seconds_fore']}
+
 site_nos = ['947', '949', '950', '960', '962', '967', '968', '1090', '1175', '1177', '1233', '2065', '2081', '2210', '2211', '2212', '2213']
 orb = '_A_'
 for site_no in site_nos:
@@ -64,7 +65,6 @@ bcomand = "sh result_08_01/point/ascat/cpdata.sh"
 # os.system(bcomand)
 sys.exit()
 for site_no in site_nos_new:
-
     for orb in ['_A_', '_D_']:
         full_path = './result_08_01/point/smap_pixel/time_series/tb_'+site_no+orb+'2016'
         Read_radar.read_tb2txt(site_no, orb, fname=full_path, attribute_name='smap_ta_lonlat_colrow',

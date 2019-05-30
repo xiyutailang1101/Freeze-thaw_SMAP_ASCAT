@@ -19,6 +19,7 @@ from netCDF4 import Dataset
 import h5py
 import test_def
 import basic_xiyu as bxy
+import glob
 
 def smap_mask(is_test=False):
     # read ascat land mask
@@ -90,6 +91,15 @@ def build_mask(mode='sig'):
 
 
 def smap_area_plot(datez, save_dir='./result_05_01/smap_area_result/', orbit='AS'):
+    """
+    The extracted h5 file have all pixels located in alaska in the "given date", we first read the cell row and col info
+    from it. Then transfer this (500, 500) ease grid 36N system to a (90, 100) ease grid 36N system, covering the alaska
+    regions. The transfer is: trans(row, col) = origin(row, col) - (140, 160)
+    :param datez:
+    :param save_dir:
+    :param orbit:
+    :return:
+    """
     ob = orbit
     if orbit == 'A':
         fpath0 = './result_05_01/SMAP_AK/smap_ak_as/AS_'
@@ -103,15 +113,11 @@ def smap_area_plot(datez, save_dir='./result_05_01/smap_area_result/', orbit='AS
         with open('smap_area_plot_interpolate.out', 'a') as writer0:
             writer0.write(datez)
         return -1
-    h5_ungrid_daily = h5_ungrid_daily_obj['North_Polar_Projection']
-    # smap_data = np.load(fpath0+'txt_xyz'+datez+'.npy')
-    smap_data = h5_ungrid_daily
+    smap_data = h5_ungrid_daily_obj['North_Polar_Projection']
     # read aft tb at v and h, read their coordinates
     lat_tb0, lon_tb0 = smap_data['cell_lat'].value, smap_data['cell_lon'].value
 
     # the required attributes
-    tb_v0, tb_h0 = smap_data['cell_tb_v_aft'], smap_data['cell_tb_h_aft']
-    lon_tb, lat_tb = lon_tb0[lon_tb0 != -1], lat_tb0[[lat_tb0 != -1]]
     att_list = [u'cell_antenna_scan_angle_aft', u'cell_boresight_incidence_aft', u'cell_column',
                 u'cell_lat_centroid_aft', u'cell_lon_centroid_aft',
                 u'cell_row', u'cell_solar_specular_phi_aft', u'cell_solar_specular_theta_aft',
@@ -120,7 +126,6 @@ def smap_area_plot(datez, save_dir='./result_05_01/smap_area_result/', orbit='AS
                 u'cell_tb_h_aft', u'cell_tb_h_fore', u'cell_tb_qual_flag_h_aft',
                 u'cell_tb_qual_flag_h_fore', u'cell_tb_qual_flag_v_aft', u'cell_tb_qual_flag_v_fore',
                 u'cell_tb_time_seconds_aft', u'cell_tb_time_seconds_fore', u'cell_tb_v_aft', u'cell_tb_v_fore']
-    coord_list = [u'cell_lon', u'cell_lat']
     smap_dict0 = {}
     for key0 in att_list:
         smap_dict0[key0] = smap_data[key0].value
@@ -131,10 +136,6 @@ def smap_area_plot(datez, save_dir='./result_05_01/smap_area_result/', orbit='AS
     ease_lon_un = np.fromfile('/home/xiyu/Data/easegrid2/gridloc.EASE2_N36km/EASE2_N36km.lons.500x500x1.double', dtype=float).reshape(500, 500)
     ease_lat = np.ma.masked_array(data=ease_lat_un, mask=[ease_lat_un == -999])
     ease_lon = np.ma.masked_array(data=ease_lon_un, mask=[ease_lon_un == -999])
-    # row, col = data_process.bbox_find(ease_lat, ease_lon, [72, 30], [-170, -100])
-    # lat_gd, lon_gd = ease_lat[min(row): max(row), min(col): max(col)], ease_lon[min(row): max(row), min(col): max(col)]
-    ease_valid = ((ease_lat > 54) & (ease_lat < 72)&(ease_lon > -170) & (ease_lon < -130))
-    tp0 = [[140, 219], [160, 249]]
     row_range = range(140, 230)
     col_range = range(160, 260)
     # make grid
@@ -161,7 +162,10 @@ def smap_area_plot(datez, save_dir='./result_05_01/smap_area_result/', orbit='AS
         # resampled_smap0 = res.resample_to_grid(smap_dict0, lon_tb, lat_tb, grid_lon[~grid_lon.mask], grid_lat[~grid_lat.mask], search_rad=27000)
         v_map_un = np.zeros(ease_lon.shape)
         # SMAP_alaska_A_20160124.h5
-        h5_grid_name = 'result_08_01/area/smap_area_result/SMAP_alaska_%s_GRID_%s.h5' % (ob, datez)
+        h5_grid_name = '%s/SMAP_alaska_%s_GRID_%s.h5' % (save_dir, ob, datez)
+        # check file path and name
+        pause=0
+        # h5_grid_name = 'result_08_01/area/smap_area_result/SMAP_alaska_%s_GRID_%s.h5' % (ob, datez)
         h0 = h5py.File(h5_grid_name, 'a')
         for key1 in resampled_smap0.keys():
             h0[key1] = resampled_smap0[key1]  # assign value
@@ -185,31 +189,54 @@ def smap_area_plot(datez, save_dir='./result_05_01/smap_area_result/', orbit='AS
         #     np.save('./result_05_01/smap_resample_'+ob+'/all/smap_'+datez+'_'+key+'_resample', v_map[min(tp0[0]): max(tp0[0])+1, min(tp0[1]): max(tp0[1])+1].data)
 
 
-def ascat_area_plot2(datez, save_dir='./result_05_01/test_area_result_9km_', orbit_no=0):
-    if orbit_no == 0: # AS
-        ob = 'AS'
+def ascat_area_plot2(datez, lat_valid, lon_valid, save_dir='./result_05_01/test_area_result_9km_',
+                     orbit_no=0, format_ascat='npy', sate=False, attributs=[3, 12, 9, 45, 6, 2, 4, 11, 13, 8, 10, 5, 7]):
+    '''
+    the input ascat data covers a given region, here we project them into a given grid system with coordinate
+    [lon_gd, lat_gd]
+    :param datez:
+    :param lat_valid:
+    :param lon_valid:
+    :param save_dir:
+    :param orbit_no: 0 for ascending
+    :param format_ascat:
+    :param sate:
+    :param attributs: the indices ranging (0, 46), such as 'inc_angle_trip_mid', referred to R3/meta0_ascat_ak.txt
+    :return: gridded .h5 files, whose name is consist of:
+            1) ['metopA_A', 'metopB_A', 'metopA_D', 'metopB_D'], corresponded sate type [0, 1, 2, 3]
+            2) timing of the measurements: yyyymmdd_hour
+            3) orbit: A for ascending; D for descending.
+    '''
+    # start0 = dtime2.now()
+    # print 'the orbit number is %d' % orbit_no
+    sate_type = ['metopA_A', 'metopB_A', 'metopA_D', 'metopB_D']
+    ascat_keys = site_infos.ascat_grid_keys()
+    if orbit_no == 0:  # AS
+        ob = 'A'
         tzone = [[18, 19.5], [19.5, 21], [21, 22.5], [22.5, 24], [-0.5, 1], [1, 2.5]]
     else:
         ob = 'D'
         tzone = [[2.5, 4], [4, 5.5], [5.5, 7], [7, 8.5], [8.5, 10]]
     save_dir = save_dir+ob+'/'
-    # initialize a grid system
-    # if not os.path.exists(save_dir+datez):
-    #     os.makedirs(save_dir+datez)
-    pre_path = 'result_08_01/'
-    grp0 = Dataset('/home/xiyu/Data/easegrid2/EASE2_N12.5km.geolocation.v0.9.nc', 'r', format='NETCDF4')
-    ease_lat, ease_lon = grp0.variables['latitude'][:], grp0.variables['longitude'][:]
-    lat_valid, lon_valid = (ease_lat > 54) & (ease_lat < 72), (ease_lon > -170) & (ease_lon < -130)
-    ease_valid = lat_valid & lon_valid
-    lat_gd, lon_gd = ease_lat[400: 700, 400: 700], ease_lon[400: 700, 400: 700]
+    # # read the grid system from nc file
+    # grp0 = Dataset('/home/xiyu/Data/easegrid2/EASE2_N12.5km.geolocation.v0.9.nc', 'r', format='NETCDF4')
+    # ease_lat, ease_lon = grp0.variables['latitude'][:], grp0.variables['longitude'][:]
+    # lat_valid, lon_valid = (ease_lat > 54) & (ease_lat < 72), (ease_lon > -170) & (ease_lon < -130)
+    # ease_valid = lat_valid & lon_valid
+    # lat_gd, lon_gd = ease_lat[400: 700, 400: 700], ease_lon[400: 700, 400: 700]
     # np.save('lat_ease_grid', lat_gd.data), np.save('lon_ease_grid', lon_gd.data)
-    lon_gd, lat_gd = np.load('./result_05_01/onset_result/lon_ease_grid.npy'), \
-                                np.load('./result_05_01/onset_result/lat_ease_grid.npy')
+    lon_gd, lat_gd = np.load('./extra_data/lon_ease_grid_125_ak.npy'), \
+                                np.load('./extra_data/lat_ease_grid_125_ak.npy')
     # lats_dim, lons_dim = np.arange(54, 72, 0.1), np.arange(-170, -130, 0.1)
     # lons_grid, lats_grid = np.meshgrid(lons_dim, lats_dim)
 
     # read the ascat, constraint by land% > 50%, orbit, and usable flag
-    ascat_data = np.load('./result_08_01/area/ascat/ascat_'+datez+'_alaska.npy')
+    if sate is False:
+        ascat_data = np.load('./result_08_01/area/ascat/ascat_'+datez+'_metopB_alaska.npy')
+        sate = 'metopB'
+    else:
+        ascat_data = np.load('./result_08_01/area/ascat/ascat_'+datez+'_metopA_alaska.npy')
+        sate = 'metopA'
     ascat_dict = {}
     meta_file = 'meta0_ascat_ak.txt'
     with open(meta_file) as meta0:
@@ -223,41 +250,141 @@ def ascat_area_plot2(datez, save_dir='./result_05_01/test_area_result_9km_', orb
             # ascat_dict[att_range[0]] = ascat_data[:, st: en]
         else:
             continue
-    sigma_mid, land_mid, inc_mid, orbit_id, f_use = \
-        ascat_data[:, 3], ascat_data[:, 12], ascat_data[:, 9], ascat_data[:, -1], ascat_data[:, 6]  # read values
-    id_land_orb = (land_mid > 0.5) & (orbit_id == orbit_no) & (f_use < 1)  # 0: good, 1: acceptable, 2: unusable
-    sigma_land, inc_land = sigma_mid[id_land_orb], inc_mid[id_land_orb]
-    lon_land, lat_land, pass_time = ascat_data[:, 1][id_land_orb], ascat_data[:, 0][id_land_orb], ascat_data[:, 14][id_land_orb]
-    pass_array = bxy.time_getlocaltime(pass_time)
-    pass_hr = pass_array[-1, :]
+    if ascat_data.size < 1:
+        # empty, the orbit doesn't exist
+        with open('ascat_area_plot2_metopA_empty.txt', 'a') as f0:
+            f0.write('No data: Date: %s, orbit: A, B\n' % datez)
+        return 0
+    # read data quality, land cover, and orbit
+    orbit_id = ascat_data[:, attributs[3]]
+    f_use = ascat_data[:, attributs[4]]
+    land_mid = ascat_data[:, attributs[1]]
+    land_fore, land_aft = ascat_data[:, attributs[7]], ascat_data[:, attributs[8]]
+    f_use_fore, f_use_aft = ascat_data[:, attributs[11]], ascat_data[:, attributs[12]]
+    # filter the unqualified
+    id_valid_aft, id_valid_fore = ascat_filter([land_aft, orbit_id, f_use_aft], orbit_no), \
+                                  ascat_filter([land_fore, orbit_id, f_use_fore], orbit_no)
+    id_valid_mid = ascat_filter([land_mid, orbit_id, f_use], orbit_no)
+    id_valid_ak = id_valid_aft & id_valid_fore & id_valid_mid
+    # read measurements
+    print 'mid (%d, %d), fore (%d, %d), aft (%d, %d)' % (attributs[0], attributs[2], attributs[5], attributs[9],
+                                                         attributs[6], attributs[10])
+    sigma_land, inc_land = ascat_data[:, attributs[0]][id_valid_ak], \
+                         ascat_data[:, attributs[2]][id_valid_ak]  # mid measurements
+    sigma_fore_land, sigma_aft_land = ascat_data[:, attributs[5]][id_valid_ak], \
+                                      ascat_data[:, attributs[6]][id_valid_ak]
+    inc_fore_land, inc_aft_land = ascat_data[:, attributs[9]][id_valid_ak], \
+                                  ascat_data[:, attributs[10]][id_valid_ak]
+
+    # check
+
+    # for i2 in [0, 2, 5, 6, 9, 10]:
+    #     print 'the %d_th attribute' % attributs[i2]
+    #     key0 = site_infos.ascat_keys_col(attributs[i2])
+    #     print 'has name %s' % key0
+    # for a_no in np.array(attributs).astype(int)[[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]]:
+    #     key0 = site_infos.ascat_keys_col(a_no)
+    #     print 'read from given attributes: %s' % (key0)
+
+    if sigma_land.size < 1:
+        # empty, the orbit doesn't exist
+        with open('ascat_area_plot2_metopA_empty.txt', 'a') as f0:
+            f0.write('No data: Date: %s, orbit: %s\n' % (datez, ob))
+        return 0
+    lon_land, lat_land, pass_time = ascat_data[:, 1][id_valid_ak], \
+                                    ascat_data[:, 0][id_valid_ak], \
+                                    ascat_data[:, 14][id_valid_ak]
+    pass_array = bxy.time_getlocaltime(pass_time, ref_time=[2000, 1, 1, 0])
+    pass_hr = pass_array[-1]
     # pass_hr = pass_time
-    print np.min(pass_hr)
+    # print("----fist part: %s seconds ---" % (dtime2.now()-start0))
+    # start0 = dtime2.now()
+    ############################
+    daily_hour = pass_hr
+    # print("----2nd part: %s seconds ---" % (dtime2.now()-start0))
+    # start0 = dtime2.now()
+    # daily_hour = (daily_sec/3600).astype(int)
+    u_v, u_i = np.unique(daily_hour, return_index=True)  # seconds integral hour
+    for hour0 in u_v:
+        id_loc_time0 = daily_hour == hour0
+        sigma_land0, inc_land0, pass_hr0, pass_time0 = \
+        sigma_land[id_loc_time0], inc_land[id_loc_time0], pass_hr[id_loc_time0], pass_time[id_loc_time0]
 
-    id_loc_time00 = data_process.time_mosaic(tzone, pass_hr)
-    n0 = -1
-    n1 = -1
-    for tz in tzone:
-        n0 += 1
-        id_loc_time0 = (pass_hr > tz[0]) & (pass_hr < tz[1])
-        if sum(id_loc_time0) < 1:  # no data interval
-            continue
-        else:
-            n1 += 1
-            sigma_land0, inc_land0, pass_hr0, pass_time0 = \
-                sigma_land[id_loc_time0], inc_land[id_loc_time0], pass_hr[id_loc_time0], pass_time[id_loc_time0]
-            lon_land0, lat_land0 = lon_land[id_loc_time0], lat_land[id_loc_time0]
-            # select attributes that we want to save !! 08/29/2018
-            sigma_dict0 = {'sigma': sigma_land0, 'incidence': inc_land0,
-                           'pass_utc': pass_time0}  # pass_hr0 --> pass_time0, 0829/2018
-            resampled_ascat0 = res.resample_to_grid(sigma_dict0, lon_land0, lat_land0, lon_gd, lat_gd, search_rad=9000)
-            mean_pass = np.mean(pass_hr0)
+        sigma_fore0, sigma_aft0, inc_fore0, inc_aft0 = sigma_fore_land[id_loc_time0], sigma_aft_land[id_loc_time0], \
+                                                       inc_fore_land[id_loc_time0], inc_aft_land[id_loc_time0]
+        lon_land0, lat_land0 = lon_land[id_loc_time0], lat_land[id_loc_time0]
 
-            resample_name = './result_08_01/ascat_resample_%s/new/ascat_%s_%d_resample' % (ob, datez, 0.5*(tz[0]+tz[1]))
-            incidence_name = './result_08_01/ascat_resample_%s/new/ascat_%s_%d_incidence' % (ob, datez, 0.5*(tz[0]+tz[1]))
-            pass_name = './result_08_01/ascat_resample_%s/new/ascat_%s_%d_pass_utc' % (ob, datez, 0.5*(tz[0]+tz[1]))
+        # add the name of keys
+        # sigma_dict0 = {'sigma': sigma_land0, 'incidence': inc_land0,
+        #                'pass_utc': pass_time0}  # pass_hr0 --> pass_time0, 0829/2018
+    #         sigma_fore_land, sigma_aft_land = ascat_data[:, attributs[5]][id_valid_fore], \
+    #                                   ascat_data[:, attributs[6]][id_valid_aft]
+    # inc_fore_land, inc_aft_land = ascat_data[:, attributs[9]][id_valid_fore], \
+    #                               ascat_data[:, attributs[10]][id_valid_aft]
+        sigma_dict0 = {'sigma0_trip_mid': sigma_land0, 'inc_angle_trip_mid': inc_land0,
+                       ascat_keys[14]: pass_time0,
+                       'sigma0_trip_fore': sigma_fore0, 'sigma0_trip_aft': sigma_aft0,
+                       'inc_angle_trip_fore': inc_fore0, 'inc_angle_trip_aft': inc_aft0}  # pass_hr0 --> pass_time0, 11/29/2018, attributs=[3, 12, 9, -1, 6]
+        print 'the extracted keys are', sigma_dict0.keys()
+        resampled_ascat0 = res.resample_to_grid(sigma_dict0, lon_land0, lat_land0, lon_gd, lat_gd, search_rad=9000)
+        # print("----3rd part: %s seconds ---" % (dtime2.now()-start0))
+        # start0 = dtime2.now()
+        if format_ascat == 'h5':
+            # save as h5 file, running speed is too low
+            # print sate_type.index(sate+'_'+ob)
+            h5_name = 'result_08_01/ascat_resample_all2/ascat_%s_%s_%d_%s.h5' % (sate, datez, hour0, ob)
+            h50 = h5py.File(h5_name, 'a')
+            for key0 in sigma_dict0.keys():
+                if key0 in h50.keys():
+                    del h50[key0]
+                    h50[key0] = resampled_ascat0[key0].data  # delete and update
+                    # dset = h50.create_dataset(key0, data=resampled_ascat0[key0].data)
+                else:
+                    h50[key0] = resampled_ascat0[key0].data
+            if 'sate_type' not in h50.keys():
+                h50['sate_type'] = sate_type.index(sate+'_'+ob)
+            if 'latitude' not in h50.keys():
+                h50['latitude'], h50['longitude'] = lat_gd, lon_gd
+        elif format_ascat == 'npy':
+            # save as npy file
+            if sate is False:
+                resample_name = './result_08_01/ascat_resample_npy/ascat_%s_%d_resample_%s' % (datez, hour0, ob)
+                incidence_name = './result_08_01/ascat_resample_npy/ascat_%s_%d_incidence_%s' % (datez, hour0, ob)
+                pass_name = './result_08_01/ascat_resample_npy/ascat_%s_%d_pass_utc_%s' % (datez, hour0, ob)
+            else:
+                sate_name = 'metop%s' % sate
+                resample_name = './result_08_01/ascat_resample_npy/ascat_%s_%d_resample_%s_%s' \
+                                % (datez, hour0, sate_name, ob)
+                incidence_name = './result_08_01/ascat_resample_npy/ascat_%s_%d_incidence_%s_%s' \
+                                 % (datez, hour0, sate_name, ob)
+                pass_name = './result_08_01/ascat_resample_npy/ascat_%s_%d_pass_utc_%s_%s' \
+                            % (datez, hour0, sate_name, ob)
             np.save(resample_name, resampled_ascat0['sigma'].data)
             np.save(incidence_name, resampled_ascat0['incidence'].data)
             np.save(pass_name, resampled_ascat0['pass_utc'].data)
+    ###########################
+    # for tz in tzone:
+    #     n0 += 1
+    #     id_loc_time0 = (pass_hr > tz[0]) & (pass_hr < tz[1])
+    #     if sum(id_loc_time0) < 1:  # no data interval
+    #         continue
+    #     else:
+    #         n1 += 1
+    #         sigma_land0, inc_land0, pass_hr0, pass_time0 = \
+    #             sigma_land[id_loc_time0], inc_land[id_loc_time0], pass_hr[id_loc_time0], pass_time[id_loc_time0]
+    #         lon_land0, lat_land0 = lon_land[id_loc_time0], lat_land[id_loc_time0]
+    #         # select attributes that we want to save !! 08/29/2018
+    #         sigma_dict0 = {'sigma': sigma_land0, 'incidence': inc_land0,
+    #                        'pass_utc': pass_time0}  # pass_hr0 --> pass_time0, 0829/2018
+    #         resampled_ascat0 = res.resample_to_grid(sigma_dict0, lon_land0, lat_land0, lon_gd, lat_gd, search_rad=9000)
+    #         mean_pass = np.mean(pass_hr0)
+    #
+    #         resample_name = './result_08_01/ascat_resample_%s/new/ascat_%s_%d_resample' % (ob, datez, 0.5*(tz[0]+tz[1]))
+    #         incidence_name = './result_08_01/ascat_resample_%s/new/ascat_%s_%d_incidence' % (ob, datez, 0.5*(tz[0]+tz[1]))
+    #         pass_name = './result_08_01/ascat_resample_%s/new/ascat_%s_%d_pass_utc' % (ob, datez, 0.5*(tz[0]+tz[1]))
+    #         np.save(resample_name, resampled_ascat0['sigma'].data)
+    #         np.save(incidence_name, resampled_ascat0['incidence'].data)
+    #         np.save(pass_name, resampled_ascat0['pass_utc'].data)
                 # fig_name = 'zone_%s_%.2f' % (str(tzone[n0][0]*10), mean_pass)
                 # data_process.pass_zone_plot(lon_gd, lat_gd, resampled_ascat0['sigma'], pre_path, fname=fig_name)
     # resampled_ascat0['sigma'] -= (resampled_ascat0['incidence']-45.0)*-0.11  # normalization
@@ -342,6 +469,12 @@ def ascat_area_plot2(datez, save_dir='./result_05_01/test_area_result_9km_', orb
     # incidence = resampled_ascat0['incidence'][id_value]
     # a, b = np.polyfit(incidence, backscatter, 1)
     # f = np.poly1d([a, b])
+
+
+def ascat_filter(vars, orb, threshold=[0.5, 1]):
+    # thershold[2]: 0: good, 1: acceptable, 2: unusable
+    id_valid_ak = (vars[0] > threshold[0]) & (vars[1] == orb) & (vars[2] < threshold[1])  # land > 0.5, the orbit
+    return id_valid_ak
 
 
 def build_land_mask(date_list):
@@ -460,7 +593,7 @@ def ascat_test_nn(id_as, id_des, site_file):
 
 def ascat_point_plot(center=False, dis0=19,
                      site_nos=['947', '2081', '2065', '967', '2213', '949', '950', '960', '962', '968', '1090', '1175',
-                               '1177', '2210', '1233', '2212', '2211']):
+                               '1177', '2210', '1233', '2212', '2211'], sate='all', site_loc='ak'):
 
     site_dic = {'sno_': ['1089', '967', '1062', '947', '949', '950', '960', '962', '968', '1090', '1175', '1177'],
                     'scan_': ['2081', '2213', '2210', '2065', '2212', '2211', '1233']}
@@ -479,10 +612,22 @@ def ascat_point_plot(center=False, dis0=19,
             center_tb = [site_subcenter[0], site_subcenter[1]]
             txt_path = '/home/xiyu/PycharmProjects/R3/result_05_01/site_ascat/' + 's' + str(main_sid)+ '/'
         else:
-            txt_path = '/home/xiyu/PycharmProjects/R3/result_08_01/point/ascat/' + 's' + str(site_no) + '/'
+            if site_loc == 'ak':
+                txt_path = '/home/xiyu/PycharmProjects/R3/result_08_01/point/ascat/' + 's' + str(site_no) + '/'
+                out_path = \
+                    './result_08_01/point/ascat/ascat_site_series/ascat_s' + str(site_no)+'_2016'+sate
+            elif site_loc == 'tibet':
+                txt_path = 'result_08_01/20181101/ascat_series/' + 's' + str(site_no) + '/'
+                out_path = 'result_08_01/20181101/ascat_series/ascat_s' + str(site_no)+'_2016'+sate
         n = 0
         n_warning, n_inc = 0, 0
-        file_list = sorted(os.listdir(txt_path))
+        if sate == 'all':
+            file_list = sorted(os.listdir(txt_path))
+        else:
+            matchname = '%s*metop%s*.npy' % (txt_path, sate)
+            path_list = glob.glob(matchname)
+            file_list = [path0.split('/')[-1] for path0 in path_list]
+            file_list = sorted(file_list)
         ascat_all_neighbor1d = np.array([])
         for txt_file in file_list:
             # get dt
@@ -530,7 +675,7 @@ def ascat_point_plot(center=False, dis0=19,
                 # tt = 0
 
         # np.save('./result_08_01/point/ascat/ascat_site_series/ascat_s'+str(site_no)+'_2016', np.array(ascat_point))
-        np.save('./result_08_01/point/ascat/ascat_site_series/ascat_s'+str(site_no)+'_2016', ascat_all_neighbor1d.reshape(-1, 47))
+        np.save(out_path, ascat_all_neighbor1d.reshape(-1, 47))
         # np.save('./result_05_01/ascat_point/loc_a_s'+site_no+'_2016', loc_as.reshape(-1, 2))
     st = 0
     return 0
@@ -723,3 +868,119 @@ def ascat_sub_pixel(sub_info, center=False, dis0=19,
         # np.save('./result_05_01/ascat_point/loc_a_s'+site_no+'_2016', loc_as.reshape(-1, 2))
     st = 0
     return 0
+
+def get_grid():
+    grp0 = Dataset('/home/xiyu/Data/easegrid2/EASE2_N12.5km.geolocation.v0.9.nc', 'r', format='NETCDF4')
+    ease_lat, ease_lon = grp0.variables['latitude'][:], grp0.variables['longitude'][:]
+    lat_valid, lon_valid = (ease_lat > 54) & (ease_lat < 72), (ease_lon > -170) & (ease_lon < -130)
+    ease_valid = lat_valid & lon_valid
+    lat_gd, lon_gd = ease_lat[400: 700, 400: 700], ease_lon[400: 700, 400: 700]
+    return  lat_gd, lon_gd
+
+
+def amsr2_area_resample(attributes, save_path, format='h5', raw_path='', date_str=False, grid_name='north'):
+    # load grid
+    if grid_name == 'north':
+        grid_lon = np.load('/home/xiyu/Data/easegrid2/ease_alaska_north_lon.npy')
+        grid_lat = np.load('/home/xiyu/Data/easegrid2/ease_alaska_north_lat.npy')
+    else:
+        h_t = h5py.File('result_08_01/area/smap_area_result/SMAP_alaska_A_GRID_20151121.h5')
+        grid_lon = h_t['cell_lon'].value
+        grid_lat = h_t['cell_lat'].value
+    # find files
+    if date_str is not False:
+        for str0 in date_str:
+            match0 = 0
+    else:
+        match0 = '%s/*.h5' % raw_path
+        file_list = glob.glob(match0)
+    for f0 in file_list:
+        h0_un_re = h5py.File(f0)
+        if len(h0_un_re.keys()) > 0:
+            h5_new ='%s/%s_%s.h5' % (save_path, f0.split('/')[-1].split('.')[0], grid_name)
+            lat_land0, lon_land0 = h0_un_re['latitude_36GHz'].value, h0_un_re['longitude_36GHz'].value
+            dict_un_re = {}
+            for att0 in attributes:
+                dict_un_re[att0] = h0_un_re[att0].value
+            resampled_ascat0 = res.resample_to_grid(dict_un_re, lon_land0, lat_land0, grid_lon, grid_lat, search_rad=10000)
+            h0_re = h5py.File(h5_new, 'a')
+            for att0 in attributes:
+                if att0 in h0_re.keys():
+                    continue
+                else:
+                    h0_re[att0] = resampled_ascat0[att0]
+            h0_un_re.close()
+            h0_re.close()
+        else:
+            continue
+
+
+def amsr2_detection(res_path='result_08_01/area/amsr2_resample', match_type='alaska', orbit='', odd_plot=False,
+                    att=[], extract_point=[], is_plot=False):
+    """
+
+    :param res_path:
+    :param match_type:
+    :param orbit:
+    :param odd_plot: dtype: nd_array, the indexes of specific regions (e.g., the north region) if true
+    :return:
+    """
+    # read the resample daily data to get time series
+    match0 = ('%s/*' % res_path)+match_type+orbit+'*.h5'
+    h5_list = sorted(glob.glob(match0))
+    # get the x time
+    x_time_array = np.zeros([len(h5_list)])
+    for i_day, fname0 in enumerate(h5_list):
+        d_str = fname0.split('/')[-1].split('_')[2]
+        x_time_array[i_day] = bxy.get_total_sec(fname0.split('/')[-1].split('_')[2])  # try secs
+        # bxy.get_secs()
+    # initial a 3-d array
+    array_3d = np.zeros([len(h5_list), len(att), len(odd_plot)])  # date, attribute, location
+    for i_day, h5_file0 in enumerate(h5_list):
+        h0 = h5py.File(h5_file0)
+        for i_att, att0 in enumerate(att):
+            daily_att0_id = h0[att0].value.ravel()  # data of a given att0, daily, 1 dimension
+            array_3d[i_day, i_att, :] = daily_att0_id[odd_plot]
+        h0.close()
+    # index in target region
+    # only loops the land area
+    if odd_plot is False:
+        mask = np.load('./result_05_01/other_product/mask_ease2_360N.npy')
+        # onset0 = np.ma.masked_array(onset0, mask=[(onset0==0)|(mask==0)])
+        mask_1d = mask.reshape(1, -1)[0]
+        land_id = np.where(mask_1d != 0)[0]
+    elif type(odd_plot) is list:
+        land_id = odd_plot
+    else:
+        land_id = [odd_plot]
+    s=0
+    sz_date, sz_att = len(h5_list), len(att)
+
+    amsr2_detection_out = []
+    for i0 in land_id:
+        pause = 0
+        if i0 in extract_point:
+            print 'the extracted pixel is', i0
+            # check the value of a sepcific point
+            # only one pixel is matched
+            n3 = np.where(np.array(land_id) == i0)
+            array_series = np.zeros([sz_date, sz_att])
+            # print 'source: ', array_3d.shape, 'extract: ', array_series.shape
+            print 'extract: ', array_series.shape
+            for i_att, att0 in enumerate(att):
+                temp_v = array_3d[:, att.index(att0), n3]  # land_id==i0
+                print 'n3, ', n3
+                print 'temp_v: ', temp_v.shape
+                print 'received array shape', array_series[:, i_att].shape
+                array_series[:, i_att] = temp_v.ravel()*0.01
+            amsr2_detection_out.append([i0, x_time_array, array_series])
+            if is_plot is True:
+                figname = 'result_08_01/amsr2_test_%d.png' % i0
+                print 'array_series shape ', array_series.shape
+                a0, a2 = 0, 2
+                y_label = [att0.split('(')[-1] for att0 in [att[a0], att[a2]]]
+                plot_funcs.plot_subplot([[x_time_array, array_series[:, a0]], [x_time_array, array_series[:, a2]]], [],
+                                        text='test01', main_label=[y_label[0], y_label[1]],
+                                        figname=figname, x_unit='doy')
+
+    return amsr2_detection_out  # the last interested point

@@ -6,6 +6,14 @@ import os
 import fnmatch
 import re
 import pytz
+import scipy.signal as signal
+import scipy.optimize as opt
+
+
+def opt_test(fminfunc, x, h, y, yn, x0):
+    return 0
+
+
 
 def gt_le(x, a, b, mode='bool'):
     if mode == 'bool':
@@ -37,6 +45,20 @@ def cal_dis(lat0, lon0, lats, lons):
     return 6371*np.sqrt(x**2 + y**2)
 
 
+def cal_dis_v2(lat0, lon0, lats, lons):
+
+    lamda0 = (lon0/180.0)*np.pi
+    lamdas = (lons/180.0)*np.pi
+    phi0 = (lat0/180.0)*np.pi
+    phis = (lats/180.0)*np.pi
+    x = (lamdas-lamda0.reshape(lamda0.size, -1)) * np.cos((phis+phi0.reshape(phi0.size, -1))/2)
+    y = phis - phi0.reshape(phi0.size, -1)
+    return 6371*np.sqrt(x**2 + y**2)
+
+
+def dict2npz(fname0, dict0, keys):
+    np.savez(fname0, **{dict0[key0] for key0 in keys})
+
 def check_h5(filename):
     hf = h5py.File(filename)
     n_key = hf.keys()[2]
@@ -66,7 +88,7 @@ def dis_inter(dis, value):
     return np.sum(weighs*value)/np.sum(weighs)
 
 
-def get_doy(date_string):
+def get_doy(date_string, year0=2015):
     """
     :param
         date_string: in the form of 'yyyymmdd'
@@ -76,9 +98,27 @@ def get_doy(date_string):
     doy_num_list = []
     for strz in date_string:
         t = datetime.strptime(strz, '%Y%m%d').timetuple()
-        doy_num_list.append(t.tm_yday + (t.tm_year - 2015) * 365)
+        doy_num_list.append(t.tm_yday + (t.tm_year - year0) * 365)
     doy_num_np = np.array(doy_num_list)
     return doy_num_np
+
+
+def get_doy_v2(date_string):
+    """
+    return the doy num, a string in forms of 'yyyymmdd' should be given
+    :param
+        date_string: in the form of 'yyyymmdd'
+    :return:
+        doy_num: the num of doy
+    """
+    doy_num_list = []
+    year_no = []
+    for strz in date_string:
+        t = datetime.strptime(strz, '%Y%m%d').timetuple()
+        doy_num_list.append(t.tm_yday)
+        year_no.append(t.tm_year)
+    doy_num_np = np.array(doy_num_list)
+    return doy_num_np, year_no
 
 
 def find_by_date(date_str, path):
@@ -151,7 +191,32 @@ def time_transform_check(time_utc, reftime, fms, tzone=False):
 def time_getlocaltime(utc_sec, ref_time=[2000, 1, 1, 12], t_source='utc', t_out='US/Alaska'):  # default ob: asc
     tz_utc = pytz.timezone(t_source)
     tz_ak = pytz.timezone(t_out)
-    passtime_obj_list = [datetime(ref_time[0], ref_time[1], ref_time[2], ref_time[3], 0, tzinfo=tz_utc)+timedelta(seconds=sec_i) for sec_i in utc_sec]
+    passtime_obj_list = [datetime(ref_time[0], ref_time[1], ref_time[2], ref_time[3], 0,
+                                  tzinfo=tz_utc)+timedelta(seconds=sec_i) for sec_i in utc_sec]
+    doy_passhr = np.array([[p_time0.astimezone(tz=tz_ak).timetuple().tm_year,
+                            p_time0.astimezone(tz=tz_ak).timetuple().tm_mon,
+                            p_time0.astimezone(tz=tz_ak).timetuple().tm_mday,
+                            p_time0.astimezone(tz=tz_ak).timetuple().tm_yday,
+                            p_time0.astimezone(tz=tz_ak).timetuple().tm_hour]
+                           for p_time0 in passtime_obj_list]).T
+    return doy_passhr  # year, month, day, doy, hour
+
+
+def time_getlocaltime_v2(utc_sec, ref_time=[2000, 1, 1, 12], t_source='utc', t_out='US/Alaska'):  # default ob: asc
+    """
+    the nan values in secs series are ignored
+    :param utc_sec:
+    :param ref_time:
+    :param t_source:
+    :param t_out:
+    :return:
+    """
+    tz_utc = pytz.timezone(t_source)
+    tz_ak = pytz.timezone(t_out)
+    nan_id = np.isnan(utc_sec)
+    utc_sec[nan_id] = get_total_sec('19991231')
+    passtime_obj_list = [datetime(ref_time[0], ref_time[1], ref_time[2], ref_time[3], 0,
+                                  tzinfo=tz_utc)+timedelta(seconds=sec_i) for sec_i in utc_sec]
     doy_passhr = np.array([[p_time0.astimezone(tz=tz_ak).timetuple().tm_year,
                             p_time0.astimezone(tz=tz_ak).timetuple().tm_mon,
                             p_time0.astimezone(tz=tz_ak).timetuple().tm_mday,
@@ -246,7 +311,6 @@ def trim_mean(input_mat):
     return output_arr
 
 
-
 def ll2easegrid(lon, lat):
     x = 0
     y = 0
@@ -281,6 +345,47 @@ def los_factor(a, b, omega):
 def doy2date(doy, year0=2016, fmt="%m%d"):
     d_obj = datetime(year0, 1, 1) + timedelta(doy-1)
     return d_obj.strftime(fmt)
+
+
+def latlon2index(p_coord, resolution=12.5):
+    """
+    turn latitude longitude into 1d and 2d indices
+    :param p_coord:
+    :param resolution:
+    :return:
+    """
+    if resolution == 36:
+        h5_name = 'result_08_01/area/smap_area_result/SMAP_alaska_A_GRID_%d.h5' % 20151102
+        h0 = h5py.File(h5_name)
+        lons_grid = h0['cell_lon'].value
+        lats_grid = h0['cell_lat'].value
+    else:
+        lons_grid, lats_grid = np.load('./result_05_01/other_product/lon_ease_grid.npy'), \
+                    np.load('./result_05_01/other_product/lat_ease_grid.npy')
+    # turn p_coord to index
+    pixel_id = (np.zeros(p_coord.shape[0]).astype(int), np.zeros(p_coord.shape[0]).astype(int))
+    p_id_1d = np.zeros(p_coord.shape[0]).astype(int)
+    i_pid = 0
+    for coord0 in p_coord:
+        dis = cal_dis(coord0[1], coord0[0], lats_grid, lons_grid)
+        # dis.argmin() to smap 1d index
+        p_id_1d[i_pid] = dis.argmin()
+        i2d = np.unravel_index(dis.argmin(), dis.shape)
+        pixel_id[0][i_pid] = i2d[0]
+        pixel_id[1][i_pid] = i2d[1]
+        i_pid += 1
+    return pixel_id, p_id_1d
+
+
+def get_doy_array(st, en, fmt):
+    st_sec = get_total_sec(st, fmt=fmt)
+    en_sec = get_total_sec(en, fmt=fmt)
+    st_obj = datetime.strptime(st, fmt)
+    en_obj = datetime.strptime(en, fmt)
+    st_doy, en_doy = st_obj.timetuple().tm_yday, en_obj.timetuple().tm_yday
+    year0 = st_obj.timetuple().tm_year
+    doy_arry = np.arange(st_doy, en_doy+1)
+    return doy_arry, year0
 
 
 def current_time():
@@ -325,10 +430,10 @@ def trans_in2d(idx_1d, shape):
     return idx_2d
 
 
-def trans_doy_str(doy_array):
+def trans_doy_str(doy_array,  y=2015, form="%Y%m%d"):
     doy_str = []
     for doy0 in doy_array:
-        doy_str0 = doy2date(doy0, year0=2015, fmt="%Y%m%d")
+        doy_str0 = doy2date(doy0, year0=y, fmt=form)
         doy_str.append(doy_str0)
     return doy_str
 
@@ -374,10 +479,41 @@ def hampel(vals_orig, k=7, t0=3):
 
 
 def reject_outliers(data, m=3.):
-    d = np.abs(data - np.mean(data))
+    d = np.abs(data - np.median(data))
     mdev = np.median(d)
     s = d/mdev if mdev else 0.
     return s<m
 
 
+def time_compare(x0, x1):
+    signal.resample()
 
+
+def nan_set(input0, mask_var):
+    input0[input0 == mask_var] = np.nan
+    return input0
+
+
+def normal_series(series0, n=0):
+            # g_npr_valid_n = 2*(g_npr[g_size: -g_size] - np.nanmin(g_npr[g_size: -g_size]))\
+            #             /(np.nanmax(g_npr[g_size: -g_size]) - np.nanmin(g_npr[g_size: -g_size])) - 1  # normalized
+    max0, min0 = np.nanmax(series0), np.nanmin(series0)
+    if n == 1:
+        return 2*(series0 - min0) / (max0 - min0) - 1
+    elif n == 0:
+        return (series0 - min0) / (max0 - min0)
+
+
+def get_statics(array):
+    """
+    :return: mean, max and min
+    """
+    return np.nanmean(array), np.nanmax(array), np.nanmin(array)
+
+def smap_download_file_list(st, ed, year=2017, m=3, d=18):
+    delta_d = 1
+    str_list = trans_doy_str(np.arange(st, ed+1), y=year, form='%Y.%m.%d')  # 77, 214, 2017
+    with open('smap_folders.txt', 'w') as f0:
+        for str0 in str_list:
+            f0.write('%s\n' % str0)
+    return 0

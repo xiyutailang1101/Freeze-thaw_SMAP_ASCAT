@@ -386,39 +386,94 @@ def search_snotel(site_no, date,
     return output
 
 
-def read_measurements(site_no, measure_name, doy, hr=0):
+def read_measurements(site_no, measure_name, doy, hr=0, year0=2016, t_unit='day'):
+    """
+    :param site_no:
+    :param measure_name:
+    :param doy:
+    :param hr:
+    :param year0:
+    :param t_unit: sec or day
+    :return:
+    """
     sno_lib = site_infos.get_type(site_no, all_site=True)
+    if t_unit =='sec':
+        doy = bxy.get_total_sec('%d0101' % year0)+(doy-1)*3600*24
     if site_no not in sno_lib:
         return np.zeros(doy.size) - 999, doy
     site_type = site_infos.get_type(site_no)
-    site_file = './copy0519/txt/'+site_type + site_no + '.txt'
+    if year0 == 2016:
+        site_file = './copy0519/txt/'+site_type + site_no + '.txt'
+    else:
+        site_file = './copy0519/txt/'+site_type + site_no + '_new.txt'
     if measure_name == 'snow':
         f_no = -1
     else:
         f_no = 0
-    stats_t, t5 = read_sno(site_file, measure_name, site_no, field_no=f_no)  # t5: doy and measurements
-    m_daily, m_doy = data_process.cal_emi(t5, [], doy, hrs=hr)
-    return m_daily, m_doy
+    stats_t, t5 = read_sno(site_file, measure_name, site_no, field_no=f_no, t_unit=t_unit)  # t5: doy and measurements
+    att=["Soil Moisture Percent -2in (pct)", "Soil Temperature Observed -2in (degC)",
+                         "Air Temperature Observed (degC)", "Snow"]
+    m_daily, m_doy = data_process.cal_emi(t5, [],  doy, hrs=hr, t_unit=t_unit)
+    # check
+
+    return m_daily[m_daily > -90], m_doy[m_daily > -90]
 
 
-def read_sno(sno_file, filed_name, station_id, field_no=0):
+def read_measurements_v2(site_no, measure_list, doy, hr=0, year0=2016):
+    '''
+    :param site_no:
+    :param measure_list:
+    :param doy:  doy should be secs at 0:00, updated 20190303
+    :param hr:
+    :param year0:
+    :return:
+    '''
+    sno_lib = site_infos.get_type(site_no, all_site=True)
+    if site_no not in sno_lib:
+        return np.zeros(doy.size) - 999, doy
+    site_type = site_infos.get_type(site_no)
+    if year0 == 2016:
+        site_file = './copy0519/txt/'+site_type + site_no + '.txt'
+    else:
+        site_file = './copy0519/txt/'+site_type + site_no + '_new.txt'
+    stats_t, t5 = read_sno_v2(site_file, measure_list, site_no, field_no=0)  # t5: doy and measurements
+    m_daily, m_doy = data_process.cal_emi_v2(t5, [], doy, hrs=hr)
+    # pass hour for snow measurements should be 0
+    if 'Snow Depth (cm)' in measure_list:
+        snow_m = 'Snow Depth (cm)'
+    elif ('Snow Water Equivalent (mm)' in measure_list):
+        snow_m = 'Snow Water Equivalent (mm)'
+    m_daily_2, m_doy_2 = data_process.cal_emi_v2(t5, [], doy, hrs=0)
+    snow_data = m_daily_2[measure_list.index(snow_m)]
+    valid_i = bxy.reject_outliers(snow_data, m=4)
+    snow_data[~valid_i] = -99
+    m_daily[measure_list.index(snow_m)] = snow_data
+    m_dict, i0 = {}, 0
+    for m_name in measure_list:
+        m_daily[i0][m_daily[i0] < -90] = np.nan
+        m_dict[m_name] = m_daily[i0]
+        i0 += 1
+    return m_dict, m_doy
+
+
+def read_sno(sno_file, filed_name, station_id, field_no=0, t_unit='day'):
     """
     <description>
         Read the measurement of snotel sites. According to the formation of snotel txt data, lines 0~5 are the titles. Data reading is based on the station id.
     :param sno_file: filename of snow tel sites
     :param filed_no: the column of field, e.g., 3 for the soil moisture at 5 cm, 6 for temperature at 5 cm
     :param station_id:
+    :param t_unit: sec or day
     :return:
         2 by n array, line 0 is day of year, line 1 is the value
     """
-    site_type = site_infos.get_type(station_id)
-    sno_file = './copy0519/txt/'+site_type + station_id + '.txt'
     print "reading %s..." % filed_name
     n_inter = 0  # iterate time, rows of sno_files
     n_ab = 0
     filed_value = []
     filed_date = []
     snow_id = 0
+    filed_sec = []
     global abvalue
     with open('abvs', 'rb') as fab:
         read1 = csv.reader(fab)
@@ -453,24 +508,133 @@ def read_sno(sno_file, filed_name, station_id, field_no=0):
                 else:
                     leap = 0
                 doy = t.tm_yday + t.tm_hour/24.0 + 365*(t.tm_year - 2015) + leap
+                secs_2_2000 = bxy.get_total_sec(row[0], fmt="%Y-%m-%d %H:%M", reftime=[2000, 1, 1, 0])
                 if row[field_no] == abvalue:
                     filed_value.append(float(-99))
                     filed_date.append(doy)
+                    filed_sec.append(secs_2_2000)
                 else:
                     if snow_id != 1:  # remove the invalid snow depth
                         filed_value.append(float(row[field_no]))
                         filed_date.append(doy)
+                        filed_sec.append(secs_2_2000)
                     else:
                         if (float(row[field_no]) > 190):
-                        # (float(row[field_no]) in np.array([102,104,107,112,130,140,183,241,231,239])) | \
                             filed_value.append(float(-99))
                             filed_date.append(doy)
+                            filed_sec.append(secs_2_2000)
                         else:
                             filed_value.append(float(row[field_no]))
                             filed_date.append(doy)
+                            filed_sec.append(secs_2_2000)
             n_inter += 1
     f1.closed
+    if t_unit == 'sec':
+        return 1, np.array([filed_sec, filed_value])
     return 1, np.array([filed_date, filed_value])
+
+
+def read_sno_v2(sno_file, filed_name, station_id, field_no=0):
+    """
+    <description>
+        Read the measurement of snotel sites. The heads, meta data were skiped
+    :param sno_file: filename of snow tel sites
+    :param filed_no: the column of field, e.g., 3 for the soil moisture at 5 cm, 6 for temperature at 5 cm
+    :param station_id:
+    :return:
+        2 by n array, line 0 is day of year, line 1 is the value
+    """
+    site_type = site_infos.get_type(station_id)
+    # site_file = './copy0519/txt/'+site_type + site_no + '_new.txt'
+    # sno_file = './copy0519/txt/'+site_type + station_id + '.txt'
+    print "reading %s..." % filed_name
+    n_inter = 0  # iterate time, rows of sno_files
+    n_ab = 0
+    filed_value = []
+    filed_date = []
+    filed_sec = []
+    snow_id = 0
+    if type(filed_name) is not list:
+        filed_name = [filed_name]
+    global abvalue
+    with open('abvs', 'rb') as fab:
+        read1 = csv.reader(fab)
+        for row in read1:
+            if n_ab > 5:
+                abvalue = row[-1]
+            n_ab += 1
+    # np.loadtxt(sno_file, delimiter=',', skiprows=64)
+    field_nos = []
+    with open(sno_file, 'rb') as f1:
+        reader = csv.reader(f1)
+        index_row = -1
+        for row in reader:
+            if filed_name == "Snow":  # 'Snow Water Equivalent (mm)' or 'Snow Depth (cm)'
+                    field_no = -1
+            if row[0] == 'Date':  # the filed name list
+                print 'the snow measurements is SWE', 'Snow Water Equivalent (mm)' in row
+                print 'snow to be readed,', "Snow" in filed_name
+                print 'the readed fields', filed_name
+                if "Snow" in filed_name:
+                    if 'Snow Water Equivalent (mm)' in row:
+                        filed_name[filed_name.index("Snow")] = "Snow Water Equivalent (mm)"
+                    else:
+                        filed_name[filed_name.index("Snow")] = "Snow Depth (cm)"
+
+
+                # print 'the file name:', sno_file
+                # print 'all fields are: ', filed_name
+                for m_name in filed_name:
+                    field_nos.append(row.index(m_name))
+                index_row = 0
+
+                for f0 in field_nos:
+                    print 'col No. is: %d %s' %(f0, row[f0])  # show what filed is read
+                # if row[field_no] == 'Snow Depth (cm)':  # special for snow
+                #     snow_id = 1
+            elif index_row>-1:
+                t = datetime.datetime.strptime(row[0], "%Y-%m-%d %H:%M").timetuple()
+                if t.tm_year - 2016 > 0:
+                    leap = 1
+                else:
+                    leap = 0
+                doy = t.tm_yday + t.tm_hour/24.0 + 365*(t.tm_year - 2015) + leap
+                # update 20190304, get tolal secs using the str in forms of "%Y-%m-%d %H:%M"
+                secs_2_2015 = bxy.get_total_sec(row[0], fmt="%Y-%m-%d %H:%M", reftime=[2015, 1, 1, 0])
+                doy_2_2015 = secs_2_2015/24/3600
+                secs_2_2000 = bxy.get_total_sec(row[0], fmt="%Y-%m-%d %H:%M", reftime=[2000, 1, 1, 0])
+                daily_measure = []
+                for f0 in field_nos:
+                    if row[f0] == abvalue:
+                        row[f0] = -99
+                    # print 'the appended value is',
+                    daily_measure.append(float(row[f0]))
+                filed_value.append(np.array(daily_measure))
+                filed_date.append(doy)
+                filed_sec.append(secs_2_2000)
+                # if row[field_no] == abvalue:
+                #     filed_value.append(float(-99))
+                #     filed_date.append(doy)
+                # else:
+                #     if snow_id != 1:  # remove the invalid snow depth
+                #         filed_value.append(float(row[field_nos]))
+                #         filed_date.append(doy)
+                #     else:
+                #         if (float(row[field_no]) > 190):
+                #         # (float(row[field_no]) in np.array([102,104,107,112,130,140,183,241,231,239])) | \
+                #             filed_value.append(float(-99))
+                #             filed_date.append(doy)
+                #         else:
+                #             filed_value.append(float(row[field_no]))
+                #             filed_date.append(doy)
+            n_inter += 1
+    f1.closed
+    measurements = np.zeros([len(daily_measure)+1, len(filed_date)])
+    # measurements[0] = np.array(filed_date)
+    measurements[0] = np.array(filed_sec)
+    measurements[1:] = np.array(filed_value).T
+    # np.array([np.array(filed_date),  np.array(filed_value).T])
+    return 1, measurements
 
 
 def days_2015(dtr):
@@ -626,6 +790,12 @@ def read_tibet(site_no):
             row_no += 1
     return np.array(m_out)
 
+
+def get_secs_values(site_no, measure_name, doy, ref_date='20160101', nan_value=0, pass_hr=0):
+    measure0, date0 = read_measurements(site_no, measure_name, doy+365, hr=pass_hr)
+    measure0[measure0 < nan_value] = np.nan
+    sec0 = bxy.get_total_sec(ref_date) + (date0-366)*24*3600
+    return measure0, sec0
 # def read_measurement(t0, var_name, site_no):
 #     """
 #

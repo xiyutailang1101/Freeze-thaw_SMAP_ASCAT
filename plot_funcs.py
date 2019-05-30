@@ -12,8 +12,10 @@ import h5py
 import basic_xiyu as bxy
 import glob
 import site_infos
+import data_process
 from matplotlib import gridspec
 from matplotlib.colors import LinearSegmentedColormap, colorConverter
+from matplotlib.legend_handler import HandlerLine2D
 
 def pltyy(t1, s1, fname, label_y1, t2=None, s2=None, label_y2=None, symbol=['bo', 'r+'],
           label_x='Days of year', ylim=None, ylim2=None, clip_on=True, handle=[], nbins2=None,
@@ -590,12 +592,37 @@ def quick_plot(x, y, figname='test_quick.png', lsymbol='o'):
     plt.close()
 
 
-def plot_subplot(main_axe, second_axe, main_label=[], vline=[],
+def plot_subplot(main_axe, second_axe, main_label=[], vline=[], vline_label=False,
                  figname='result_08_01/test_plot_subplot.png', text='test', x_unit='normal',
-                 h_line=[], red_dots=True, symbol2='g-', x_lim=False, y_lim=False,
-                 y_lim2=False, main_check=-1, time_fmt='%Y%j'):
+                 h_line=[], h_line2=[], red_dots=False, symbol2='g-', x_lim=False, y_lim=False, annote=[],
+                 y_lim2=False, main_check=-1, time_fmt='%Y%j', fills=[-9999, -999, -99],
+                 main_syb = ['k.', 'b.', 'r--', 'k--', 'r--', 'b--']):
+    '''
+    :param main_axe:
+    :param second_axe:
+    :param main_label:
+    :param vline: list, 0: the value, 1: the style which includes 'color/shape', 2: labels
+    :param figname:
+    :param text:
+    :param x_unit: sec, doy, mmdd: x value is in the unit of sec.
+    :param h_line: =[ax_no, hline_x, ls], each of them was list type. h_line is for axis2, h_line2 is for axis1
+    :param red_dots:
+    :param symbol2:
+    :param x_lim:
+    :param y_lim: [ax_no, y_limitation]
+    :param y_lim2:
+    :param main_check:
+    :param time_fmt:
+    :return:
+    '''
+    no0 = 0
+    vline_obj_list = []
     n = len(main_axe)
-    fig0, axs = plt.subplots(n, sharex=True)
+    fig0, axs = plt.subplots(n, sharex=True, figsize=(12, 8))
+    ax_twins = []
+    if text != 'test':
+        axs[0].set_title(text)
+    # fig0, axs = plt.subplots(n)
     if len(main_label) < 1:
         for ax0 in range(0, n):
             main_label.append('test_label')
@@ -603,7 +630,35 @@ def plot_subplot(main_axe, second_axe, main_label=[], vline=[],
     print 'the number of main_axes', n
     for i0, ax0 in enumerate(axs):
         print 'plotting the %d main axes: %s' % (i0, main_label[i0])
-        ax0.plot(main_axe[i0][0], main_axe[i0][1], 'k.')
+        x00, y00 = main_axe[i0][0], main_axe[i0][1]
+        for unvalid_value in fills:
+            y00[y00 == unvalid_value] = np.nan
+        if x_unit != 'normal':
+            # print 'the time should later than 20150101'
+            valid_main = x00 != 0
+        else:
+            valid_main = x00 != 0
+        # valid_main = (x00 != -999) & (x00 != -9999) & (x00 != 0)
+        i_main = 0
+        # plot more if this main axis has other attributes
+        if type(main_axe[i0]) is list:
+            range0 = len(main_axe[i0]) -1
+        else:
+            range0 = main_axe[i0].shape[0]-1
+        for dummy_0 in range(0, range0):
+            i_main += 1
+            if i_main > range0:
+                break
+            for unvalid_value in fills:
+                main_axe[i0][i_main][main_axe[i0][i_main] == unvalid_value] = np.nan
+            # ax0.plot(x00[valid_main], main_axe[i0][i_main][valid_main], main_syb[i_main - 1])
+            non_zero = main_axe[i0][i_main-1] > 0
+            ax0.plot(main_axe[i0][i_main-1][non_zero], main_axe[i0][i_main][non_zero], main_syb[dummy_0])
+            i_main += 1
+        # ax0.plot(x00[valid_main], y00[valid_main], 'k.')
+        # if i0 < 1:
+        #     np.save('x2_check.npy', np.array([x00[valid_main], y00[valid_main]]))
+        # print 'the min value sec of x ', np.min(x00[valid_main])
         ax0.set_ylabel(main_label[i0])
         if y_lim is not False:
             for axis_id in y_lim[0]:
@@ -611,22 +666,65 @@ def plot_subplot(main_axe, second_axe, main_label=[], vline=[],
                         ax0.set_ylim(y_lim[1][y_lim[0].index(axis_id)])
         if x_lim is not False:
             ax0.set_xlim(x_lim)
-        if (i0 == 0) & (red_dots is True):
-            ax0.set_title(text)
-            # ax0.plot(main_axe[i0+len(axs)-2][0], main_axe[i0+len(axs)-2][1], 'r.')
         if i0 < len(second_axe):
             if len(vline) > 0:
                 # ax1.text((insitu_frz*1.0-250)/x_length, y_text, 'DOY '+str(int(insitu_frz)), transform=ax1.transAxes,
                 #          va='top', ha='center', size=16)
+                # ax0.axvspan(vline[0][i0], vline[0][-1], color=(0.8, 0.8, 0.8), alpha=0.8, lw=0)
+                i_vline = 0
                 for vl0, st0 in zip(vline[0], vline[1]):
-                    print bxy.time_getlocaltime([vl0])
-                    ax0.axvline(x=vl0, color=st0[0], ls=st0[1])
+
+                    if vl0>0:
+                        pause = -1
+                        vline_obj = ax0.axvline(x=vl0, color=st0[0], ls=st0[1])
+                        if no0 < 1:
+                            vline_obj_list.append(vline_obj)
+                        # ax0.axvspan(vl0, vline[0][-1], color=(0.8, 0.8, 0.8), alpha=0.5, lw=0)
+                    i_vline += 1
+                if i0 < 1:
+                    plt.legend(vline_obj_list, vline[2],
+                               bbox_to_anchor=[0., 3.42, 1., .102], loc=3, ncol=2, mode='expand', borderaxespad=0.,
+                               prop={'size': 12})
+                    no0 = 1
+            if vline_label is not False:
+                for sec0, lable0 in zip(vline[0], vline_label):
+                    x_text = sec0
+                    y_text = np.nanmax(y00) # get
+                    # print x_text, y_text
+                    ax0.text(x_text, y_text, 'DOY '+str(lable0), va='top', ha='center', size=16)
+
+            # second axis
             ax0_0 = ax0.twinx()
-            ax0_0.plot(second_axe[i0][0], second_axe[i0][1], symbol2)
+            ax_twins.append(ax0_0)
+            if type(second_axe[i0]) is list:
+                size_check = len(second_axe[i0])
+            else:
+                size_check = second_axe[i0].size
+            if size_check > 0:
+                x000, y000 = second_axe[i0][0], second_axe[i0][1]
+            else:
+                x000, y000 = np.zeros(2) - 1, np.zeros(2) - 1
+            if x_unit != 'normal':
+                valid_second = x000 > bxy.get_total_sec('20150101')
+            else:
+                valid_second = x000 > 0
+            ax0_0.plot(x000[valid_second], y000[valid_second], symbol2)
+
             if y_lim2 is not False:
                 for axis_id in y_lim2[0]:
                     if i0 == axis_id:
                         ax0_0.set_ylim(y_lim2[1][y_lim2[0].index(axis_id)])
+
+    if red_dots is not False:
+        # ax0.set_title(text)
+        axs[red_dots[2]].plot(red_dots[0], red_dots[1], 'r.')
+    if len(annote) > 0:
+        if type(annote[0]) is list:
+            for i2 in range(0, len(annote[0])):
+                axs[annote[0][i2]].text(0.1, 0.15, annote[1][i2], transform=axs[annote[0][i2]].transAxes, va='top', fontsize=16)
+        else:
+            axs[annote[0]].text(0.1, -0.25, annote[1], transform=axs[annote[0]].transAxes, va='top', fontsize=16)
+        # ax.text(0.02, 0.95, text4[i], transform=ax.transAxes, va='top', fontsize=16)
     for i0, ax0 in enumerate(axs):
         if i0 == main_check:  # plot outliers of a given main axes variable
             ## first crit, the outlier greater than double stds.
@@ -666,15 +764,20 @@ def plot_subplot(main_axe, second_axe, main_label=[], vline=[],
                 x_tick0 = '%d/%d\n%d:00' % (sec2time[1], sec2time[2], sec2time[-1])
                 new_labels.append(x_tick0)
             elif x_unit=='doy':
-                x_tick0 = '%d/%d\n%d:00' % (sec2time[0], sec2time[3], sec2time[-1])
+                x_tick0 = '%d\n%d:00' % (sec2time[3], sec2time[-1])
                 new_labels.append(x_tick0)
             elif x_unit=='mmdd':
                 x_tick0 = '%d/%d/%d\n%d:00' % (sec2time[0], sec2time[1], sec2time[2], sec2time[-1])
                 new_labels.append(x_tick0)
         ax0.set_xticklabels(new_labels)
-    # h_line or v_line
+        print new_labels
+    # # h_line or v_line
     if len(h_line) > 0:
-       ax0_0.axhline(y=h_line[0])
+        for ax_no, hline_x, ls in zip(h_line[0], h_line[1], h_line[2]):
+            ax_twins[ax_no].axhline(y=hline_x, linestyle=ls)
+    if len(h_line2) > 0:
+        for ax_no, hline_x, ls in zip(h_line2[0], h_line2[1], h_line2[2]):
+            axs[ax_no].axhline(y=hline_x, linestyle=ls)
     plt.savefig(figname)
     plt.close()
     del main_label[0: ]
@@ -682,15 +785,46 @@ def plot_subplot(main_axe, second_axe, main_label=[], vline=[],
 
 
 def plot_quick_scatter(x, y):
+    mask0 = x!=0
+    x = x[mask0]
+    y = y[mask0]
     fig0 = plt.figure()
+    params = {'mathtext.default': 'regular'}
+    plt.rcParams.update(params)
     ax0 = fig0.add_subplot(1, 1, 1)
     ax0.plot(x, y, 'k.')
-    ax0.plot(np.arange(1, 200), np.arange(1, 200))
-    ax0.set_xlim([0, 200])
-    ax0.set_ylim([0, 200])
+    ax0.plot(np.arange(1, 200), np.arange(1, 200), 'k-')
+    ax0.set_xlim([50, 160])
+    ax0.set_ylim([50, 160])
     # ax0.text(0.20, 0.85, 'Bias = 1$\pm$3 (days)', transform=ax.transAxes, va='top', fontsize=22)
     rmse0 = np.mean(y - x)
     rmse1 = np.std(y - x)
-    text0 = 'bias = %d$\pm$%d (days)' % (rmse0.astype(int), rmse1.astype(int))
-    ax0.text(0.20, 0.9, text0, transform=ax0.transAxes, va='top', fontsize=22)
+    text0 = 'Bias = %d$\pm$%d (days)'\
+            % (rmse0.astype(int), rmse1.astype(int))
+    ax0.text(0.10, 0.98, text0, transform=ax0.transAxes, va='top', fontsize=22)
+    # xy labels
+    ax0.set_xlabel('Snowmelt onset ($\Delta T_{b, diurnal}$)')
+    ax0.set_ylabel('Snowmelt onset ($\sigma^0+NPR$)')
+    plt.rcParams.update({'font.size': 18})
+    plt.tight_layout()
     plt.savefig('result_08_01/snowmelt_rmse.png')
+
+
+def update_prop(handle, orig):
+    handle.update_from(orig)
+    x, y = handle.get_data()
+    handle.set_data([np.mean(x)]*2, [0, 2*y[0]])
+
+
+# def plot_h5_region(h5_file, atts=[], resolution=125):
+#     # h5_name = 'result_08_01/ascat_resample_all/ascat_%s_%s_%d_%s.h5' % (sate, datez, hour0, ob)
+#     # odd_plot_in_map([-1], s_info=['947', -65.12422, -146.73390])
+#     if resolution == 125:
+#         lons_grid, lats_grid = np.load('./result_05_01/onset_result/lon_ease_grid.npy'), \
+#                         np.load('./result_05_01/onset_result/lat_ease_grid.npy')
+#     data_process.ascat_onset_map('A', resolution=125)
+#     data_process.pass_zone_plot(lons_grid, lats_grid, onset0, fpath1, fname=thawname, z_max=30, z_min=150, prj='aea',
+#                            odd_points=np.array([odd_lon, odd_lat]), title_str=thawtitle, txt=points_index)  # fpath1
+#     return 0
+
+

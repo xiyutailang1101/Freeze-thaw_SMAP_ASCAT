@@ -28,13 +28,29 @@ def get_site_dict():
     return site_dic
 
 
-def get_id(id, mode='all'):
-    site_nos = ['947', '2081', '2065', '967', '2213', '949', '950', '960', '962', '968','1090', '1175', '1177',
-                '2210', '1089', '1233', '2212', '2211', '20000', '20001', '20002', '20003']
+def get_id(id='947', mode='all'):
+    site_nos = ['947', '949', '950', '960', '962', '967', '968', '1090', '1175', '1177', '1233', '2065', '2081',
+                    '2210', '2211', '2212', '2213']
+                # '2210', '1089', '1233', '2212', '2211', '2213']
     if mode is 'all':
         return site_nos
+    elif mode == 'int':
+        return np.array(site_nos).astype(int)
     else:
         return [id]
+
+
+def in_situ_vars(sno=947):
+    if sno in [2065, 2081]:
+        return ["Air Temperature Average (degC)",
+                "Soil Temperature Observed -2in (degC)",
+                "Soil Moisture Percent -2in (pct)",
+                "Snow"]
+    else:
+        return ["Air Temperature Observed (degC)",
+                "Soil Temperature Observed -2in (degC)",
+                "Soil Moisture Percent -2in (pct)",
+                "Snow"]
 
 
 def ascat_site_lim(site_no):
@@ -74,7 +90,9 @@ def change_site(site_no, names=False):  # the No, lat and long of each site
                      ['9005', 65.78373252, -150.86761887, ], ['9006', 62.78914008, -156.36380702],
                      ['9007', 68.58702006, -147.02034702], ['north', 70.0, -155.0], ['peninsular', ],
                      ['20000', 33.43, 79.73], ['20001', 33.77, 101.72], ['20002', 33.89, 102.13],
-                     ['20003', 32.48, 80.07]]  # 957 redo
+                     ['20003', 32.48, 80.07],
+                     ['1183', 69.0+25.0/60, -148.-42.0/60], ['952', 65+6.0/60, -144-56.0/60],
+                     ['961', 66+34.0/60, -145-15.0/60]] # 957 redo
         site_no_list = [row[0] for row in site_list]
         siteinfo = site_list[site_no_list.index(site_no)]
         return siteinfo
@@ -91,6 +109,29 @@ def change_site(site_no, names=False):  # the No, lat and long of each site
     elif len(names) > 5:
         s_info = np.loadtxt(names, delimiter=',')
         return s_info
+
+
+def is_new_site(site_no='1183'):
+    return site_no in ['1183']
+
+
+def grid_info(grid_name='erq_25'):
+    grid_dict = {}
+    # grid_dict['erq_25'] = np.array()
+    grid_type = np.dtype({'names': ['name', 'r_unit', 'resolution', 'lat_ul', 'lon_ul', 'rows', 'cols'],
+                          'formats': ['S32', 'S32', 'f', 'f', 'f', 'i', 'i']})
+    grid_structure = np.array([('erq_25', 'degree', 0.25, 90.0, 0.0, 720, 1440),
+                               ('pn_25', 'meter', 25000.0, -99, -99, 574, 432),
+                               ('EQMA', 'degree', 0.25, 90.0, 0.0, 720, 1440),
+                               ('EQMD', 'degree', 0.25, 90.0, 0.0, 720, 1440)],
+                              dtype=grid_type)
+    return grid_structure[grid_structure['name'] == grid_name]
+
+
+def site_index(index0):
+    index_list = [5356, 3770]
+    site_no_list = ['968', '2213']
+    return site_no_list[index_list.index(index0)]
 
 
 def get_siteNo_list():
@@ -270,3 +311,68 @@ def get_sno_list(type_str='string'):
          1177, 1233, 2065, 2081, 2210, 2211, 2212, 2213]
     site_dic['test'] = ['968', '1090']
     return site_dic[type_str]
+
+
+def get_satellite_type():
+    return ['metopA_A.h5', 'metopA_D.h5', 'metopB_A.h5', 'metopB_D.h5']
+
+
+def get_ascat_grid_keys():
+    suffix = ['_fore', '_mid', '_aft']
+    keys = []
+    with open('meta0_ascat_ak.txt') as f0:
+        for row0 in f0:
+            row = row0.split(', ')
+            trip_check = int(row[2])-int(row[1])
+            if trip_check < 1.5:
+                keys.append(row[0])
+            else:
+                for i_0 in range(0, trip_check):
+                    keys.append(row[0] + suffix[i_0])
+    return keys
+
+
+def ascat_grid_keys():
+    return ['latitude', 'longitude', 'sigma0_trip_fore', 'sigma0_trip_mid', 'sigma0_trip_aft', 'f_usable_fore',
+            'f_usable_mid', 'f_usable_aft', 'inc_angle_trip_fore', 'inc_angle_trip_mid', 'inc_angle_trip_aft',
+            'f_land_fore', 'f_land_mid', 'f_land_aft', 'utc_line_nodes', 'abs_line_number', 'sat_track_azi',
+            'swath_indicator', 'kp_fore', 'kp_mid', 'kp_aft', 'azi_angle_trip_fore', 'azi_angle_trip_mid',
+            'azi_angle_trip_aft', 'num_val_trip_fore', 'num_val_trip_mid', 'num_val_trip_aft', 'f_f_fore',
+            'f_f_mid', 'f_f_aft', 'f_v_fore', 'f_v_mid', 'f_v_aft', 'f_oa_fore', 'f_oa_mid', 'f_oa_aft', 'f_sa_fore',
+            'f_sa_mid', 'f_sa_aft', 'f_tel_fore', 'f_tel_mid', 'f_tel_aft', 'f_ref_fore', 'f_ref_mid', 'f_ref_aft',
+            'as_des_pass', 'distance']
+
+
+def ascat_keys_col(att_str):
+    keys_47 = ['latitude', 'longitude', 'sigma0_trip_fore', 'sigma0_trip_mid', 'sigma0_trip_aft', 'f_usable_fore',
+            'f_usable_mid', 'f_usable_aft', 'inc_angle_trip_fore', 'inc_angle_trip_mid', 'inc_angle_trip_aft',
+            'f_land_fore', 'f_land_mid', 'f_land_aft', 'utc_line_nodes', 'abs_line_number', 'sat_track_azi',
+            'swath_indicator', 'kp_fore', 'kp_mid', 'kp_aft', 'azi_angle_trip_fore', 'azi_angle_trip_mid',
+            'azi_angle_trip_aft', 'num_val_trip_fore', 'num_val_trip_mid', 'num_val_trip_aft', 'f_f_fore',
+            'f_f_mid', 'f_f_aft', 'f_v_fore', 'f_v_mid', 'f_v_aft', 'f_oa_fore', 'f_oa_mid', 'f_oa_aft', 'f_sa_fore',
+            'f_sa_mid', 'f_sa_aft', 'f_tel_fore', 'f_tel_mid', 'f_tel_aft', 'f_ref_fore', 'f_ref_mid', 'f_ref_aft',
+            'as_des_pass', 'distance']
+    if type(att_str) is str:
+        return keys_47.index(att_str)
+    else:
+        return keys_47[att_str]
+
+
+def ascat_timeseries_keys(att0_main):
+    suffix = ['_'+a0 for a0 in ['9', '0', '1', '2', '3', '4', '5', '6', '7', '8']]
+    return []
+
+
+def empty_array_sz(name):
+    dict0 = {
+             'inc_angle_trip_mid': 9, 'inc_angle_trip_aft': 9, 'inc_angle_trip_fore': 9,
+             'utc_line_nodes': 9,
+             'sate_type': 1,
+             'sigma0_trip_mid': 9, 'sigma0_trip_aft': 9, 'sigma0_trip_fore': 9,
+             }
+    return dict0[name]
+
+
+def ascat_dictionary():
+    # a structure array saving the meta data of ascat dictionary
+    return 0

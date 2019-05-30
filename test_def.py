@@ -836,6 +836,7 @@ def plt_npr_gaussian_all(tb, npr, sigma, soil, snow, onset, figname='all_plot_te
     #     ax0.text(text_x, 0.5, timing_name[i], va="center", ha="center")  # 1.3 up
     #     text_x0 = timings[i]+1
     #     if i < len(timings)-1:
+
     #         # add vertical line and label
     #         ax0.axvline(timings[i])
     #         ax0.text(timings[i], 1.3, timings[i], va="center", ha="center")
@@ -1696,13 +1697,14 @@ def plot_patch_test():
     plt.savefig(figname2)
 
 
-def edge_detect(t_series, edge_series, s, order=1, seriestype='tb'):
+def edge_detect(t_series, edge_series, s, order=1, seriestype='tb', is_sort=True, w=4):
     """
     :param t_series: from overpass second
     :param edge_series: ft indicators
     :param s: sigma of gaussian filter
     :param order: 1st detrivative of gaussian
     :param seriestype: the name of indicator.
+    :param w: window in unit of std
     :return:
     """
     snr_threshold = 0
@@ -1711,12 +1713,19 @@ def edge_detect(t_series, edge_series, s, order=1, seriestype='tb'):
             peaks_iter = 1e-1
         elif seriestype == 'npr':
             peaks_iter = 1e-4
-        elif seriestype == 'sig':
-            peaks_iter = 1e-2
+        elif seriestype == 'sig' or seriestype == 'sigma':
+            peaks_iter = 5e-2
         else:
             peaks_iter = 1e-4
         g_size = 6*s/2
-        g_npr, i_gaussian = data_process.gauss_conv(edge_series, sig=s)  # option: ffnpr-t_h; var_npv-t_h
+        if is_sort is not True:  # sorted the t
+            i_sort = np.argsort(t_series)
+            t_series = t_series[i_sort]
+            edge_series = edge_series[i_sort]
+        g_npr, i_gaussian = data_process.gauss_conv(edge_series, sig=s, n=w) # option: ffnpr-t_h; var_npv-t_h
+        if g_npr.size < 2:
+            return np.array([[-999, -999, -999]]), np.array([[-999, -999, -999]]), \
+                   np.zeros([2, t_series.size])[g_size: -g_size] - 999
         conv_valid = g_npr[g_size: -g_size]  # valid interval: g_size: -g_size
         max_gnpr, min_gnpr = peakdetect.peakdet(conv_valid, peaks_iter, t_series[i_gaussian][g_size: -g_size])
         # calculate the winter mean convolution as well as the snr
@@ -1730,7 +1739,51 @@ def edge_detect(t_series, edge_series, s, order=1, seriestype='tb'):
         # min_npr_valid = min_gnpr[np.abs(snr) > snr_threshold]
         max_npr_valid = max_gnpr
         min_npr_valid = min_gnpr
+        if max_npr_valid.size < 1:
+            max_npr_valid = np.array([[-1., t_series[0], -1.]])
+        if min_npr_valid.size < 1:
+            min_npr_valid = np.array([[-1., t_series[0], -1.]])
         return max_npr_valid, min_npr_valid, np.array([t_valid, conv_valid])
+
+
+def edge_detect_v2(t_series, edge_series, s, order=1, peaks_iter=1e-1):
+    """
+    :param t_series: time variable of edge_series
+    :param edge_series: time series, e.g., brightness temperature
+    :param s: sigma of gaussian filter
+    :param order: 1st detrivative of gaussian
+    :return:
+    """
+    if order == 1:  # first order of gaussian
+        g_size = 6*s/2
+        g_conv, i_gaussian = gauss_conv(edge_series, sig=s)
+        conv_valid = g_conv[g_size: -g_size]  # valid interval: g_size: -g_size
+        maximums, minimums = peakdetect.peakdet(conv_valid, peaks_iter, t_series[i_gaussian][g_size: -g_size])
+        t_valid = t_series[i_gaussian][g_size: -g_size]
+        return maximums, minimums, np.array([t_valid, conv_valid])
+
+
+def gauss_conv(series, sig=1, fill_v=-999):
+    """
+    :param series:
+    :param sig:
+    :param fill_v: filled value for unvalid data
+    :return:
+        ig: the indice of valid data
+    """
+    series[series == fill_v] = np.nan
+    size = 6*sig+1
+    ig = ~np.isnan(series)
+    x = np.linspace(-size/2+1, size/2, size)
+    filterz = ((-x)/sig**2)*np.exp(-x**2/(2*sig**2))
+    if series[ig].size < 1:
+        return -1, -1
+    else:
+        f1 = np.convolve(series[ig], filterz, 'same')
+    return f1, ig
+
+
+
 
 
 def get_peak(series, iter, t_x):
