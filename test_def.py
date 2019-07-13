@@ -1697,7 +1697,7 @@ def plot_patch_test():
     plt.savefig(figname2)
 
 
-def edge_detect(t_series, edge_series, s, order=1, seriestype='tb', is_sort=True, w=4):
+def edge_detect(t_series, edge_series, s, order=1, seriestype='tb', is_sort=True, w=4, long_short=False):
     """
     :param t_series: from overpass second
     :param edge_series: ft indicators
@@ -1722,7 +1722,11 @@ def edge_detect(t_series, edge_series, s, order=1, seriestype='tb', is_sort=True
             i_sort = np.argsort(t_series)
             t_series = t_series[i_sort]
             edge_series = edge_series[i_sort]
-        g_npr, i_gaussian = data_process.gauss_conv(edge_series, sig=s, n=w) # option: ffnpr-t_h; var_npv-t_h
+        if long_short:
+            p = 0
+            g_npr, i_gaussian = data_process.gauss_conv(edge_series, sig=s, n=w, sig2=s/2)
+        else:
+            g_npr, i_gaussian = data_process.gauss_conv(edge_series, sig=s, n=w)  # option: ffnpr-t_h; var_npv-t_h
         if g_npr.size < 2:
             return np.array([[-999, -999, -999]]), np.array([[-999, -999, -999]]), \
                    np.zeros([2, t_series.size])[g_size: -g_size] - 999
@@ -1730,8 +1734,67 @@ def edge_detect(t_series, edge_series, s, order=1, seriestype='tb', is_sort=True
         max_gnpr, min_gnpr = peakdetect.peakdet(conv_valid, peaks_iter, t_series[i_gaussian][g_size: -g_size])
         # calculate the winter mean convolution as well as the snr
         t_valid = t_series[i_gaussian][g_size: -g_size]
-        i_winter = (t_valid > 1+365) & (t_valid < 60+365)
-        conv_winter = conv_valid[i_winter]
+        if t_valid.size < 1:
+            p = 0
+            t_valid = np.array([np.min(t_series[i_gaussian])])
+        # i_winter = (t_valid > 1+365) & (t_valid < 60+365)
+        # conv_winter = conv_valid[i_winter]
+        # conv_noise = np.nanmean(np.abs(conv_winter))
+        # snr = max_gnpr[:, -1]/conv_noise
+        # max_npr_valid = max_gnpr[np.abs(snr) > snr_threshold]
+        # snr = np.abs(min_gnpr[:, -1])/conv_noise
+        # min_npr_valid = min_gnpr[np.abs(snr) > snr_threshold]
+        max_npr_valid = max_gnpr
+        min_npr_valid = min_gnpr
+        if max_npr_valid.size < 1:
+            max_npr_valid = np.array([[-1., t_series[0], -1.]])
+        if min_npr_valid.size < 1:
+            min_npr_valid = np.array([[-1., t_series[0], -1.]])
+        return max_npr_valid, min_npr_valid, np.array([t_valid, conv_valid])
+
+
+def edge_detect_iter(t_series, edge_series, s, order=1, seriestype='tb', is_sort=True, w=4, long_short=False):
+    """
+    :param t_series: from overpass second
+    :param edge_series: ft indicators
+    :param s: sigma of gaussian filter
+    :param order: 1st detrivative of gaussian
+    :param seriestype: the name of indicator.
+    :param w: window in unit of std
+    :return:
+    """
+    snr_threshold = 0
+    if order == 1:  # first order of gaussian
+        if seriestype == 'tb':
+            peaks_iter = 1e-1
+        elif seriestype == 'npr':
+            peaks_iter = 1e-4
+        elif seriestype == 'sig' or seriestype == 'sigma':
+            peaks_iter = 5e-2
+        else:
+            peaks_iter = 1e-4
+        g_size = 6*s/2
+        if is_sort is not True:  # sorted the t
+            i_sort = np.argsort(t_series)
+            t_series = t_series[i_sort]
+            edge_series = edge_series[i_sort]
+        if long_short:
+            p = 0
+            g_npr, i_gaussian = data_process.gauss_conv(edge_series, sig=s, n=w, sig2=s/2)
+        else:
+            g_npr, i_gaussian = data_process.gauss_conv(edge_series, sig=s, n=w)  # option: ffnpr-t_h; var_npv-t_h
+        if g_npr.size < 2:
+            return np.array([[-999, -999, -999]]), np.array([[-999, -999, -999]]), \
+                   np.zeros([2, t_series.size])[g_size: -g_size] - 999
+        conv_valid = g_npr[g_size: -g_size]  # valid interval: g_size: -g_size
+        max_gnpr, min_gnpr = peakdetect.peakdet(conv_valid, peaks_iter, t_series[i_gaussian][g_size: -g_size])
+        # calculate the winter mean convolution as well as the snr
+        t_valid = t_series[i_gaussian][g_size: -g_size]
+        if t_valid.size < 1:
+            p = 0
+            t_valid = np.array([np.min(t_series[i_gaussian])])
+        # i_winter = (t_valid > 1+365) & (t_valid < 60+365)
+        # conv_winter = conv_valid[i_winter]
         # conv_noise = np.nanmean(np.abs(conv_winter))
         # snr = max_gnpr[:, -1]/conv_noise
         # max_npr_valid = max_gnpr[np.abs(snr) > snr_threshold]
