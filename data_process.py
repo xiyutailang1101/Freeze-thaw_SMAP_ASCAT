@@ -712,6 +712,7 @@ def gauss_conv(series, sig=1, size=17, fill_v=[-999, 0, -99, -9999], sorted=True
     :return:
         ig: the true/false index of value that is not a nan
     """
+    print 'the standard deviation used is', sig
     for fill0 in fill_v:
         series[series == fill0] = np.nan
     size = 6 * sig + 1
@@ -727,6 +728,9 @@ def gauss_conv(series, sig=1, size=17, fill_v=[-999, 0, -99, -9999], sorted=True
         filter_re = filterz2[filterz2>0]
         loc_0 = np.where(filterz==0)[0][0]  # location of 0 in the original filter
         filterz3 = filterz.copy()
+        print 'loc_0: ', loc_0
+        print 'filter_re.size', filter_re.size
+        print filter_re
         filterz3[loc_0-filter_re.size: loc_0] = filter_re
         filterz3[0: loc_0-filter_re.size] = 0
         filterz = filterz3
@@ -1808,13 +1812,13 @@ def ascat_plot_series(site_no, orb_no=0, inc_plot=False, sigma_g=5, pp=False, no
 
 def smap_melt_initiation(npr_series, time_secs, secs_winter, secs_summer, year0, gk=10):
     npr_series[npr_series < 0] = -9999
-    conv_npr_pixel, thaw_secs_npr = get_onset(time_secs, npr_series, year0=year0,
+    conv_npr_pixel, thaw_secs_npr, maximum, minimum = get_onset(time_secs, npr_series, year0=year0,
                                               thaw_window=[
                                                   bxy.get_total_sec('%d0101' % year0, reftime=[2000, 1, 1, 12]) +
                                                   doy0 * 3600 * 24 for doy0 in [60, 150]],
                                               k=gk, type='npr')
     melt_signal0 = npr_series[time_secs == thaw_secs_npr]
-    smap_pack = np.array([time_secs, npr_series, conv_npr_pixel])
+    smap_pack = np.array([time_secs, npr_series, conv_npr_pixel, maximum, minimum])
     mean_winter = np.nanmean(npr_series[(time_secs > secs_winter[0]) &
                                         (time_secs < secs_winter[1]) & (npr_series > 0)])
     mean_summer = np.nanmean(npr_series[(time_secs > secs_summer[0]) &
@@ -2355,7 +2359,7 @@ def smap_alaska_onset(mode='tb', std=3, version='old'):
     return 0
 
 
-def make_mask(onset, mask_value=[0, -999]):
+def make_mask(onset, mask_value=[0, -999, -9999]):
     mask0 = np.load('/home/xiyu/PycharmProjects/R3/result_05_01/other_product/mask_ease2_125N.npy')
     # set mask to onset value
     onset[np.isnan(onset)] = -999
@@ -3706,6 +3710,7 @@ def angular_correct(sigma0, inc0, sec, inc_c=45, inc_01=[20, 60], coef=False):
     value = sigma0.ravel()
     angle = inc0.ravel()
     t = sec.ravel()
+    # print 'angular correct, times on x axis are', t
     t_tuple = bxy.time_getlocaltime_v2(t, ref_time=[2000, 1, 1, 0], t_source='US/Alaska')
     i_valid0 = (value > -180) & (value != 0) & \
                (angle > inc_01[0]) & (angle < inc_01[1])
@@ -3908,7 +3913,7 @@ def turning_point(t0, series0, delta0):
 
 def get_onset(x_time, y_var, k=3, thaw_window=[], freeze_window=[], mode=1, type='npr', window2=False, year0=2016):
     """
-    return the thawing onset, indicated by a rising edge
+    return the thawing onset, indicated by a rlocal maximum
     :param x_time:
     :param y_var:
     :param k:
@@ -3917,13 +3922,14 @@ def get_onset(x_time, y_var, k=3, thaw_window=[], freeze_window=[], mode=1, type
     :return:
     """
     sec0 = bxy.get_total_sec('%d0101' % year0, reftime=[2000, 1, 1, 12])
+    sec1 = bxy.get_total_sec('%d0301' % year0, reftime=[2000, 1, 1, 12])
     if len(thaw_window) < 1:
         ini_secs = bxy.get_total_sec('%d0101' % year0, reftime=[2000, 1, 1, 12])
         thaw_window = [ini_secs + doy0 * 3600 * 24 for doy0 in [60, 150]]
         freeze_window = [ini_secs + doy0 * 3600 * 24 for doy0 in [240, 340]]
     # obtain edges, organize it as functions
     if mode == 1:
-        max_value, min_value, conv = test_def.edge_detect(x_time, y_var, k, seriestype=type)
+        max_value, min_value, conv = test_def.edge_detect(x_time, y_var, k, seriestype=type)  # get edges (L. maxima)
     elif mode == 2:
         mean0 = np.abs(np.nanmean(y_var))
         peaks_iter = np.round(np.log10(mean0)) * 0.1
@@ -3941,11 +3947,20 @@ def get_onset(x_time, y_var, k=3, thaw_window=[], freeze_window=[], mode=1, type
         # with open('onset_map0.txt', 'a-') as writer0:
         #     writer0.writelines('no thaw onset was find at: %d' % i0)
         thaw_onset0 = sec0
+        thaw_onset_correct = sec1
         print 'warning: no thaw onset was found'
     else:
         thaw_onset0 = max_value_thaw[:, 1][max_value_thaw[:, -1].argmax()]  # thaw onset from npr
-        thaw_onset0_tuple = bxy.time_getlocaltime([thaw_onset0], ref_time=[2000, 1, 1, 0], t_source='US/Alaska')
-    return conv, thaw_onset0
+        local_max_value = max_value_thaw[:, -1]
+        thaw_percent = max_value_thaw[:, -1]/max_value_thaw[:, -1].max()
+        correct_onsets = max_value_thaw[:, 1][(thaw_percent > 0.5) & (max_value_thaw[:, -1] > 0.01)]
+        if correct_onsets.size < 2:
+            thaw_onset_correct = max_value_thaw[:, 1][thaw_percent > 0.9][0]
+        else:
+            thaw_onset_correct = correct_onsets[0]
+        if max_value_thaw[:, -1][max_value_thaw[:, 1] == thaw_onset_correct] < 5e-3:
+            thaw_onset_correct = sec1
+    return conv, thaw_onset_correct, max_value, min_value
 
 
 def get_onset_new(x_time, y_var, k=3, thaw_window=[], freeze_window=[],
@@ -4297,22 +4312,22 @@ def ascat_alaska_grid_v3(ascat_atts, path_ascat, pid=np.array([3770])):
         h0.close()
     # temp check
 
-    new_file_list = path_sorted[np.where(ascat_dict['utc_line_nodes'][2950]>0)]
-    for i1, f1 in enumerate(new_file_list):
-        h0 = h5py.File(f1)
-        # print i0, ':', f0
-        # sigma_r = [angular_correct(sigma_i, inc_i, sec_i, inc_c=40)
-        # for inc_i, sigma_i, sec_i in zip(inc0, sigma0, secs0)]
-        t_current = h0['utc_line_nodes'].value[pid[0][2950], pid[1][2950]]
-        t_check = h0['utc_line_nodes'].value
-        i_valid = t_check>0
-        t_valid = t_check[i_valid]
-        for att0 in ascat_atts:
-            if att0 not in h0.keys():
-                ascat_dict[att0][:, i1] = -999
-            else:
-                ascat_dict[att0][:, i1] = h0[att0].value.copy()[pid]
-        h0.close()
+    # new_file_list = path_sorted[np.where(ascat_dict['utc_line_nodes'][2950]>0)]
+    # for i1, f1 in enumerate(new_file_list):
+    #     h0 = h5py.File(f1)
+    #     # print i0, ':', f0
+    #     # sigma_r = [angular_correct(sigma_i, inc_i, sec_i, inc_c=40)
+    #     # for inc_i, sigma_i, sec_i in zip(inc0, sigma0, secs0)]
+    #     t_current = h0['utc_line_nodes'].value[pid[0][2950], pid[1][2950]]
+    #     t_check = h0['utc_line_nodes'].value
+    #     i_valid = t_check>0
+    #     t_valid = t_check[i_valid]
+    #     for att0 in ascat_atts:
+    #         if att0 not in h0.keys():
+    #             ascat_dict[att0][:, i1] = -999
+    #         else:
+    #             ascat_dict[att0][:, i1] = h0[att0].value.copy()[pid]
+    #     h0.close()
     return ascat_dict
 
 
@@ -4829,136 +4844,8 @@ def distance_interpolate_v2(dis, ascat_angle, ascat_value, utc_value, inc_01=[30
     return np.array([mean0, mean_angle, mean_t])
 
 
-def two_series_detect(id_array, series0, series1, year0,
-                      gk=[7, 7, 7], pid_smap=np.array([4547, 3770]), angular=True):
-    '''
-
-    :param id_array: the 1d indices of ascat pixel, and the corresponded smap pixel indices.
-                     dimension/shape: Pixel ascat X Pixel smap (N X 2)
-    :param series0: [npr, t]: dimension/shape of npr: 2: Pixels X time.
-    :param series1: [sigma0, inc, t]: dimension/shape of sigma0: 2: Pixels X time
-    :param secs_winter:
-    :param secs_summer:
-    :param thaw_window:
-    :param year0:
-    :param melt_zone0:
-    :param gk:
-    :param pid_smap: the 1d id of smap pixel (pixel0 ~ pixel1603)
-    :param angular: do correction if true
-    :return:
-        smap pixel: time series of a given pixel/station, [time, value, convolution results]
-    '''
-    # from variables
-    npr, t_tb = series0[0], series0[1]
-    secs_0101 = bxy.get_total_sec('%d0101' % year0)
-    secs_0601 = bxy.get_total_sec('%d0601' % year0)
-    # initial the winodws
-    melt_zone0 = np.array([bxy.get_total_sec(str0) for str0 in ['%d0301' % year0, '%d0701' % year0]])  # in unit of secs
-    secs_summer = np.array([bxy.get_total_sec(str0) for str0 in ['%d0701' % year0, '%d0901' % year0]])
-    thaw_window = melt_zone0.copy()
-    secs_winter = np.array([bxy.get_total_sec(str0) for str0 in ['%d0101' % year0, '%d0301' % year0]])
-    # initial output variables for smap
-    smap_pixel = []
-    onset_array_smap = np.zeros(npr.shape[0]) - 999
-    smap_winter, smap_summer, smap_melt_signal \
-        = onset_array_smap.copy(), onset_array_smap.copy(), onset_array_smap.copy()
-    smap_peak = onset_array_smap.copy()
-    # intial output variables for ascat
-    sigma0_all, inc0_all, times0_all = series1[0], series1[1], series1[2]
-    sigma0_pixel = []
-    # max_value_ascat = np.array([[0., secs_0601, 0.]])  # from initialed values
-    # min_value_ascat = np.array([[0., secs_0101, 0.]])
-    thaw_onset0 = secs_0601
-    conv_array = np.zeros(sigma0_all.shape[0]) - 999
-    lvl_array = conv_array.copy()
-    onset_array_ascat = conv_array.copy()
-    melt_end_ascat = conv_array.copy()
-    mean_winter = conv_array.copy()
-    mean_summer = conv_array.copy()
-    ascat_melt_signal = conv_array.copy()
-    coef_a, coef_b = conv_array.copy(), conv_array.copy()
-
-    # loops
-    for l0 in np.arange(0, npr.shape[0]):
-        smap_pack, thaw_secs_npr, melt_signal0, mean0 = \
-            smap_melt_initiation(npr[l0], t_tb[l0], secs_winter, secs_summer, year0, gk=gk[0])
-        if melt_signal0.size > 0:
-            smap_melt_signal[l0] = melt_signal0
-        else:
-            smap_melt_signal[l0] = 0
-        smap_pixel.append(smap_pack)
-        onset_array_smap[l0] = thaw_secs_npr
-        smap_winter[l0] = mean0[0]
-        smap_summer[l0] = mean0[1]
-        smap_peak[l0] = mean0[2]
-        # calculate the mean winter npr, peak npr, summer npr
-    # Then, loop ascat pixels, the melt zone is modified based on the smap snowmelt initiations
-    for l0 in np.arange(0, sigma0_all.shape[0]):
-        sigma0, inc0, times0 = sigma0_all[l0], inc0_all[l0], times0_all[l0]
-        # angular correction, mean value in seasons
-        if angular:
-            sigma0_correct, a, b = angular_correct(sigma0, inc0, times0, inc_c=40, coef=True)
-
-        else:
-            sigma0_correct, a, b = sigma0, -0.11, -5
-        winter_sigma0 = sigma0_correct[(times0 > secs_winter[0]) &
-                                       (times0 < secs_winter[1]) &
-                                       (sigma0 > -99)]
-        summer_sigma0 = sigma0_correct[(times0 > secs_summer[0]) &
-                                       (times0 < secs_summer[1]) &
-                                       (sigma0 > -99)]
-        mean_winter_sigma0 = np.nanmean(winter_sigma0)
-        mean_summer_sigma0 = np.nanmean(summer_sigma0)
-        std_winter_sigma0 = np.nanstd(winter_sigma0)
-        coef_a[l0], coef_b[l0] = a, b
-        mean_winter[l0], mean_summer[l0] = mean_winter_sigma0, mean_summer_sigma0
-        max_ascat, min_na, conv_ascat = test_def.edge_detect(times0, sigma0_correct, gk[1],
-                                                             seriestype='sig', is_sort=True)
-        max_na, min_ascat, conv_na = test_def.edge_detect(times0, sigma0_correct, gk[2],
-                                                          seriestype='sig', is_sort=True)
-        sigma0_pack = np.array([times0, sigma0_correct, conv_ascat])
-        sigma0_pixel.append(sigma0_pack)
-        # the right bound of melt zone
-        thaw_ascat = max_ascat[(max_ascat[:, 1] > thaw_window[0]) &  # column 1 [:, 1] the secs of an edge
-                               (max_ascat[:, 1] < thaw_window[1])]
-        if thaw_ascat.size >= 1:
-            thaw_onset0 = thaw_ascat[:, 1][thaw_ascat[:, -1].argmax()]  # column -1, the convolution value of an edge
-        # re-set melt_zone
-        currrent_id = id_array[1][l0]
-        melt_zone0[0] = np.mean(onset_array_smap[pid_smap == currrent_id]) - 10 * 24 * 3600
-        melt_zone0[1] = thaw_onset0
-        min_detect_winter = min_ascat[(min_ascat[:, 1] > secs_winter[0]) &
-                                      (min_ascat[:, 1] < secs_winter[1])]
-        min_conv_winter_mean = np.nanmean(min_detect_winter[:, -1])
-        min_detect_snowmelt = min_ascat[(min_ascat[:, 1] > melt_zone0[0]) &
-                                        (min_ascat[:, 1] < melt_zone0[1])]
-        if min_detect_snowmelt[:, -1].size < 1:
-            pause = 0
-        else:
-            levels = np.abs(min_detect_snowmelt[:, -1] / min_conv_winter_mean)
-            valid_index_melt = levels > 1
-            if sum(valid_index_melt) == 1:
-                melt_onset0 = min_detect_snowmelt[:, 1][valid_index_melt][0]
-                melt_lvl0 = levels[valid_index_melt][0]
-            else:
-                melt_onset0 = min_detect_snowmelt[:, 1][min_detect_snowmelt[:, -1].argmin()]
-                melt_lvl0 = levels[min_detect_snowmelt[:, -1].argmin()]
-            melt_conv = min_detect_snowmelt[:, -1][min_detect_snowmelt[:, -1].argmin()]
-            onset_array_ascat[l0], conv_array[l0], lvl_array[l0], melt_end_ascat[l0] = \
-                melt_onset0, melt_conv, melt_lvl0, thaw_onset0
-            melt_signal1 = sigma0_correct[times0 == melt_onset0]
-            if melt_signal1.size > 0:
-                # print melt_signal1
-                ascat_melt_signal[l0] = np.max(melt_signal1)
-
-    return onset_array_smap, onset_array_ascat, melt_end_ascat, conv_array, lvl_array, \
-           smap_pixel, sigma0_pixel, \
-           mean_winter, mean_summer, ascat_melt_signal, smap_melt_signal, coef_a, coef_b, \
-           [smap_winter, smap_summer, smap_peak]
-
-
 def two_series_detect_v2(id_array, series0, series1, year0,
-                         gk=[7, 7, 7], pid_smap=np.array([4547, 3770]), angular=True, melt_buff=18):
+                         gk=[7, 7, 7], pid_smap=np.array([4547, 3770]), angular=True, melt_buff=7):
     '''
 
     :param id_array: the 1d indices of ascat pixel, and the corresponded smap pixel indices.
@@ -4975,7 +4862,12 @@ def two_series_detect_v2(id_array, series0, series1, year0,
     :param angular: do correction if true
     :return:
         onset value: [initiation, main event, end] each element is ndarray
-        
+        ascat out:
+        [0 onset_array_ascat, 1 melt_end_ascat, 2 conv_ascat_array, 3 lvl_array,
+         4 mean_winter,       5 mean_summer,    6 smap_melt_signal, 7 mean_melt_a,
+         8 std_winter_a,      9 std_summer_a,   10 std_melt_a,      11 coef_a,      12 coef_b, 13 time_zero_conv
+         14 winter_edge,      15 sigma0_on_edge, 16 a list contains stat of winter convolutions
+         17 min sigma0 from melt to melt_end,   18 sigma0_5d_after_onset, 19 pixel_kernels], \
         smap pixel: time series of a given pixel/station, [time, value, convolution results], in forms of list
                     due to the elements of this list has different size or shape.
     '''
@@ -5004,8 +4896,12 @@ def two_series_detect_v2(id_array, series0, series1, year0,
     onset_array_ascat = conv_ascat_array.copy()
     melt_end_ascat, time_zero_conv, winter_edge = conv_ascat_array.copy(), conv_ascat_array.copy(), \
                                                   conv_ascat_array.copy()
+    pixel_kernels = np.zeros([2, sigma0_all.shape[0]]) - 999
     winter_conv_mean, winter_conv_min, winter_conv_std = conv_ascat_array.copy(), conv_ascat_array.copy(), \
                                                          conv_ascat_array.copy()
+    melt_array_list = []
+    melt_events_time_list = np.zeros([sigma0_all.shape[0], 8]) - 999
+    melt_events_conv_list = melt_events_time_list.copy()
     sigma0_on_edge, sigma0_min_edge = conv_ascat_array.copy(), conv_ascat_array.copy()
     sigma0_5d_after_onset = conv_ascat_array.copy()
     mean_winter = conv_ascat_array.copy()
@@ -5034,35 +4930,84 @@ def two_series_detect_v2(id_array, series0, series1, year0,
     # variables used to check outlier
     outlier_count = 0
     n125_n360 = np.load('n12_n36_array_4cols.npy')
-
+    # temp checking
+    # if sigma0_all.shape[0] > 1:
+    #     l0 = 3718
+    # for l0 in np.arange(10780, 10800):  # sigma0_all.shape[0]
     for l0 in np.arange(0, sigma0_all.shape[0]):
-        l0 += 2000
+        current_id = id_array[1][l0]  # id of the smap pixel that is looped now
+        buff_seconds = melt_buff * 24 * 3600  # a time buff to reset melt/thaw window
+        melt_zone0[0] = np.mean(onset_array_smap[pid_smap == current_id]) - buff_seconds
         sigma0, inc0, times0 = sigma0_all[l0], inc0_all[l0], times0_all[l0]
-        # reset kernel if series have more than 365 measurements
-        if times0.size > 365:
-            g1, g2 = 2*gk[1], 2*gk[2]
+        sigma0, inc0, times0 = sigma0[times0.argsort()], inc0[times0.argsort()], times0[times0.argsort()]
+        data_count = times0[times0>0].size  # number of valid data
+        if data_count > 600:
+            g1, g2 = gk[1], gk[2]
+            g_max = 30
+        elif times0.size < 2:
+            print 'no data in this pixel ', n125_n360[0][l0]
+            continue
         else:
             g1, g2 = gk[1], gk[2]
+            g_max = 15
         # angular correction, mean value in seasons
         if angular:
-            sigma0_correct, a, b = angular_correct(sigma0, inc0, times0, inc_c=40, coef=True)
-
+            if times0.size < 1:
+                sigma0_correct, a, b = sigma0, -0.11, -5
+            else:
+                sigma0_correct, a, b = angular_correct(sigma0, inc0, times0, inc_c=40, coef=True)
         else:
             sigma0_correct, a, b = sigma0, -0.11, -5
         coef_a[l0], coef_b[l0] = a, b
 
-        max_ascat, min_na, conv_ascat_pos = test_def.edge_detect(times0, sigma0_correct, g1,
-                                                                 seriestype='sig', is_sort=True)
-        max_na, min_ascat, conv_ascat_neg = test_def.edge_detect(times0, sigma0_correct, g2,
-                                                                 seriestype='sig', is_sort=True, long_short=True)
+        if data_count < 150:
+            max_ascat, min_na, conv_ascat_pos = test_def.edge_detect(times0, sigma0_correct, g1,
+                                                                     seriestype='sig', is_sort=True)
+            max_check = max_ascat[(max_ascat[:, 1] > thaw_window[0]) & (max_ascat[:, 1] < thaw_window[1])]
+            max_na, min_ascat, conv_ascat_neg = test_def.edge_detect(times0, sigma0_correct, g2,
+                                                                     seriestype='sig', is_sort=True, long_short=True)
+            thaw_onset0 = get_positive_edge(max_ascat, thaw_window, np.mean(onset_array_smap[pid_smap == current_id]))
+            melt_zone0[1] = thaw_onset0
+
+        else:
+            # local maximum, positive edge
+            edge_count = 10
+            while (g1 < g_max) & (edge_count > 4):
+                # update g1 each loop
+                edge_out, g1, edge_count = \
+                    edge_iteration_v2(times0, sigma0_correct, g1, 3, [melt_zone0[0], thaw_window[1]], is_negative=0)
+                g1 += 1
+            max_ascat, min_na, conv_ascat_pos = edge_out[0], edge_out[1], edge_out[2]
+            thaw_onset0 = get_positive_edge(max_ascat, thaw_window, np.mean(onset_array_smap[pid_smap == current_id]))
+            melt_zone0[1] = thaw_onset0
+            g_short = g1/2
+            if g_short > 3:
+                g_short = 3
+            print 'the g1 and g_short used in detecting negative, before: ', g1, g_short
+            edge_count = 10
+            while (g_short < 10) & (edge_count > 4) & (g_short < g1):
+                # using new g1 in the last step, and update g2 each loop
+                edge_out, g1, edge_count = \
+                    edge_iteration_v2(times0, sigma0_correct, g1, g_short, melt_zone0, is_negative=1)
+                g_short += 1
+            max_na, min_ascat, conv_ascat_neg = edge_out[0], edge_out[1], edge_out[2]
+            # print 'the g1 and g_short used in detecting negative, after: ', g1, g_short
+            pixel_kernels[:, l0] = [g1, g_short]
+        # checking save
+        # save_name = ['corrected_sigma0', 'positive_convolution', 'negative_convolution']
+        # save_value = [np.array([times0, sigma0_correct]), conv_ascat_pos, conv_ascat_neg]
+        # for name0, save0 in zip(save_name, save_value):
+        #     np.save('%s_%d.npy' % (name0, n125_n360[0][l0].astype(int)), save0)
+        # sys.exit()
         conv_ascat = conv_ascat_neg
-        sigma0_pack = np.array([times0, sigma0_correct, conv_ascat_neg, conv_ascat_pos])
+        # print 'the pixel data saved as', [times0, sigma0_correct, conv_ascat_neg, conv_ascat_pos]
+        sigma0_pack = np.array([times0, sigma0_correct, conv_ascat_neg, conv_ascat_pos, max_ascat, min_ascat])
         sigma0_pixel.append(sigma0_pack)
         # the right bound of melt zone
-        current_id = id_array[1][l0]
+
         thaw_onset0 = get_positive_edge(max_ascat, thaw_window, np.mean(onset_array_smap[pid_smap == current_id]))
-        melt_zone0[0] = np.mean(onset_array_smap[pid_smap == current_id]) - melt_buff * 7 * 3600
-        melt_zone0[1] = thaw_onset0
+
+
         # sigma0 during each period, winter, summer, melting
         mean_winter_sigma0, std_winter_sigma0 = mean_std_check([times0, sigma0_correct], winter_window, fill0=-99)
         mean_summer_sigma0, std_summer_sigma0 = mean_std_check([times0, sigma0_correct], summer_window)
@@ -5070,10 +5015,9 @@ def two_series_detect_v2(id_array, series0, series1, year0,
         mean_winter[l0], mean_summer[l0] = mean_winter_sigma0, mean_summer_sigma0
         mean_melt_a[l0], std_winter_a[l0], \
         std_summer_a[l0], std_melt_a[l0] = mean_melt_sigma0, std_winter_sigma0, std_summer_sigma0, std_melt_sigma0
-
         negative_edge_winter = min_ascat[(min_ascat[:, 1] > winter_window[0]) &
                                          (min_ascat[:, 1] < winter_window[1])]
-        noise_negative_winter = np.nanmean(negative_edge_winter[:, -1])  # mean conv in winter
+        noise_negative_winter = np.nanmean(negative_edge_winter[:, -1][negative_edge_winter[:, -1] < 0])
         negative_edge_melt_zone = min_ascat[(min_ascat[:, 1] > melt_zone0[0]) &
                                             (min_ascat[:, 1] < melt_zone0[1])]
         negative_edge_winter = min_ascat[(min_ascat[:, 1] > winter_window[0]) &
@@ -5083,53 +5027,11 @@ def two_series_detect_v2(id_array, series0, series1, year0,
             conv_min_winter = -0.5
         else:
             conv_min_winter = np.min(negative_edge_winter)
-        # temporary check
-        negative_edge_snowmelt = min_ascat[(min_ascat[:, 1] > melt_zone0[0]) &
-                                           (min_ascat[:, 1] < melt_zone0[1])]
-        if negative_edge_snowmelt[:, -1].size < 1:
-            if l0 > 2000:
-                outlier_count += 1
-                print 'no negative edge was found within the window'
-                ascat_outlier_index = n125_n360[0][l0].astype(int)
-                ascat_outlier_index_360 = n125_n360[1][l0].astype(int)
-                smap_outlier_index_360 = np.where(pid_smap==ascat_outlier_index_360)[0][0]
-                ascat_outlier_lon, ascat_outlier_lat = n125_n360[2][l0], n125_n360[3][l0]
-                i_valid02 = times0>0
-                with open('two_series_detect_v2_error.txt', 'a') as f0:
-                    if outlier_count < 2:
-                        f0.write('# xxx\n')
-                    f0.write('year: %d; ' % year0)
-                    f0.write('doy count: %d; ' % sum(i_valid02))
-                    f0.write('location: %d, %.3f, %.3f\n' % (ascat_outlier_index, ascat_outlier_lon, ascat_outlier_lat))
-                    f0.write('doy and value: ')
-                    t0_all = bxy.time_getlocaltime(times0[i_valid02])[-2]
-                    f0.writelines('%d,' % (t0) for t0 in t0_all)
-                    f0.write('\n')
-                    f0.writelines('%.3f,' % (v0) for v0 in sigma0_all[l0][i_valid02])
-                    f0.write('\n')
-                    f0.write('*************************************************************************************\n')
-                if ascat_outlier_index in [26305]:
-                    pause = 0  # add plotting
-                    figure_name = 'check_sigma0_%d' % ascat_outlier_index
-                    smap_outlier = smap_pixel[smap_outlier_index_360]
-                    npr_plot0 = smap_outlier[0:2]
-                    npr_conv_plot0 = smap_outlier[2]
-                    ascat_plot0 = sigma0_pack[0:2]
-                    ascat_conv_plot0, ascat_conv_plot1 = sigma0_pack[2], sigma0_pack[3]
-                    plot_funcs.plot_subplot([npr_plot0, ascat_plot0, ascat_plot0],
-                        [npr_conv_plot0, ascat_conv_plot0, ascat_conv_plot1],
-                        main_label=['npr', '$\sigma^0$ mid', '$\sigma^0$'],
-                        figname=figure_name, x_unit='doy',
-                        h_line=[[-1], [0], [':']],
-                        # vline=v_line_local, vline_label=doy_all,
-                        # annotation_sigma0=[text_qa_w, text_qa_m],
-                        # y_lim=[[1], [[-18, -4]]]
-                        )
-                if outlier_count > 10:
-                    print '10 outliers have been checked'
-                    break
-                # with open a txt file to save
-        melt_onset0, melt_conv, melt_lvl0 = get_negative_edge(min_ascat, noise_negative_winter, melt_zone0)
+        melt_onset0, melt_conv, melt_lvl0, melt_array, number_onset = get_negative_edge(min_ascat, noise_negative_winter,
+                                                                           melt_zone0)
+        onset_array_ascat[l0], conv_ascat_array[l0], lvl_array[l0] = melt_onset0, melt_conv, melt_lvl0
+        melt_events_time_list[l0, 0:melt_array[0].size] = melt_array[0]
+        melt_events_conv_list[l0, 0:melt_array[1].size] = melt_array[1]
         # neg conv_ascat_neg: -8.99691556
         if conv_ascat_neg.size > 1:
             # time of zero cross of convolutions
@@ -5137,7 +5039,7 @@ def two_series_detect_v2(id_array, series0, series1, year0,
             # sigma0 on the edge
             sigma0_edge = np.nanmean(sigma0_correct[times0 == melt_onset0])
             # calculate min sigma0 around melting edge
-            sigma0_around_edge = sigma0_correct[(times0 > melt_onset0) & (times0 < melt_zone0[1])]
+            sigma0_around_edge = sigma0_correct[(times0 > melt_zone0[0]) & (times0 < melt_zone0[1])]
             # the mean sigma0 of a 5-day-period after the detected onset
             sigma0_5_day_period = np.mean(sigma0_correct[(times0 > melt_onset0) & (times0 < melt_onset0+5*24*3600)])
             if sigma0_around_edge.size > 0:
@@ -5169,15 +5071,65 @@ def two_series_detect_v2(id_array, series0, series1, year0,
     #  4 mean_winter,       5 mean_summer,    6 smap_melt_signal, 7 mean_melt_a,
     #  8 std_winter_a,      9 std_summer_a,   10 std_melt_a,      11 coef_a,      12 coef_b, 13 time_zero_conv
     #  14 winter_edge,      15 sigma0_on_edge,16 a list contains stat of winter convolutions
-    #  17 min sigma0 from melt to melt_end,   18 (tbd) winter lower 20% mean, 19 sigma0_5d_after_onset], \
+    #  17 min sigma0 from melt to melt_end,   18 sigma0_5d_after_onset, 19 pixel_kernels, 20 melt_events_time_list
+    #  21 melt_events_conv_list], \
     # [0 smap_pixel,        1 sigma0_pixel]
+    temp_check = np.array(melt_events_time_list)
     return [onset_array_smap, smap_winter, smap_summer, smap_peak], \
            [onset_array_ascat, melt_end_ascat, conv_ascat_array, lvl_array,
             mean_winter, mean_summer, smap_melt_signal, mean_melt_a, std_winter_a, std_summer_a, std_melt_a,
             coef_a, coef_b, time_zero_conv, winter_edge, sigma0_on_edge,
-            [winter_conv_mean, winter_conv_min, winter_conv_std], sigma0_min_edge, sigma0_5d_after_onset], \
+            [winter_conv_mean, winter_conv_min, winter_conv_std], sigma0_min_edge, sigma0_5d_after_onset,
+            pixel_kernels, melt_events_time_list, melt_events_conv_list], \
            [smap_pixel, sigma0_pixel]
 
+
+def edge_iteration(times0, sigma0_correct, g, g2, window, is_negative=0):
+    '''
+
+    :param times0:
+    :param sigma0_correct:
+    :param g:
+    :param window:
+    :param is_negative: 0, searching positive edge, no long-short kernel is used
+    :return:
+    '''
+    edge_out = test_def.edge_detect(times0, sigma0_correct, g, g2,
+                                    seriestype='sig', is_sort=True, long_short=is_negative)
+    # edge out 0, 1, 2 max_ascat, min_ascat, conv_ascat
+    edge_ascat = edge_out[is_negative]
+    pos_edge_ind = (edge_ascat[:, 1] > window[0]) & (edge_ascat[:, 1] < window[1])
+    pos_edge_count = sum(pos_edge_ind)
+    if is_negative:
+        if (pos_edge_count > 4) & (g2 < 15):
+            medge_out, g = edge_iteration(times0, sigma0_correct, g, g/2+1, window, is_negative=is_negative)
+            iter = 0  # do iteration
+        else:
+            return edge_out, g
+    else:
+        if (pos_edge_count > 2) & (g < 15):
+            medge_out, g = edge_iteration(times0, sigma0_correct, g+1, g2, window, is_negative=is_negative)
+            iter = 0  # do iteration
+        else:
+            return edge_out, g
+
+def edge_iteration_v2(times0, sigma0_correct, g, g2, window, is_negative=0):
+    '''
+
+    :param times0:
+    :param sigma0_correct:
+    :param g:
+    :param window:
+    :param is_negative: 0, searching positive edge, no long-short kernel is used
+    :return:
+    '''
+    edge_out = test_def.edge_detect(times0, sigma0_correct, g, g2,
+                                    seriestype='sig', is_sort=True, long_short=is_negative)
+    # edge out 0, 1, 2 max_ascat, min_ascat, conv_ascat
+    edge_ascat = edge_out[is_negative]
+    pos_edge_ind = (edge_ascat[:, 1] > window[0]) & (edge_ascat[:, 1] < window[1])
+    pos_edge_count = sum(pos_edge_ind)
+    return edge_out, g, pos_edge_count
 
 def re_detection(sz0, id_array, i0, t0, kernels=[7, 7, 7], sigma0_type=4):
     '''
@@ -5212,9 +5164,9 @@ def re_detection(sz0, id_array, i0, t0, kernels=[7, 7, 7], sigma0_type=4):
     #        [0onset_array_ascat, 1melt_end_ascat, 2conv_ascat_array, 3lvl_array,
     #         4mean_winter, 5mean_summer, 6smap_melt_signal, 7mean_melt_a, 8std_winter_a, 9std_summer_a, 10std_melt_a,
     #         11coef_a, 12coef_b]
-    ini_onset, main_onset, end_onset = smap_out[0], ascat_out[0], ascat_out[1]
+    ini_onset, main_onset, end_onset = smap_out[0], ascat_out[20][0], ascat_out[1]
     sigma0_winter, sigma0_melt = [ascat_out[4], ascat_out[8]], \
-                                 [ascat_out[7], ascat_out[10]]
+                                 [ascat_out[7], ascat_out[2]]
     return [ini_onset, main_onset, end_onset, sigma0_winter, sigma0_melt], pixels
 
 
@@ -5228,15 +5180,27 @@ def mean_std_check(series, window, fill0=-99):
 def get_positive_edge(max_value, window, ref_sec):
     # the right bound of melt zone
     year0 = bxy.time_getlocaltime(window)[0][1]
-    thaw_onset0 = bxy.get_total_sec('%d0701' % year0)
+    initiation_onset0 = bxy.get_total_sec('%d0701' % year0)
     thaw_ascat = max_value[(max_value[:, 1] > window[0]) &  # column 1 [:, 1] the secs of an edge
                            (max_value[:, 1] < window[1]) &
                            (max_value[:, 1] > ref_sec)]
     if thaw_ascat.size >= 1:
-        thaw_onset0 = thaw_ascat[:, 1][thaw_ascat[:, -1].argmax()]  # column -1, the convolution value of an edge
-    if thaw_onset0 < 0:
+        # initiation_onset0 = thaw_ascat[:, 1][thaw_ascat[:, -1].argmax()]  # column -1, the convolution value of an edge
+        thaw_percent = thaw_ascat[:, -1]/thaw_ascat[:, -1].max()  # 0.5
+        valid_local_maximums = thaw_ascat[:, 1][(thaw_percent > 0.5) & (thaw_ascat[:, -1] > 1)]
+        if valid_local_maximums.size < 2:
+            thaw_onset_correct = thaw_ascat[:, 1][thaw_percent > 0.9][-1]
+        else:
+            thaw_onset_correct = valid_local_maximums[-1]
+        if thaw_ascat[:, -1][thaw_ascat[:, 1] == thaw_onset_correct] < 0.5:
+            thaw_onset_correct = initiation_onset0
+    else:
+        thaw_onset_correct = initiation_onset0
+    if initiation_onset0 < 0:
+        thaw_onset_correct = initiation_onset0
         print 'no positive edge was detected, used defaulted right bound: %d0701' % year0
-    return thaw_onset0
+
+    return thaw_onset_correct
 
 
 def get_negative_edge(min_edge, noise, window):
@@ -5249,21 +5213,61 @@ def get_negative_edge(min_edge, noise, window):
     :return:
     '''
     # initials
+    melt_onset0_array = np.array(-9999)
+    melt_conv_array = np.array(-9999)
     melt_onset0 = window[0]
     melt_conv = -9999
     melt_lvl0 = -9999
     negative_edge_snowmelt = min_edge[(min_edge[:, 1] > window[0]) &
                                       (min_edge[:, 1] < window[1])]
-    if negative_edge_snowmelt[:, -1].size < 1:
-        print 'no negative edge was found within the window'
+    number_onset = 0
+    if negative_edge_snowmelt[:, 2].size < 1:
+        pr = 0
+        # print 'no negative edge was found within the window'
     else:
-        levels = np.abs(negative_edge_snowmelt[:, -1] / noise)
-        valid_index_melt = (levels > 1) & (negative_edge_snowmelt[:, -1] < 0)
-        if sum(valid_index_melt) == 1: # only one valid edges detected
-            melt_onset0 = negative_edge_snowmelt[:, 1][valid_index_melt][0]
-            melt_lvl0 = levels[valid_index_melt][0]
-        else:  # detected multiple edges
-            melt_onset0 = negative_edge_snowmelt[:, 1][negative_edge_snowmelt[:, -1].argmin()]  # the smallest
-            melt_lvl0 = levels[negative_edge_snowmelt[:, -1].argmin()]
-        melt_conv = negative_edge_snowmelt[:, -1][negative_edge_snowmelt[:, -1].argmin()]
-    return melt_onset0, melt_conv, melt_lvl0
+        levels = np.abs(negative_edge_snowmelt[:, 2] / noise)
+        valid_index_melt = (levels > 1) & (negative_edge_snowmelt[:, 2] < 0)
+        valid_melt_edge = negative_edge_snowmelt[valid_index_melt]
+        if valid_melt_edge.shape[0] > 0:  # edges based on global minimum within the window
+            onset_row0 = valid_melt_edge[valid_melt_edge[:, 2].argmin()]
+            melt_onset0 = onset_row0[1]
+            melt_conv = onset_row0[2]
+        # save onset/convolution arrays
+            melt_onset0_array = valid_melt_edge[:, 1]
+            melt_conv_array = valid_melt_edge[:, 2]
+            if melt_conv_array.size>8:
+                lowest_8th = melt_conv_array.argsort()
+                eight_id = lowest_8th[0: 8].sort()
+                melt_onset0_array = melt_onset0_array[eight_id]
+                melt_conv_array = melt_conv_array[eight_id]
+
+        # if valid_melt_edge.shape[0] == 1:  # only one valid edges detected
+        #     melt_onset0 = valid_melt_edge[1]
+        #     melt_conv = valid_melt_edge[-1]
+        #     melt_lvl0 = levels[valid_index_melt][0]
+        #     melt_conv_array = np.array(melt_conv)
+        #     melt_onset0_array = np.array(melt_onset0)
+        # else:  # detected multiple edges
+        #     id_min = valid_melt_edge[:, -1].argmin()
+        #     melt_lvl0 = levels[valid_index_melt][id_min]
+        #     melt_edge_value = valid_melt_edge[:, -1][id_min]
+        #     # percent_each_edge = negative_edge_snowmelt[:, -1]/melt_edge_value
+        #     correct_index0 = (valid_melt_edge[:, -1] < -1)  # (percent_each_edge > 0.5) &
+        #     correct_rows = valid_melt_edge[correct_index0]
+        #     number_onset = correct_rows.shape[0]
+        #     if number_onset == 1:
+        #         melt_onset0_array = np.array(correct_rows[1])
+        #         melt_conv_array = np.array(correct_rows[-1])
+        #         melt_onset0 = correct_rows[1]
+        #         melt_conv = correct_rows[-1]
+        #         number_onset = 1
+        #     else:
+        #         melt_onset0_array = correct_rows[:, 1]
+        #         melt_conv_array = correct_rows[:, -1]
+        #         percent_each_edge = negative_edge_snowmelt[:, -1]/melt_edge_value
+        #         melt_onset0 = negative_edge_snowmelt[:, 1][percent_each_edge > 0.9][0]
+        #         melt_conv = negative_edge_snowmelt[:, -1][percent_each_edge > 0.9][0]
+
+    return melt_onset0, melt_conv, melt_lvl0, \
+           [melt_onset0_array, melt_conv_array], \
+           number_onset
