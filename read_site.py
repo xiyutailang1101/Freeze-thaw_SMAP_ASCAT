@@ -400,12 +400,18 @@ def read_measurements(site_no, measure_name, doy, hr=0, year0=2016, t_unit='day'
     if t_unit =='sec':
         doy = bxy.get_total_sec('%d0101' % year0)+(doy-1)*3600*24
     if site_no not in sno_lib:
+        print 'can not find station in the get_type function'
         return np.zeros(doy.size) - 999, doy
     site_type = site_infos.get_type(site_no)
     if year0 == 2016:
         site_file = './copy0519/txt/'+site_type + site_no + '.txt'
     else:
         site_file = './copy0519/txt/'+site_type + site_no + '_new.txt'
+    if site_no in ['1183', '961', '952', '948', '1182', '958', '1234', '1232',
+                '1266', '987', '1062', '1003', '1064', '1063', '1037', '1092', '1035', '1094',
+                '1268', '1055', '1279', '1096', '1093', '1089', '1267', '1091', '1267', '1264', '1092', '954', '957',
+                '1103', '1072']:
+        site_file = './copy0519/txt/'+site_type + site_no + '_all.txt'
     if measure_name == 'snow':
         f_no = -1
     else:

@@ -14,6 +14,7 @@ import peakdetect
 from matplotlib.legend_handler import HandlerLine2D
 import re
 import read_site
+from multiprocessing import Pool
 
 
 def check_daily_ascat(fname):
@@ -944,9 +945,114 @@ def test_plot():
     data_process.pass_zone_plot(lons_grid, lats_grid, mask_a, './',
                                 fname='mask_0', z_max=180, z_min=50, odd_points=np.array([0, 0]))
 
+
+def data_process_check0():
+    # two series
+    negative_edge_snowmelt = min_ascat[(min_ascat[:, 1] > melt_zone0[0]) &
+                                       (min_ascat[:, 1] < melt_zone0[1])]
+    if negative_edge_snowmelt[:, -1].size < 1:
+        if l0 > 2000:
+            outlier_count += 1
+            print 'no negative edge was found within the window'
+            ascat_outlier_index = n125_n360[0][l0].astype(int)
+            ascat_outlier_index_360 = n125_n360[1][l0].astype(int)
+            smap_outlier_index_360 = np.where(pid_smap==ascat_outlier_index_360)[0][0]
+            ascat_outlier_lon, ascat_outlier_lat = n125_n360[2][l0], n125_n360[3][l0]
+            with open('two_series_detect_v2_error.txt', 'a') as f0:
+                if outlier_count < 2:
+                    f0.write('# xxx\n')
+                f0.write('year: %d; ' % year0)
+                f0.write('doy count: %d; ' % times0.size)
+                f0.write('location: %d, %.3f, %.3f\n' % (ascat_outlier_index, ascat_outlier_lon, ascat_outlier_lat))
+                f0.write('doy and value: ')
+                t0_all = bxy.time_getlocaltime(times0)[-2]
+                f0.writelines('%d,' % (t0) for t0 in t0_all)
+                f0.write('\n')
+                f0.writelines('%.3f,' % (v0) for v0 in sigma0_correct)
+                f0.write('\n')
+                f0.write('*************************************************************************************\n')
+            print 'checking the outlier %d' % ascat_outlier_index
+            if ascat_outlier_index in [26305, 30476, 30493, 30512, 30793]:
+                pause = 0  # add plotting
+                figure_name = 'check_sigma0_%d' % ascat_outlier_index
+                smap_outlier = smap_pixel[smap_outlier_index_360]
+                npr_plot0 = smap_outlier[0:2]
+                npr_conv_plot0 = smap_outlier[2]
+                ascat_plot0 = sigma0_pack[0:2]
+                ascat_conv_plot0, ascat_conv_plot1 = sigma0_pack[2], sigma0_pack[3]
+                print 'outlier %d in %d was plotted' % (ascat_outlier_index, year0)
+                plot_funcs.plot_subplot([npr_plot0, ascat_plot0, ascat_plot0],
+                                        [npr_conv_plot0, conv_ascat_neg, conv_ascat_pos],
+                                        main_label=['npr', '$\sigma^0$ mid', '$\sigma^0$'],
+                                        figname=figure_name, x_unit='doy',
+                                        h_line=[[-1], [0], [':']],
+                                        line_type_main='k-',
+                                        # vline=v_line_local, vline_label=doy_all,
+                                        # annotation_sigma0=[text_qa_w, text_qa_m],
+                                        # y_lim=[[1], [[-18, -4]]]
+                                        )
+            if outlier_count > 10:
+                print '10 outliers have been checked'
+                # break
+
+
+def check_time_series():
+    ascat_series = np.load('corrected_sigma0_32654.npy')
+    conv_positive, conv_negative =np.load('positive_convolution_32654.npy'), np.load('negative_convolution_32654.npy')
+    plot_funcs.plot_subplot([ascat_series, ascat_series], [conv_positive, conv_negative],
+                            figname='./test_extracted_32654.png', x_unit='doy', y_lim=[[0, 1], [[-16, -8], [-16, -8]]])
+    print 'the lowest value during melt is ', np.min(ascat_series[1][[(ascat_series[0] > 5.12603056e+08) &
+                                                                      (ascat_series[0] < 5.17650168e+08)]])
+def check_npz():
+    npz0 = np.load('onset_outlier_2016.npz')
+    print 'pixel in npz file, ', npz0['ascat_pixel'].shape[0]
+    array0 = np.loadtxt('map_plot_check_pixel_2016.txt', delimiter=',')
+    print  'the total number of outliers', array0.shape[0] + 5
+    p = 0
+    return p
+
+def assign_number(array0, id, value):
+    array0[id] = value
+
+
+def test_multi(a, b):
+    all_args = [(a0, b) for a0 in a]
+    print all_args
+    return all_args
+
+def mult_wrapper(args):
+    return mult_process0(*args)
+
+def mult_process0(i, n):
+    t = np.zeros(i)
+    m = i*2.5
+    n = i*5
+    p = i*-1
+    # print 'i is %d' % i
+    # print 'the n: %d, %d, %d' % (n[0], n[1], n[2])
+    return t, m, n, p
+
+
 if __name__ == "__main__":
-    n12_n36 = grid_trans()
-    check_onset()
+    i, n = np.array([0, 1, 2]), np.array([0, 0, 0])
+    all_args = test_multi(i, n)
+    pool0 = Pool(3)
+    t = pool0.map(mult_wrapper, all_args)
+    p = 0
+    print 'Processed i: ', t
+    # print 'proceesed n: ', m
+
+    # array0 = np.zeros(3)
+    # print array0
+    # assign_number(array0, 1, -2)
+    # print array0
+    # p=0
+    # check_time_series()
+    # points = site_infos.get_id()
+    # station_z_2016 = np.load('onset_%s_%d.npz' % ('interest', 2016))
+    # 47 pixels,
+    # n12_n36 = grid_trans()
+    # check_onset()
     # check_h5_ascat()
     # check_onset()
     # check_distance()

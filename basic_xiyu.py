@@ -245,6 +245,10 @@ def zone_trans(secs, zone0, zone1, ref_time=[2000, 1, 1, 0]):
     return time1_tuple
 
 
+def coordinate_2_index(array0, origin_shape):
+    return array0[0]*origin_shape[0]+array0[1]
+
+
 def get_time_now():
     return datetime.now()
 
@@ -350,7 +354,7 @@ def doy2date(doy, year0=2016, fmt="%m%d"):
 def latlon2index(p_coord, resolution=12.5):
     """
     turn latitude longitude into 1d and 2d indices
-    :param p_coord:
+    :param p_coord: ndarray, dimension: pixels X coordinates, e.g. [[lon0, lat0], [lon1, lat1], ...]
     :param resolution:
     :return:
     """
@@ -375,6 +379,10 @@ def latlon2index(p_coord, resolution=12.5):
         pixel_id[1][i_pid] = i2d[1]
         i_pid += 1
     return pixel_id, p_id_1d
+
+
+def index_match(all_index, target_index):
+    return [np.where(all_index==i0)[0] for i0 in target_index]
 
 
 def get_doy_array(st, en, fmt):
@@ -516,4 +524,35 @@ def smap_download_file_list(st, ed, year=2017, m=3, d=18):
     with open('smap_folders.txt', 'w') as f0:
         for str0 in str_list:
             f0.write('%s\n' % str0)
+    return 0
+
+
+def reshape_element0(list, d0=1):
+    for element0 in list:
+        element0.shape = d0, -1
+
+
+def remove_unvalid_time(t0, value0, t_str='20151231'):
+    reference_sec = get_total_sec(t_str)
+    valid = t0 > reference_sec
+    return t0[valid], value0[valid]
+
+
+def ind2latlon(points_index, resolution=12.5):
+    if resolution == 12.5:
+        lons_grid, lats_grid = np.load('./result_05_01/other_product/lon_ease_grid.npy'), \
+                            np.load('./result_05_01/other_product/lat_ease_grid.npy')
+        mask = np.load('/home/xiyu/PycharmProjects/R3/result_05_01/other_product/mask_ease2_125N.npy')
+        p_index_sensor = points_index[1]  # ascat index
+    elif resolution == 36:
+        h5_name = 'result_08_01/area/smap_area_result/SMAP_alaska_A_GRID_%s.h5' % '20151102'
+        h0 = h5py.File(h5_name)
+        lons_grid = h0['cell_lon'].value
+        lats_grid = h0['cell_lat'].value
+        mask = np.load('./result_05_01/other_product/mask_ease2_360N.npy')
+        p_index_sensor = points_index[0]  # smap index
+    return lons_grid, lats_grid, p_index_sensor
+
+
+def sort_byline():
     return 0

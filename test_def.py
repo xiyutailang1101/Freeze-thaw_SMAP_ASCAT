@@ -1697,7 +1697,7 @@ def plot_patch_test():
     plt.savefig(figname2)
 
 
-def edge_detect(t_series, edge_series, s, order=1, seriestype='tb', is_sort=True, w=4, long_short=False):
+def edge_detect(t_series, edge_series, s, s2=3, order=1, seriestype='tb', is_sort=True, w=4, long_short=False, sig2=3):
     """
     :param t_series: from overpass second
     :param edge_series: ft indicators
@@ -1706,6 +1706,9 @@ def edge_detect(t_series, edge_series, s, order=1, seriestype='tb', is_sort=True
     :param seriestype: the name of indicator.
     :param w: window in unit of std
     :return:
+    max_npr_valid, default value is np.array([[-1., t_series[0], -1.]])
+    min_npr_valid,
+    np.array([t_valid, conv_valid])
     """
     snr_threshold = 0
     if order == 1:  # first order of gaussian
@@ -1723,8 +1726,7 @@ def edge_detect(t_series, edge_series, s, order=1, seriestype='tb', is_sort=True
             t_series = t_series[i_sort]
             edge_series = edge_series[i_sort]
         if long_short:
-            p = 0
-            g_npr, i_gaussian = data_process.gauss_conv(edge_series, sig=s, n=w, sig2=s/2)
+            g_npr, i_gaussian = data_process.gauss_conv(edge_series, sig=s, n=w, sig2=s2)
         else:
             g_npr, i_gaussian = data_process.gauss_conv(edge_series, sig=s, n=w)  # option: ffnpr-t_h; var_npv-t_h
         if g_npr.size < 2:

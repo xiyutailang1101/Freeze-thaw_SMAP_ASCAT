@@ -1545,14 +1545,18 @@ def getascat(site_no, doy, year0=2015, orbit=1, center=False, sate='B'):
     # return 0
 
 
-def read_ascat_alaska(doy, year0=2015, sate='B'):
+def read_ascat_alaska(doy, year0=2015, sate='B', mode='alaska'):
     '''
     :param doy:  day of year based on year0
     :param year0:
     :param sate: metopB and metop A saved in different pathes
     :return: the .npy, include 47 fileds, see in '../meta0_ascat_ak.txt'
     '''
-    site_no = ['alaska']
+    site_no = [mode]
+    if mode == 'alaska':
+        sigma_region = [8.58, 17.54]
+    else:
+        sigma_region = [8.0, 17.0]
     if sate == 'B':
         path_ascat = '/media/327A50047A4FC379/ASCAT/ascat_l1/'
     elif sate == 'A':
@@ -1571,8 +1575,9 @@ def read_ascat_alaska(doy, year0=2015, sate='B'):
             file_daily.append(path_ascat+ncfile)
     # read all daily nc files
     file_ncread = file_daily
-    return_ind(file_ncread, site_no, 'ascat', thsig=[8.58, 17.54], orbz=None, fname='./result_08_01/area/ascat/ascat_'+dtime_str+'_metop'+sate)
-    save_name_npy = './result_08_01/area/ascat/ascat_'+dtime_str+'_metop'+sate+'_alaska.npy'
+    return_ind(file_ncread, site_no, 'ascat', thsig=sigma_region, orbz=None,
+               fname='./result_08_01/area/ascat/ascat_'+dtime_str+'_metop'+sate)
+    save_name_npy = './result_08_01/area/ascat/ascat_'+dtime_str+'_metop'+sate+'_%s.npy' % (mode)
     # sigma0 = readascat(file_daily, site_no, orbit, dtime_str)
     # readascat(file_daily, site_no, orbit, timestr)
     if os.path.isfile(save_name_npy):

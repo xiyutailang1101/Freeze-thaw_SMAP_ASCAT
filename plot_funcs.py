@@ -592,20 +592,23 @@ def quick_plot(x, y, figname='test_quick.png', lsymbol='o'):
     plt.close()
 
 
-def plot_subplot(main_axe, second_axe, main_label=[], vline=[], vline_label=False,
+def plot_subplot(main_axe, second_axe, main_label=[], vline=[], vline_label=False, line_type_main='k.',
                  figname='result_08_01/test_plot_subplot.png', text='test', x_unit='normal',
-                 h_line=[], h_line2=[], red_dots=False, symbol2='g-', x_lim=False, y_lim=False, annote=[],
-                 y_lim2=False, main_check=-1, time_fmt='%Y%j', fills=[-9999, -999, -99],
+                 h_line=[],  red_dots=False,  x_lim=False, y_lim=False, annote=[],
+                 h_line2=[], symbol2='g-', annotation_sigma0=[], y_lim2=False, type_y2='line',
+                 main_check=-1, time_fmt='%Y%j', fills=[-9999, -999, -99],
                  main_syb = ['k.', 'b.', 'r--', 'k--', 'r--', 'b--']):
     '''
-    :param main_axe:
+    :param main_axe: each elements in formats of [t0, v0, t1, v1, t2, v2]
     :param second_axe:
     :param main_label:
     :param vline: list, 0: the value, 1: the style which includes 'color/shape', 2: labels
     :param figname:
-    :param text:
+    :param annote:
+    :param annotation_sigma0: the standard deviation and mean value of time series
     :param x_unit: sec, doy, mmdd: x value is in the unit of sec.
-    :param h_line: =[ax_no, hline_x, ls], each of them was list type. h_line is for axis2, h_line2 is for axis1
+    :param h_line: =[ax_no, hline_x, ls], each of them was list type.
+    :param h_line2: smilar but for the right axis (axis 2)
     :param red_dots:
     :param symbol2:
     :param x_lim:
@@ -629,6 +632,8 @@ def plot_subplot(main_axe, second_axe, main_label=[], vline=[], vline_label=Fals
     print main_label
     print 'the number of main_axes', n
     for i0, ax0 in enumerate(axs):
+        if i0 == 2:
+            p = 0
         print 'plotting the %d main axes: %s' % (i0, main_label[i0])
         x00, y00 = main_axe[i0][0], main_axe[i0][1]
         for unvalid_value in fills:
@@ -649,12 +654,18 @@ def plot_subplot(main_axe, second_axe, main_label=[], vline=[], vline_label=Fals
             i_main += 1
             if i_main > range0:
                 break
+            x01, y01 = main_axe[i0][i_main-1], main_axe[i0][i_main]
             for unvalid_value in fills:
-                main_axe[i0][i_main][main_axe[i0][i_main] == unvalid_value] = np.nan
+                y01[y01 == unvalid_value] = np.nan
+            x01[x01 < 0] = np.nan
             # ax0.plot(x00[valid_main], main_axe[i0][i_main][valid_main], main_syb[i_main - 1])
             non_zero = main_axe[i0][i_main-1] > 0
-            ax0.plot(main_axe[i0][i_main-1][non_zero], main_axe[i0][i_main][non_zero], main_syb[dummy_0])
+            ax0.plot(x01, y01, line_type_main)
             i_main += 1
+            # check time
+            t_ref = bxy.get_total_sec('20150101')
+            if sum(x01[x01>0] < t_ref) > 0:
+                print 'the unvalid date of y axis 2 has not been removed!'
         # ax0.plot(x00[valid_main], y00[valid_main], 'k.')
         # if i0 < 1:
         #     np.save('x2_check.npy', np.array([x00[valid_main], y00[valid_main]]))
@@ -687,11 +698,15 @@ def plot_subplot(main_axe, second_axe, main_label=[], vline=[], vline_label=Fals
                                prop={'size': 12})
                     no0 = 1
             if vline_label is not False:
-                for sec0, lable0 in zip(vline[0], vline_label):
-                    x_text = sec0
-                    y_text = np.nanmax(y00) # get
-                    # print x_text, y_text
-                    ax0.text(x_text, y_text, 'DOY '+str(lable0), va='top', ha='center', size=16)
+                if i0 < 1:
+                    i_t = 0
+                    for sec0, lable0 in zip(vline[0], vline_label):
+                        x_text = sec0
+                        # location y of label: upmost * ratio, ratio = (1 - 0.1 * (i_t/number of groups)
+                        y_text = (y_lim[1][i0][1]*0.95) * (1 - 0.1*(i_t/3))  # get
+                        # print x_text, y_text
+                        ax0.text(x_text, y_text, 'DOY '+str(lable0), va='top', ha='center', size=16)
+                        i_t += 1
 
             # second axis
             ax0_0 = ax0.twinx()
@@ -699,16 +714,36 @@ def plot_subplot(main_axe, second_axe, main_label=[], vline=[], vline_label=Fals
             if type(second_axe[i0]) is list:
                 size_check = len(second_axe[i0])
             else:
-                size_check = second_axe[i0].size
-            if size_check > 0:
-                x000, y000 = second_axe[i0][0], second_axe[i0][1]
-            else:
+                size_check = second_axe[i0].shape[0]-1
+            if size_check < 0:
+            #     x000, y000 = second_axe[i0][0], second_axe[i0][1]  size_check > 0
+            # else:
+                print 'the y axis 2 has no data'
                 x000, y000 = np.zeros(2) - 1, np.zeros(2) - 1
-            if x_unit != 'normal':
-                valid_second = x000 > bxy.get_total_sec('20150101')
-            else:
-                valid_second = x000 > 0
-            ax0_0.plot(x000[valid_second], y000[valid_second], symbol2)
+                            # check time
+                t_ref = bxy.get_total_sec('20150101')
+                if sum(x000[x000>0] < t_ref) > 0:
+                    print 'the unvalid date of y axis 2 has not been removed!'
+            # if x_unit != 'normal':
+            #     valid_second = x000 > bxy.get_total_sec('20150101')
+            # else:
+            #     valid_second = x000 > 0
+            # MULTIPLE XY PLOT
+            if size_check > 0:
+                if size_check == 3:
+                    for plot_item in second_axe[i0]:
+                        x000, y000 = plot_item[0], plot_item[1]
+                        if type_y2 == 'bar':
+                            p = 0
+                            ax0_0.bar(x000, y000)
+                        else:
+                            ax0_0.plot(x000, y000, symbol2)
+                else:
+                    x000, y000 = second_axe[i0][0], second_axe[i0][1]
+                    if type_y2 == 'bar':
+                        ax0_0.bar(x000, y000, width=3600*24*2, facecolor='green', edgecolor='green')
+                    else:
+                        ax0_0.plot(x000, y000, symbol2)
 
             if y_lim2 is not False:
                 for axis_id in y_lim2[0]:
@@ -724,6 +759,18 @@ def plot_subplot(main_axe, second_axe, main_label=[], vline=[], vline_label=Fals
                 axs[annote[0][i2]].text(0.1, 0.15, annote[1][i2], transform=axs[annote[0][i2]].transAxes, va='top', fontsize=16)
         else:
             axs[annote[0]].text(0.1, -0.25, annote[1], transform=axs[annote[0]].transAxes, va='top', fontsize=16)
+    if len(annotation_sigma0) > 0:
+        pause = 0
+        # x y coordinates of annotation
+        sigma0s = main_axe[1]  # sigma0 series with format [t0, v0, t1, v1, ...]
+        for i0, annote0 in enumerate(annotation_sigma0):
+            x0 = i0*0.5*np.array([sigma0s[0][-1] - sigma0s[0][0], sigma0s[2][-1] - sigma0s[2][0],
+                                        sigma0s[4][-1] - sigma0s[4][0]]) + \
+                 np.array([sigma0s[0][0], sigma0s[2][0], sigma0s[4][0]])
+            y0 = [np.nanmin(sigma0s[1]), np.nanmin(sigma0s[3]), np.nanmin(sigma0s[5])]
+            for i0 in range(0, len(y0)):
+                axs[1].text(x0[i0], y0[i0], annote0[i0], va='top', ha='center', size=16)
+        # ax0.text(x_text, y_text, 'DOY '+str(lable0), va='top', ha='center', size=16)
         # ax.text(0.02, 0.95, text4[i], transform=ax.transAxes, va='top', fontsize=16)
     for i0, ax0 in enumerate(axs):
         if i0 == main_check:  # plot outliers of a given main axes variable
@@ -764,19 +811,18 @@ def plot_subplot(main_axe, second_axe, main_label=[], vline=[], vline_label=Fals
                 x_tick0 = '%d/%d\n%d:00' % (sec2time[1], sec2time[2], sec2time[-1])
                 new_labels.append(x_tick0)
             elif x_unit=='doy':
-                x_tick0 = '%d\n%d:00' % (sec2time[3], sec2time[-1])
+                x_tick0 = '%d-%d\n%d:00' % (sec2time[0], sec2time[3], sec2time[-1])
                 new_labels.append(x_tick0)
             elif x_unit=='mmdd':
                 x_tick0 = '%d/%d/%d\n%d:00' % (sec2time[0], sec2time[1], sec2time[2], sec2time[-1])
                 new_labels.append(x_tick0)
         ax0.set_xticklabels(new_labels)
-        print new_labels
     # # h_line or v_line
-    if len(h_line) > 0:
-        for ax_no, hline_x, ls in zip(h_line[0], h_line[1], h_line[2]):
-            ax_twins[ax_no].axhline(y=hline_x, linestyle=ls)
     if len(h_line2) > 0:
         for ax_no, hline_x, ls in zip(h_line2[0], h_line2[1], h_line2[2]):
+            ax_twins[ax_no].axhline(y=hline_x, linestyle=ls)
+    if len(h_line) > 0:
+        for ax_no, hline_x, ls in zip(h_line[0], h_line[1], h_line[2]):
             axs[ax_no].axhline(y=hline_x, linestyle=ls)
     plt.savefig(figname)
     plt.close()
