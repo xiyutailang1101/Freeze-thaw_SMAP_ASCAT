@@ -5213,8 +5213,8 @@ def get_negative_edge(min_edge, noise, window):
     :return:
     '''
     # initials
-    melt_onset0_array = np.array(-9999)
-    melt_conv_array = np.array(-9999)
+    melt_onset0_array = np.zeros(8) - 9999
+    melt_conv_array = np.zeros(8) - 9999
     melt_onset0 = window[0]
     melt_conv = -9999
     melt_lvl0 = -9999
@@ -5233,13 +5233,17 @@ def get_negative_edge(min_edge, noise, window):
             melt_onset0 = onset_row0[1]
             melt_conv = onset_row0[2]
         # save onset/convolution arrays
-            melt_onset0_array = valid_melt_edge[:, 1]
-            melt_conv_array = valid_melt_edge[:, 2]
-            if melt_conv_array.size>8:
+            melt_onsets = valid_melt_edge[:, 1]
+            melt_convs = valid_melt_edge[:, 2]
+            events_size = melt_convs.size
+            if events_size>8:
                 lowest_8th = melt_conv_array.argsort()
                 eight_id = lowest_8th[0: 8].sort()
-                melt_onset0_array = melt_onset0_array[eight_id]
-                melt_conv_array = melt_conv_array[eight_id]
+                melt_onset0_array = melt_onsets[eight_id]
+                melt_conv_array = melt_convs[eight_id]
+            else:
+                melt_onset0_array[0: events_size] = melt_onsets
+                melt_conv_array[0: events_size] = melt_convs
 
         # if valid_melt_edge.shape[0] == 1:  # only one valid edges detected
         #     melt_onset0 = valid_melt_edge[1]
