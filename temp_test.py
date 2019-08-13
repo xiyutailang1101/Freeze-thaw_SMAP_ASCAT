@@ -1032,14 +1032,26 @@ def mult_process0(i, n):
     # print 'the n: %d, %d, %d' % (n[0], n[1], n[2])
     return t, m, n, p
 
+def file_name_formated():
+    time_prefix = bxy.get_time_now()
+    time_array = np.array([time_prefix.month, time_prefix.day, time_prefix.hour, time_prefix.minute])
+    time_str_array = [time_array[l0].astype(str) for l0 in range(time_array.size)]
+    time_str_array_formated = ['0'+item if len(item) < 2 else item for item in time_str_array]
+    print('%s/smap_onset_%s_%s_%s%s%s%s.npz' % ('doc1', 'npz_name1', 'yyyy', time_str_array_formated[0],
+                                                time_str_array_formated[1], time_str_array_formated[2],
+                                                time_str_array_formated[3]))
+
 
 if __name__ == "__main__":
-    i, n = np.array([0, 1, 2]), np.array([0, 0, 0])
-    all_args = test_multi(i, n)
-    pool0 = Pool(3)
-    t = pool0.map(mult_wrapper, all_args)
-    p = 0
-    print 'Processed i: ', t
+    # check_pixel_wise()
+    file_name_formated()
+    # check multiprocess
+    # i, n = np.array([0, 1, 2]), np.array([0, 0, 0])
+    # all_args = test_multi(i, n)
+    # pool0 = Pool(2)
+    # v = pool0.map(mult_wrapper, all_args)
+    # p = 0
+    # print 'Processed i: ', v
     # print 'proceesed n: ', m
 
     # array0 = np.zeros(3)
