@@ -217,46 +217,67 @@ def ascat_area_plot2(datez, lat_valid, lon_valid, save_dir='./result_05_01/test_
     else:
         ob = 'D'
         tzone = [[2.5, 4], [4, 5.5], [5.5, 7], [7, 8.5], [8.5, 10]]
-    save_dir = save_dir+ob+'/'
+    # save_dir = save_dir+ob+'/'
     # # read the grid system from nc file
     # grp0 = Dataset('/home/xiyu/Data/easegrid2/EASE2_N12.5km.geolocation.v0.9.nc', 'r', format='NETCDF4')
     # ease_lat, ease_lon = grp0.variables['latitude'][:], grp0.variables['longitude'][:]
     # lat_valid, lon_valid = (ease_lat > 54) & (ease_lat < 72), (ease_lon > -170) & (ease_lon < -130)
     # ease_valid = lat_valid & lon_valid
     # lat_gd, lon_gd = ease_lat[400: 700, 400: 700], ease_lon[400: 700, 400: 700]
+    # './result_05_01/other_product/lon_ease_grid.npy'
     # np.save('lat_ease_grid', lat_gd.data), np.save('lon_ease_grid', lon_gd.data)
-    lon_gd, lat_gd = np.load('./extra_data/lon_ease_grid_125_ak.npy'), \
-                                np.load('./extra_data/lat_ease_grid_125_ak.npy')
+    lon_gd, lat_gd = np.load('./result_05_01/other_product/lon_ease_grid.npy'), \
+                                np.load('./result_05_01/other_product/lat_ease_grid.npy')
     # lats_dim, lons_dim = np.arange(54, 72, 0.1), np.arange(-170, -130, 0.1)
     # lons_grid, lats_grid = np.meshgrid(lons_dim, lats_dim)
 
     # read the ascat, constraint by land% > 50%, orbit, and usable flag
     if sate is False:
-        ascat_data = np.load('./result_08_01/area/ascat/ascat_'+datez+'_metopB_alaska.npy')
         sate = 'metopB'
     else:
-        ascat_data = np.load('./result_08_01/area/ascat/ascat_'+datez+'_metopA_alaska.npy')
         sate = 'metopA'
+    npy_file_path = './result_08_01/area/ascat/ascat_%s_%s_alaska.npy' % (datez, sate)
+    ascat_data = np.load(npy_file_path)
     ascat_dict = {}
     meta_file = 'meta0_ascat_ak.txt'
-    with open(meta_file) as meta0:
-        content = meta0.readlines()
-        metas = [x.strip() for x in content]
-    for meta0 in metas:
-        if len(meta0)>1:
-            att_range = meta0.split(',')  # 0-2: name of attribute, start index, end index
-            if att_range[0] == 'f_usable':
-                st, en = int(att_range[1]), int(att_range[2])  # fore to after
-            # ascat_dict[att_range[0]] = ascat_data[:, st: en]
-        else:
-            continue
+    # with open(meta_file) as meta0:
+    #     content = meta0.readlines()
+    #     metas = [x.strip() for x in content]
+    # for meta0 in metas:
+    #     if len(meta0)>1:
+    #         att_range = meta0.split(',')  # 0-2: name of attribute, start index, end index
+    #         if att_range[0] == 'f_usable':
+    #             st, en = int(att_range[1]), int(att_range[2])  # fore to after
+    #         # ascat_dict[att_range[0]] = ascat_data[:, st: en]
+    #     else:
+    #         continue
     if ascat_data.size < 1:
         # empty, the orbit doesn't exist
         with open('ascat_area_plot2_metopA_empty.txt', 'a') as f0:
             f0.write('No data: Date: %s, orbit: A, B\n' % datez)
         return 0
     # read data quality, land cover, and orbit
-    orbit_id = ascat_data[:, attributs[3]]
+    # latitude, 0, 1
+    # longitude, 1, 2
+    # sigma0_trip, 2, 5
+    # f_usable, 5, 8
+    # inc_angle_trip, 8, 11
+    # f_land, 11, 14
+    # utc_line_nodes, 14, 15
+    # abs_line_number, 15, 16
+    # sat_track_azi, 16, 17
+    # swath_indicator, 17, 18
+    # kp, 18, 21
+    # azi_angle_trip, 21, 24
+    # num_val_trip, 24, 27
+    # f_f, 27, 30
+    # f_v, 30, 33
+    # f_oa, 33, 36
+    # f_sa, 36, 39
+    # f_tel, 39, 42
+    # f_ref, 42, 45
+    # as_des_pass, 45, 46
+    orbit_id = ascat_data[:, 45]
     f_use = ascat_data[:, attributs[4]]
     land_mid = ascat_data[:, attributs[1]]
     land_fore, land_aft = ascat_data[:, attributs[7]], ascat_data[:, attributs[8]]
@@ -267,8 +288,9 @@ def ascat_area_plot2(datez, lat_valid, lon_valid, save_dir='./result_05_01/test_
     id_valid_mid = ascat_filter([land_mid, orbit_id, f_use], orbit_no)
     id_valid_ak = id_valid_aft & id_valid_fore & id_valid_mid
     # read measurements
-    print 'mid (%d, %d), fore (%d, %d), aft (%d, %d)' % (attributs[0], attributs[2], attributs[5], attributs[9],
-                                                         attributs[6], attributs[10])
+    print 'Gridding %s on orbit %s' % (npy_file_path, ob)
+    # print 'mid (%d, %d), fore (%d, %d), aft (%d, %d)' % (attributs[0], attributs[2], attributs[5], attributs[9],
+    #                                                      attributs[6], attributs[10])
     sigma_land, inc_land = ascat_data[:, attributs[0]][id_valid_ak], \
                          ascat_data[:, attributs[2]][id_valid_ak]  # mid measurements
     sigma_fore_land, sigma_aft_land = ascat_data[:, attributs[5]][id_valid_ak], \
@@ -325,14 +347,14 @@ def ascat_area_plot2(datez, lat_valid, lon_valid, save_dir='./result_05_01/test_
                        ascat_keys[14]: pass_time0,
                        'sigma0_trip_fore': sigma_fore0, 'sigma0_trip_aft': sigma_aft0,
                        'inc_angle_trip_fore': inc_fore0, 'inc_angle_trip_aft': inc_aft0}  # pass_hr0 --> pass_time0, 11/29/2018, attributs=[3, 12, 9, -1, 6]
-        print 'the extracted keys are', sigma_dict0.keys()
+        # print 'the extracted keys are', sigma_dict0.keys()
         resampled_ascat0 = res.resample_to_grid(sigma_dict0, lon_land0, lat_land0, lon_gd, lat_gd, search_rad=9000)
         # print("----3rd part: %s seconds ---" % (dtime2.now()-start0))
         # start0 = dtime2.now()
         if format_ascat == 'h5':
             # save as h5 file, running speed is too low
             # print sate_type.index(sate+'_'+ob)
-            h5_name = 'result_08_01/ascat_resample_all2/ascat_%s_%s_%d_%s.h5' % (sate, datez, hour0, ob)
+            h5_name = 'result_08_01/ascat_resample_all3/ascat_%s_%s_%d_%s.h5' % (sate, datez, hour0, ob)
             h50 = h5py.File(h5_name, 'a')
             for key0 in sigma_dict0.keys():
                 if key0 in h50.keys():

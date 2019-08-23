@@ -1032,6 +1032,7 @@ def mult_process0(i, n):
     # print 'the n: %d, %d, %d' % (n[0], n[1], n[2])
     return t, m, n, p
 
+
 def file_name_formated():
     time_prefix = bxy.get_time_now()
     time_array = np.array([time_prefix.month, time_prefix.day, time_prefix.hour, time_prefix.minute])
@@ -1042,8 +1043,99 @@ def file_name_formated():
                                                 time_str_array_formated[3]))
 
 
+def check_pixel_wise():
+    array0 = np.load('npy_file/file2316.npy')
+    array1 = np.load('npy_file/file2316.npy')
+    ratio = array1[0:40]/array0[0: 40]
+    percentage = ratio
+    f_list = glob.glob('npy_file/file*.npy')
+    ascat_array = np.zeros([len(f_list), array0.size])
+    for i0, f0 in enumerate(f_list):
+        print f0
+        ascat_array[i0] = np.load(f0)
+    return 0
+
+
+def check_dual_onset():
+    series = np.load('ascat_pixel_npy_2316.npy')
+    times0, sigma0_correct = series[0], series[1]
+    thaw_window = [bxy.get_total_sec('20170301'), bxy.get_total_sec('20170701')]
+    melt_zone0 = [bxy.get_total_sec('20170301'), bxy.get_total_sec('20170701')]
+    smap_onset = bxy.get_total_sec('20170401')
+    g_max = 30
+    edge_count = 10
+    g1 = 7
+    g2 = 7
+    while (g1 < g_max) & (edge_count > 4):
+        # update g1 each loop
+        edge_out, g1, edge_count = \
+            data_process.edge_iteration_v2(times0, sigma0_correct, g1, 3, [melt_zone0[0], thaw_window[1]],
+                                           is_negative=0)
+        g1 += 1
+    max_ascat, min_na, conv_ascat_pos = edge_out[0], edge_out[1], edge_out[2]
+    thaw_onset0 = data_process.get_positive_edge(max_ascat, thaw_window, smap_onset)
+    melt_zone0[1] = thaw_onset0
+    g_short = g1/2
+    if g_short > 3:
+        g_short = 3
+    edge_count = 10
+    while (g_short < 10) & (edge_count > 4) & (g_short < g1):
+        # using new g1 in the last step, and update g2 each loop
+        edge_out, g1, edge_count = \
+            data_process.edge_iteration_v2(times0, sigma0_correct, g1, g_short, melt_zone0, is_negative=1)
+        g_short += 1
+    max_na, min_ascat, conv_ascat_local_min = edge_out[0], edge_out[1], edge_out[2]
+    melt_onset0, conv_on_melt_date, lvl_on_melt_date, melt_array, number_onset = \
+        data_process.get_negative_edge(min_ascat, 0.2, melt_zone0)
+    return 0
+
+
+def check_dual_onset_from_ascat_h5():
+    f_list = bxy.get_yearly_files([143, 144], year0=2017)
+    n125_n360 = np.load('n12_n36_array.npy').astype(int)
+    ascat_all_id = np.unravel_index(n125_n360[0], (300, 300))
+    dict_2016 = data_process.ascat_alaska_grid_v3(['sigma0_trip_aft', 'inc_angle_trip_aft', 'utc_line_nodes',
+                                                   'sigma0_trip_fore', 'inc_angle_trip_fore', 'sigma0_trip_mid',
+                                                   'inc_angle_trip_mid'], f_list, pid=ascat_all_id)
+    # for f0 in f_list():
+    #     h0 = h5py.File(f0)
+    return 0
+
+
+def check_dual_onset_0523(f0, f1):
+    h0 = h5py.File(f0)
+    h1 = h5py.File(f1)
+    t0_array, t1_array = h0['utc_line_nodes'].value.ravel(), h1['utc_line_nodes'].value.ravel()
+    n125_n360 = np.load('n12_n36_array_4cols.npy')
+    ind_ascat_pixel = n125_n360[0].astype(int)
+    t0_check = t0_array[ind_ascat_pixel][2317]
+    t1_check = t1_array[ind_ascat_pixel][2317]
+    # for f0 in f_list():
+    #     h0 = h5py.File(f0)
+    return t0_check, t1_check
+
+
+def check_dual_onset_from_ungrided_npy():
+    f0_metopA = './result_08_01/area/ascat/ascat_20170523_metopA_alaska.npy'
+    f0_metopB = './result_08_01/area/ascat/ascat_20170523_metopB_alaska.npy'
+    vA, vB = np.load(f0_metopA), np.load(f0_metopB)
+    checkA, checkB = vA[:, 2] , vB[:, 2]
+    return 0
+
+
 if __name__ == "__main__":
+    # check_dual_onset_from_ascat_h5()
+    # check_dual_onset()
     # check_pixel_wise()
+    check_dual_onset_from_ungrided_npy()
+    f_list = ['result_08_01/ascat_resample_all3/ascat_metopA_20170523_12_A.h5',
+              'result_08_01/ascat_resample_all3/ascat_metopB_20170523_12_A.h5']
+    t_check = check_dual_onset_0523(f_list[0], f_list[1])
+    t_check2 = check_dual_onset_0523('result_08_01/ascat_resample_all2/ascat_metopB_20170523_14_A.h5',
+                                'result_08_01/ascat_resample_all2/ascat_metopA_20170523_14_A.h5')
+    check_dual_onset_from_ascat_h5()
+    check_dual_onset()
+    check_pixel_wise()
     file_name_formated()
     # check multiprocess
     # i, n = np.array([0, 1, 2]), np.array([0, 0, 0])

@@ -8,7 +8,7 @@ import re
 import pytz
 import scipy.signal as signal
 import scipy.optimize as opt
-
+import glob
 
 def opt_test(fminfunc, x, h, y, yn, x0):
     return 0
@@ -556,3 +556,17 @@ def ind2latlon(points_index, resolution=12.5):
 
 def sort_byline():
     return 0
+
+
+def get_yearly_files(t_window=[0, 210], year0=2016):
+    # ascat_att0=['sigma0_trip_aft', 'inc_angle_trip_aft', 'utc_line_nodes', 'sigma0_trip_fore',
+    #                               'inc_angle_trip_fore', 'sigma0_trip_mid', 'inc_angle_trip_mid']
+    # path0='./result_08_01/series/ascat'
+    doy_array = np.arange(t_window[0], t_window[1])
+    file_path='ascat_resample_all3'
+    path_ascat = []
+    for doy0 in doy_array:
+        time_str0 = doy2date(doy0, fmt='%Y%m%d', year0=year0)
+        match_name = 'result_08_01/%s/ascat_*%s*.h5' % (file_path, time_str0)
+        path_ascat += glob.glob(match_name)
+    return path_ascat
