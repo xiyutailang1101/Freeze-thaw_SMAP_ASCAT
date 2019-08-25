@@ -6183,7 +6183,7 @@ def map_plot1(year0, p_latlon=np.array([[-99, -99.], [-99., 99.]]),
     :return:
     '''
     if mode == 'quick':
-        isplot=[True, True, False, False, False, False, False, False, True]
+        isplot=[False, False, False, False, False, False, False, False, True]
     else:
         isplot=[True, True, True, True, True, True, True, True, True]
     n125_n360 = np.load('n12_n36_array.npy').astype(int)
@@ -6199,13 +6199,14 @@ def map_plot1(year0, p_latlon=np.array([[-99, -99.], [-99., 99.]]),
         fig_prefix = onset_name.split('_')[-1][0: -4] + mode
     else:
         fig_prefix = ''
-    onset = value_npz['ascat_onset']  # arr_1
+    onset_secs = value_npz['ascat_onset']  # arr_1
+    onset = np.zeros(onset_secs.size) - 999
     ascat_winter = value_npz['sigma0_mean_winter']
     ascat_mean_melt = value_npz['sigma0_mean_melt_zone']
     ascat_min_melt = value_npz['sigma0_min_melt_zone']
     conv_min_winter = value_npz['winter_edge']
-    v_valid = (onset!=0)&(onset!=-999)  # plot onset
-    onset[v_valid] = bxy.time_getlocaltime(onset[v_valid], ref_time=[2000, 1, 1, 0])[-2]
+    v_valid = (onset_secs!=0)&(onset_secs!=-999)  # plot onset
+    onset[v_valid] = bxy.time_getlocaltime(onset_secs[v_valid], ref_time=[2000, 1, 1, 0])[-2]
 
     year0 = str(year0)
     # winter, melt = ascat_winter, value_npz['sigma0_melt_mean']
@@ -6214,11 +6215,14 @@ def map_plot1(year0, p_latlon=np.array([[-99, -99.], [-99., 99.]]),
     winter_std, melt_std, summer_std = value_npz['sigma0_std_winter'], value_npz['simga0_std_melt_zone'], \
                                        value_npz['sigma_std_summer']
 
-
+    # quick
     # ascat lvl
     # lvl_value = value_npz['ascat_lvl'].copy()
-    lvl_value = value_npz['lvl_on_melt_date'].copy()
-    lvl_value[value_npz['lvl_on_melt_date']<2] = -999
+    # lvl_value = value_npz['lvl_on_melt_date'].copy()
+    lvl_value_ratio = value_npz['conv_on_melt_date']/value_npz['winter_conv_std']
+    lvl_value_ab = value_npz['conv_on_melt_date']
+    lvl_value = lvl_value_ab
+    # lvl_value[value_npz['lvl_on_melt_date']<2] = -999
     lvl_array2 = data_process.make_mask(lvl_value)  # arr_3, plot level
     quick_plot_map_v2(lvl_array2, resolution=12.5, fig_name='finer_lvl_%s' % year0 + fig_prefix, z_value=[-2, 10],
                       points=p_latlon, points_index=p_index)
@@ -6287,20 +6291,21 @@ def map_plot1(year0, p_latlon=np.array([[-99, -99.], [-99., 99.]]),
                           z_value=[-4, 4], points=p_latlon, points_index=p_index)
 
     # ascat onset
-    onset[lvl_value < 1.5] = -999  # onset with lvl < 1.5 are masked
-    mask_01 = [(lvl_value < 2) |
-               (ascat_min_melt < -9000) |
-               ((winter_std > 0.5) & (diff_mask < 3*winter_std))|
-               (winter_std > 0.75)]  # < 6*winter_std
-    mask_02 = [(diff_mask < 1) |
-               (ascat_min_melt < -9000)]
-    mask_03 = [(lvl_value < 2) |
-               (ascat_min_melt < -9000)]
-    onset[mask_01] = -999
+    # onset with lvl < 1.5 are masked
+    # mask_01 = [(lvl_value > -1) |
+    #            (ascat_min_melt < -9000) |
+    #            (winter_std > 0.75)]  # < 6*winter_std
+    # onset[mask_01] = -999
     # onset[compare_sigma > threshold_sigma] = -999
     value_array = data_process.make_mask(onset)
     quick_plot_map_v2(value_array, resolution=12.5, z_value=[30, 160],
                       fig_name='finer_ascat_%s_%d' % (year0 + fig_prefix, 0),
+                      points=p_latlon, p_name=p_name, points_index=p_index)
+    onset_convs = value_npz['conv_on_melt_date']
+    onset_convs[(onset_secs!=0)&(onset_secs!=-999)] = -999
+    value_array2 = data_process.make_mask(onset_convs)
+    quick_plot_map_v2(value_array2, resolution=12.5, z_value=[-10, 0],
+                      fig_name='finer_ascat_%s_%d_convs' % (year0 + fig_prefix, 0),
                       points=p_latlon, p_name=p_name, points_index=p_index)
 
     # ascat winter
@@ -6319,14 +6324,42 @@ def map_plot1(year0, p_latlon=np.array([[-99, -99.], [-99., 99.]]),
         quick_plot_map_v2(kernel2_grid, resolution=12.5, fig_name='kernels_2_%s' % year0 + fig_prefix,
                           z_value=[0, 15], points=p_latlon, points_index=p_index, p_name=p_name)
     if isplot[8]:
-        onset_correct = bxy.time_getlocaltime(value_npz['melt_events_time'][:, 0])[-2]
-        onset_correct[value_npz['ascat_lvl'] < 1.5] = -999  # onset with lvl < 1.5 are masked
-        onset_correct[value_npz['melt_events_time'][:, 0] == -9999] = -999
-        # onset_correct[mask_01] = -999  #
-        # onset[compare_sigma > threshold_sigma] = -999
+        # correct_secs = value_npz['melt_events_time'][0]
+        # correct_conv = value_npz['melt_events_conv'][0]
+        correct_secs = value_npz['melt_events_time'].T
+        conv_events = value_npz['melt_events_conv'].T
+        # corrected onsets, convolution value should less than -1
+        secs_valid_events = [correct_secs_0[(conv0 < -1) & (conv0 > -99)]
+                             for correct_secs_0, conv0 in zip(correct_secs, conv_events)]
+        onsets_valid = np.array([event0[0] if event0.size > 0 else -999 for event0 in secs_valid_events])
+        onset_correct_temp = bxy.time_getlocaltime(onsets_valid)[-2]
+        onset_correct_temp[onsets_valid < -99] = -999
+        onset_correct = onset.copy()
+        onset_correct[onset_correct_temp != -999] = onset_correct_temp[onset_correct_temp != -999]
+        # convolution value on corrected onsets
+        conv_valid_events = [conv0[(conv0 < -1) & (conv0 > -99)] for conv0 in conv_events]
+        conv_valid_first = [cv0[0] if cv0.size > 0 else -999 for cv0 in conv_valid_events]
+        valid_conv_on_onsets = np.array([event0[0] if event0.size>0 else -999 for event0 in secs_valid_events])
+        # signifcant level
+        correct_conv0 = value_npz['conv_on_melt_date']
+        correct_conv0[onset_correct_temp != -999] = -1  # pixels with the newly corrected onset
+        correct_lvl = correct_conv0/-1
+        un_valid_id = correct_conv0 < -99  # mask unvalid id
+        correct_lvl[un_valid_id] = -999
+
+
+        # plotting
         value_array = data_process.make_mask(onset_correct)
+        value_array2 = data_process.make_mask(valid_conv_on_onsets)
+        value_array3 = data_process.make_mask(correct_lvl)
         quick_plot_map_v2(value_array, resolution=12.5, z_value=[30, 160],
                           fig_name='finer_ascat_correct_%s_%d' % (year0 + fig_prefix, 0),
+                          points=p_latlon, p_name=p_name, points_index=p_index)
+        quick_plot_map_v2(value_array2, resolution=12.5, z_value=[-10, 0],
+                          fig_name='finer_ascat_correct_%s_%d_convs' % (year0 + fig_prefix, 0),
+                          points=p_latlon, p_name=p_name, points_index=p_index)
+        quick_plot_map_v2(value_array3, resolution=12.5, z_value=[0, 1],
+                          fig_name='finer_ascat_correct_%s_%d_new_lvl' % (year0 + fig_prefix, 0),
                           points=p_latlon, p_name=p_name, points_index=p_index)
     if mode == 'quick':
         print 'quick location has been done'
@@ -7030,7 +7063,7 @@ def save_new_125_360_array():
 
 def hystory(x=2):
     if x == 0:
-        # use different gaussian kernels to detect all-region onset
+        # use different gaussian kernels to detect all-region onset input_pixels input_ascat_index
         # ms_get_interest_series(False, pixel_type='all', gk=[7, 9, 12])
         # for year0 in [2016, 2017, 2018]:
         #     n125_n360, ascat_dict_yearly, npr_series, pid_smap = \
@@ -7040,13 +7073,13 @@ def hystory(x=2):
         ascat_outlier_index = np.loadtxt('map_plot_check_pixel_2018.txt', delimiter=',')
         ascat_dict_yearly, npr_series, pid_smap = \
             ms_get_interest_series_v2(pixel_type='outlier', year0=2016, time_window=[0, 300],
-                                      input_ascat_index=ascat_outlier_index[:, 0].astype(int))
+                                      input_pixels=ascat_outlier_index[:, 0].astype(int))
         # ms_get_interest_series(False, pixel_type='all', gk=[7, 12, 9])
         # ms_get_interest_series(False, pixel_type='all', gk=[7, 15, 10])
     elif x==2:
         n125_n360 = np.load('n12_n36_array_4cols.npy')
         type = 'all'
-        for year0 in [2017]:
+        for year0 in [2016, 2018]:
             start0 = bxy.get_time_now()
             ascat_dict_yearly, npr_series, pid_smap = ms_get_interest_series_v2(pixel_type=type, year0=year0,
                                                                                 time_window=[0, 210])
@@ -7318,6 +7351,9 @@ def quick_process():
 
 if __name__ == "__main__":
     ##  prepare data 20190819
+    hystory(x=0)
+    ms_station_new(sno_all=np.array([52712]), pixel_type='outlier', detectors=[5,7,7])
+    # hystory(x=2)  # get the npz file of regional onset
     # ascat_npy2npz(year0=2016)
     # a
     # quit0()
