@@ -493,6 +493,18 @@ def reject_outliers(data, m=3.):
     return s<m
 
 
+def get_valid_index(data, key_id=[0], invalid=[0]):
+    if type(key_id) is not list:
+        key_id = [key_id]
+    if type(invalid) is not list:
+        invalid = [invalid]
+    valid_index = data[key_id[0]] != -99  # initial
+    for id0 in key_id:
+        for fil_value in invalid:
+            valid_index &= (data[key_id[id0]] != fil_value)
+    return valid_index
+
+
 def time_compare(x0, x1):
     signal.resample()
 

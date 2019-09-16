@@ -301,7 +301,8 @@ def return_ind(filenamez, siten, sensor, prj='North_Polar_Projection',thsig=[0.4
             table = np.array([])
             ind_count = 0
             for file_no in range(0, len(nc_dict['latitude'])):
-                region_ind = np.where((np.abs(nc_dict['latitude'][file_no] - lat_t) < thsig[0]) & (np.abs(nc_dict['longitude'][file_no] - lon_t) < thsig[1]))
+                region_ind = np.where((np.abs(nc_dict['latitude'][file_no] - lat_t) < thsig[0]) &
+                                      (np.abs(nc_dict['longitude'][file_no] - lon_t) < thsig[1]))
                 if np.any(region_ind[0]):  # region_ind 2-d coordinate
                     band_no = region_ind[0]
                     node_no = region_ind[1]
@@ -325,17 +326,6 @@ def return_ind(filenamez, siten, sensor, prj='North_Polar_Projection',thsig=[0.4
                         elif nc_dict[key00][file_no].ndim == 1:
                             key_indicator = nc_dict[key00][file_no][band_no]
                             stacks=np.append(stacks, [key_indicator], axis=0)
-
-                    # # statcks: attributes read in alaska region
-                    # stacks = np.array([nc_dict['latitude'][file_no][region_ind], nc_dict['longitude'][file_no][region_ind]])  # 2
-                    # for keyi in ['sigma0_trip', 'f_usable', 'inc_angle_trip', 'f_land']:  # 3+3+3+3
-                    #     for i in range(0, 3):
-                    #         #stacks = np.vstack([stacks, nc_dict[keyi][file_no][(band_no, node_no, i)]])
-                    #         stacks = np.append(stacks, [nc_dict[keyi][file_no][(band_no, node_no, i)]], axis=0)
-                    # # stack the orbit, and passing time
-                    # for keyi in ['utc_line_nodes', 'abs_line_number', 'as_des_pass']:  # 1+1+1
-                    #     key_indicator = nc_dict[keyi][file_no][band_no]
-                    #     stacks=np.append(stacks, [key_indicator], axis=0)
                     if ind_count < 1:
                         ind_count += 1
                         # table is the each stack concatenate together along rows
@@ -349,7 +339,16 @@ def return_ind(filenamez, siten, sensor, prj='North_Polar_Projection',thsig=[0.4
             np.save(fname+'_'+site+'.npy', np.transpose(table))
                        #fmt='%.6f, %.6f, %.6f, %.6f, %.6f, %d, %d, %d, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %d')
 
-
+                    # # statcks: attributes read in alaska region
+                    # stacks = np.array([nc_dict['latitude'][file_no][region_ind], nc_dict['longitude'][file_no][region_ind]])  # 2
+                    # for keyi in ['sigma0_trip', 'f_usable', 'inc_angle_trip', 'f_land']:  # 3+3+3+3
+                    #     for i in range(0, 3):
+                    #         #stacks = np.vstack([stacks, nc_dict[keyi][file_no][(band_no, node_no, i)]])
+                    #         stacks = np.append(stacks, [nc_dict[keyi][file_no][(band_no, node_no, i)]], axis=0)
+                    # # stack the orbit, and passing time
+                    # for keyi in ['utc_line_nodes', 'abs_line_number', 'as_des_pass']:  # 1+1+1
+                    #     key_indicator = nc_dict[keyi][file_no][band_no]
+                    #     stacks=np.append(stacks, [key_indicator], axis=0)
                 #else:
 
                     # for i in range(0, region_ind[0].size, 1):
@@ -752,6 +751,7 @@ def read_netcdf(file, att, anx=None):
                 obs = np.loadtxt(obfile, delimiter=',')
                 nc_dict['orbit'].append(obs)
     return nc_dict
+    # to be checked f, rootgrp.variables['utc_line_nodes'][:]
 
 
 def read_series(indices, filename):  # filename = root + files
@@ -1515,7 +1515,7 @@ def getascat(site_no, doy, year0=2015, orbit=1, center=False, sate='B'):
     dayz = doy - (doy/365 * 365)  # get the year and j
     dtime0 = datetime.datetime(yr, 01, 01) + datetime.timedelta(dayz-1)
     dtime_str = dtime0.strftime('%Y%m%d')  # get yyyymmdd formated string, matching it in file list
-    print 'Now data at %s is searching' % (dtime_str)
+    print 'Now data at %s is searching in folder %s for satellite metop%s' % (dtime_str, path_ascat, sate)
     file_daily = []  # daily nc list
     for ncfile in filelist:
         if re.search(dtime_str, ncfile):
@@ -1561,21 +1561,15 @@ def read_ascat_alaska(doy, year0=2015, sate='B', mode='alaska'):
         path_ascat = '/media/327A50047A4FC379/ASCAT/ascat_l1/'
     elif sate == 'A':
         path_ascat = '/media/Seagate Expansion Drive/ASCAT/ascat_1a/'
-    filelist = os.listdir(path_ascat)
-    # yr = year0 + doy/365  # start from 2016
-    # dayz = doy - (doy/365 * 365)  # get the year and j
-    # dtime0 = datetime.datetime(yr, 01, 01) + datetime.timedelta(dayz-1)
-    # dtime_str = dtime0.strftime('%Y%m%d')  # get yyyymmdd formated string, matching it in file list
+    path_ascat = '/media/Seagate Expansion Drive/ASCAT/ascat_1a/'
     dtime_str = bxy.doy2date(doy, fmt='%Y%m%d', year0=year0)
-    print 'Now data at %s is searching' % (dtime_str)
+    filelist = glob.glob('%s*METOP%s*%s*.nc' % (path_ascat, sate, dtime_str))
+    print 'Now data at %s is searching in folder %s for satellite metop%s' % (dtime_str, path_ascat, sate)
     file_daily = []  # daily nc list
     for ncfile in filelist:
-        if re.search(dtime_str, ncfile):
-            print '     file was being loading: %s' % ncfile
-            file_daily.append(path_ascat+ncfile)
+        print '     file was being loading: %s' % ncfile
     # read all daily nc files
-    file_ncread = file_daily
-    return_ind(file_ncread, site_no, 'ascat', thsig=sigma_region, orbz=None,
+    return_ind(filelist, site_no, 'ascat', thsig=sigma_region, orbz=None,
                fname='./result_08_01/area/ascat/ascat_'+dtime_str+'_metop'+sate)
     save_name_npy = './result_08_01/area/ascat/ascat_'+dtime_str+'_metop'+sate+'_%s.npy' % (mode)
     # sigma0 = readascat(file_daily, site_no, orbit, dtime_str)
@@ -1584,6 +1578,68 @@ def read_ascat_alaska(doy, year0=2015, sate='B', mode='alaska'):
         return 0
     else:
         return -1
+
+    # # copied
+    # filelist = os.listdir(path_ascat)
+    # dtime_str = bxy.doy2date(doy, fmt='%Y%m%d', year0=year0)
+    # print 'Now data at %s is searching in folder %s for satellite metop%s' % (dtime_str, path_ascat, sate)
+    # file_daily = []  # daily nc list
+    # for ncfile in filelist:
+    #     if re.search(dtime_str, ncfile):
+    #         print '     file was being loading: %s' % ncfile
+    #         file_daily.append(path_ascat+ncfile)
+    # # read all daily nc files
+    # return_ind(file_daily, site_no, 'ascat', thsig=sigma_region, orbz=None,
+    #            fname='./result_08_01/area/ascat/ascat_'+dtime_str+'_metop'+sate)
+    # save_name_npy = './result_08_01/area/ascat/ascat_'+dtime_str+'_metop'+sate+'_%s.npy' % (mode)
+    # # sigma0 = readascat(file_daily, site_no, orbit, dtime_str)
+    # # readascat(file_daily, site_no, orbit, timestr)
+    # if os.path.isfile(save_name_npy):
+    #     return 0
+    # else:
+    #     return -1
+
+
+def read_ascat_alaska_new(doy, year0=2015, sate='B', mode='alaska'):
+    '''
+    :param doy:  day of year based on year0
+    :param year0:
+    :param sate: metopB and metop A saved in different pathes
+    :return: the .npy, include 47 fileds, see in '../meta0_ascat_ak.txt'
+    '''
+    site_no = [mode]
+    if mode == 'alaska':
+        sigma_region = [8.58, 17.54]
+    else:
+        sigma_region = [8.0, 17.0]
+    if sate == 'B':
+        path_ascat = '/media/327A50047A4FC379/ASCAT/ascat_l1/'
+    elif sate == 'A':
+        path_ascat = '/media/Seagate Expansion Drive/ASCAT/ascat_1a/'
+    path_ascat = '/media/Seagate Expansion Drive/ASCAT/ascat_1a/'
+    filelist = os.listdir(path_ascat)
+    # yr = year0 + doy/365  # start from 2016
+    # dayz = doy - (doy/365 * 365)  # get the year and j
+    # dtime0 = datetime.datetime(yr, 01, 01) + datetime.timedelta(dayz-1)
+    # dtime_str = dtime0.strftime('%Y%m%d')  # get yyyymmdd formated string, matching it in file list
+    dtime_str = bxy.doy2date(doy, fmt='%Y%m%d', year0=year0)
+    print 'Now data at %s is searching in folder %s' % (dtime_str, path_ascat)
+    file_daily = []  # daily nc list
+    for ncfile in filelist:
+        if re.search(dtime_str, ncfile):
+            print '     file was being loading: %s' % ncfile
+            file_daily.append(path_ascat+ncfile)
+    # read all daily nc files
+    return_ind(file_daily, site_no, 'ascat', thsig=sigma_region, orbz=None,
+               fname='./result_08_01/area/ascat/ascat_'+dtime_str+'_metop'+sate)
+    save_name_npy = './result_08_01/area/ascat/ascat_'+dtime_str+'_metop'+sate+'_%s.npy' % (mode)
+    # sigma0 = readascat(file_daily, site_no, orbit, dtime_str)
+    # readascat(file_daily, site_no, orbit, timestr)
+    if os.path.isfile(save_name_npy):
+        return 0
+    else:
+        return -1
+
 
 
 def get_peroid(st, en):

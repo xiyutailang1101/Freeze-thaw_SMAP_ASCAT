@@ -634,16 +634,11 @@ def plot_subplot(main_axe, second_axe, main_label=[], vline=[], vline_label=Fals
     for i0, ax0 in enumerate(axs):
         if i0 == 2:
             p = 0
+        # plot main axis
         print 'plotting the %d main axes: %s' % (i0, main_label[i0])
         x00, y00 = main_axe[i0][0], main_axe[i0][1]
         for unvalid_value in fills:
             y00[y00 == unvalid_value] = np.nan
-        if x_unit != 'normal':
-            # print 'the time should later than 20150101'
-            valid_main = x00 != 0
-        else:
-            valid_main = x00 != 0
-        # valid_main = (x00 != -999) & (x00 != -9999) & (x00 != 0)
         i_main = 0
         # plot more if this main axis has other attributes
         if type(main_axe[i0]) is list:
@@ -658,18 +653,12 @@ def plot_subplot(main_axe, second_axe, main_label=[], vline=[], vline_label=Fals
             for unvalid_value in fills:
                 y01[y01 == unvalid_value] = np.nan
             x01[x01 < 0] = np.nan
-            # ax0.plot(x00[valid_main], main_axe[i0][i_main][valid_main], main_syb[i_main - 1])
-            non_zero = main_axe[i0][i_main-1] > 0
             ax0.plot(x01, y01, line_type_main)
             i_main += 1
             # check time
             t_ref = bxy.get_total_sec('20150101')
             if sum(x01[x01>0] < t_ref) > 0:
-                print 'the unvalid date of y axis 2 has not been removed!'
-        # ax0.plot(x00[valid_main], y00[valid_main], 'k.')
-        # if i0 < 1:
-        #     np.save('x2_check.npy', np.array([x00[valid_main], y00[valid_main]]))
-        # print 'the min value sec of x ', np.min(x00[valid_main])
+                print 'the unvalid date of y axis %d has not been removed!' % i0
         ax0.set_ylabel(main_label[i0])
         if y_lim is not False:
             for axis_id in y_lim[0]:

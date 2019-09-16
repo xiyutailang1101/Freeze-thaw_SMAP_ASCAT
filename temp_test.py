@@ -1123,8 +1123,61 @@ def check_dual_onset_from_ungrided_npy():
     return 0
 
 
+def check_error_time():
+    # 'result_08_01/ascat_resample_all3/ascat_metopB_20160103_21_D.h5'
+    # i0: (array([66, 71]), array([217, 229]))
+    h0 = h5py.File('result_08_01/ascat_resample_all3/ascat_metopB_20160103_21_D.h5')
+    t0_secs = h0['utc_line_nodes'].value
+    t0_tuple = bxy.time_getlocaltime([t0_secs[66, 217], t0_secs[71, 229]], ref_time=[2000, 1, 1, 0])
+    npy0 = np.load('./result_08_01/area/ascat/ascat_20170214_metopB_alaska.npy')
+    npy_secs = npy0[:, 14]
+    npy_t_tuple = bxy.time_getlocaltime(npy_secs, ref_time=[2000, 1, 1, 0])
+    npy_t_tuple_utc = bxy.time_getlocaltime(npy_secs, ref_time=[2000, 1, 1, 0], t_out='utc')
+    y, m, d, doy, h = npy_t_tuple_utc[0], npy_t_tuple_utc[1], npy_t_tuple_utc[2], npy_t_tuple_utc[3], npy_t_tuple_utc[4]
+    for hour in np.unique(h):
+        index = h == hour
+        d0, doy0, sec0 = d[index], doy[index], npy_secs[index]
+        d0_two_set = np.unique(d0)
+        d0_0_index, d0_1_index = np.where(d0 == d0_two_set[0])[0][0], np.where(d0 == d0_two_set[1])[0][0]
+        r = 0
+    return 0
+
+def check_smap_npz():
+    check0 = np.load('smap_all_series_A_2016.npz')
+    print check0.files
+    return 0
+
+
+def check_new_gridded_h5():
+    # ascat_metopB_20170426_7_D.h5
+    h5_list = glob.glob('result_08_01/ascat_resample_all3/ascat*2017*.h5')
+    for f0 in h5_list:
+        # f0 = 'result_08_01/ascat_resample_all3/ascat_metopB_20170320_0_A.h5'
+        h0 = h5py.File(f0)
+        time_key_on_name = f0.split('/')[-1].split('_')
+        utc_line_nodes = h0['utc_line_nodes'].value
+        utc_line_nodes_nonzero = utc_line_nodes[utc_line_nodes>0]
+        utc_line_tuple = bxy.time_getlocaltime(utc_line_nodes_nonzero, ref_time=[2000, 1, 1, 0], t_out='utc')
+        # check doy
+        # print 'filename time str and utc line node does not match'
+        un_match0 = np.where((utc_line_tuple[3] - bxy.get_doy([time_key_on_name[2]], year0=2017)[0]) != 0)
+        un_match1 = np.where((utc_line_tuple[4] - int(time_key_on_name[3])) != 0)
+        if un_match0[0].size | un_match1[0].size > 0:
+            print f0
+            print utc_line_tuple[un_match0], utc_line_tuple[un_match1]
+        # check pass hour
+        end0 = 0
+    h0 = h5py.File('result_08_01/ascat_resample_all3/ascat_metopB_20170118_7_D.h5')
+    return 0
+
+
 if __name__ == "__main__":
+    # quick 538358568.0
+    check_new_gridded_h5()
+    print bxy.time_getlocaltime([538358568], ref_time=[2000, 1, 1, 0], t_out='utc')
+    check_error_time()
     # check_dual_onset_from_ascat_h5()
+    check_smap_npz()
     # check_dual_onset()
     # check_pixel_wise()
     check_dual_onset_from_ungrided_npy()
