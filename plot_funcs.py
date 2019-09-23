@@ -785,6 +785,8 @@ def plot_subplot(main_axe, second_axe, main_label=[], vline=[], vline_label=Fals
             # ax0.plot(main_axe[i0][0][p_thaw_index], main_axe[i0][1][p_thaw_index], 'rs')
             if i0+1 < n:
                 axs[i0+1].plot(main_axe[i0+1][0][p_thaw_index], main_axe[i0+1][1][p_thaw_index], 'rs')
+    # the axis infomation
+    num_twin_axis, num_axis = len(ax_twins), len(axs)
     # set ticks
     ax0.ticklabel_format(style='plain')
     if x_unit != 'normal':
@@ -809,13 +811,66 @@ def plot_subplot(main_axe, second_axe, main_label=[], vline=[], vline_label=Fals
     # # h_line or v_line
     if len(h_line2) > 0:
         for ax_no, hline_x, ls in zip(h_line2[0], h_line2[1], h_line2[2]):
+            print 'add h_line to subplots %d, twin axis' % ax_no
+            if ax_no > num_twin_axis - 1:
+                print 'the subplots number %d is out of number of subplots: %d, twin axis' % (ax_no, num_twin_axis)
             ax_twins[ax_no].axhline(y=hline_x, linestyle=ls)
     if len(h_line) > 0:
         for ax_no, hline_x, ls in zip(h_line[0], h_line[1], h_line[2]):
+            print 'add h_line to subplots %d, main axis' % ax_no
+            if ax_no > num_axis - 1:
+                print 'the subplots number %d is out of number of subplots %d, main axis' % (ax_no, num_twin_axis)
             axs[ax_no].axhline(y=hline_x, linestyle=ls)
     plt.savefig(figname)
     plt.close()
     del main_label[0: ]
+    return 0
+
+
+def plot_convolution(series, kernel, output, figname='npr_method.png', mode='npr'):
+    '''
+    :param series: time unit: day
+    :param kernel:
+    :param output:
+    :return:
+    '''
+    # ax0 = plt.subplot2grid((2, 6), (0, 0))
+    # # fig0, axs = plt.subplots(2, sharex=True, figsize=(8, 5.5))
+    # ax0.plot(kernel[0], kernel[1])  # kernel[0], kernel[1]
+    # axs[1].plot(kernel[0], kernel[1])
+    # axs_kernel = axs[0].twinx()
+    params = {'mathtext.default': 'regular'}
+    plt.rcParams.update(params)
+    ax1 = plt.subplot2grid((2, 6), (0, 0), colspan=6)
+    # ax0 = ax1.twinx()
+    ax2 = plt.subplot2grid((2, 6), (1, 0), colspan=6, sharex=ax1)
+    ax1.plot(series[0], series[1], 'k-o', markersize=3)
+    ax1.set_xlim([30, 180])
+    # ax1.set_ylim([-1, 10])
+    ax1.plot(kernel[0], kernel[1], 'k-')
+    ax1.yaxis.set_major_locator(MaxNLocator(4))
+
+    ax2.bar(output[0], output[1], color='k')
+    ax2.set_ylim([-3, 3])
+    ax2.axhline(y=0, linestyle='--', c='k')
+
+    if mode == 'npr':
+    # npr
+        ax1.set_ylabel('NPR (10$^{-2}$)')
+        ax2.set_ylabel('$E_{NPR} (10^{-2})$')
+        ax2.axhline(y=1, linestyle=':', c='k')
+    elif mode == 'sigma0':
+    # sigma0
+        ax1.set_ylabel('$\sigma^0 (dB)$')
+        ax2.set_ylabel('$E_{\sigma^0} (dB)$')
+        ax2.axhline(y=-1, linestyle=':', c='k')
+
+    ax2.set_xlabel('Day of year')
+
+
+    plt.subplots_adjust(wspace=0, hspace=0)
+    plt.tight_layout()
+    plt.savefig(figname, dpi=120)
     return 0
 
 
