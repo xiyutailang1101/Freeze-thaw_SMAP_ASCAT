@@ -901,7 +901,9 @@ def discuss_combining(site_nos = ['2213']):
     for i, site_no in enumerate(site_nos):
         i+=1
         sigconv, sigseries, ons_new, gg, sig_pass, peakdate_sig = \
-                data_process.ascat_plot_series(site_no, orb_no=0, inc_plot=False, sigma_g=k_width) # 0 for ascending
+                data_process.ascat_plot_series(site_no, orb_no=0, inc_plot=False, sigma_g=k_width,
+                                               txt_path='./result_08_01/point/ascat/ascat_site_series/')
+                                               # 0 for ascending
 
         tbv1, tbh1, npr1, gau1, ons1, sitetime, peakdate1 = test_def.main(site_no, [], sm_wind=7, mode='annual', tbob='_A_', sig0=k_width)  # result npr
         ax0 = plt.subplot2grid((4, 1), (i, 0))
@@ -2631,7 +2633,7 @@ def combining2(doy_array, y=2016, smap_atts=['cell_tb_v_aft', 'cell_tb_h_aft', '
                               np.array([ascat_pixel[key01], ascat_pixel[key00]])],
                             [conv_tb_a, conv_tb_a, conv_ascat],
                             main_label=['tb PM ($K$)', 'tb AM (K)$', '$\sigma^0$ (dB)'],
-                            vline=[[tb_a_onset2, tb_a_t3_0_cross, s_t3_up],
+                            v_line=[[tb_a_onset2, tb_a_t3_0_cross, s_t3_up],
                                    ['k-', 'b-', 'r-'], ['tb_down', 'tb_min', 'sig_up']],  # tb down, tb min, sigma up
                             x_unit='sec', x_lim=[ini_secs, end_secs],
                             figname='result_08_01/20181202plot_ascat_%d_%d_tb.png' % (id_name[land_id==i1][0], i1))
@@ -2664,7 +2666,7 @@ def combining2(doy_array, y=2016, smap_atts=['cell_tb_v_aft', 'cell_tb_h_aft', '
                                                 [conv_npr, conv_npr_d, conv_ascat],
                                                 main_label=['NPR PM ($10^{-2})$', 'NPR AM$',
                                                             '$\sigma^0$ (dB)'],
-                                                vline=[[npr_a_t1, s_melt_t1[0], npr_a_t2_0_x, sig_t2_0_x],
+                                                v_line=[[npr_a_t1, s_melt_t1[0], npr_a_t2_0_x, sig_t2_0_x],
                                                 ['k-', 'r-', 'k:', 'r:'], ['npr_up', 'sig_down', 'npr_max', 'sig_min']],
                                                 x_unit='doy', x_lim=[ini_secs, end_secs],
                                                 y_lim=[[2], [[-15, -8]]],
@@ -3096,7 +3098,7 @@ def combine_detection(thaw_window, freeze_window,
                 plot_funcs.plot_subplot([[t_x_odd[0], npr], [t_x_odd[1], series_valid],
                                          [t_x_odd[1], inc_valid[non_outlier]]],
                                         [[t_x_odd[2], conv[1]], [t_x_odd[3], conv_a[1]]],
-                                        vline=[vline_list2, ['r-', 'b-', 'b-']],
+                                        v_line=[vline_list2, ['r-', 'b-', 'b-']],
                                         # vline=[onset_map_0_1d[i0], 'b-'],
                                         main_label=['npr', 'sigma0', 'incidence'],
                                         x_lim=x_period, y_lim2=[[1], [[-3, 3]]], y_lim=[[1], [[-20, -5]]],
@@ -3509,7 +3511,7 @@ def exp_soil_tb_sigma(site_no):
     vline0 = [(v0+365)*24*3600+sec_2015 for v0 in [min_date_v[1], onset_t1[0]]]
     figname = 'result_08_01/soil_zero_timing_%s.png' % site_no
     plot_funcs.plot_subplot([sigma_ascat0, tb_h, insitu_sm], [sigma_conv0, tbh_conv0, insitu_t],
-                            x_unit='doy', symbol2='b-', vline=[vline0, ['g-', 'r-']], figname=figname,
+                            x_unit='doy', symbol2='b-', v_line=[vline0, ['g-', 'r-']], figname=figname,
                             x_lim=[secs_station[0], secs_station[-1]], red_dots=False)
 
 
@@ -3555,7 +3557,7 @@ def exp_soil_tb_sigma_copy(site_no):
     vline0 = [(v0+365)*24*3600+sec_2015 for v0 in [min_date_v[1], onset_t1[0]]]
     figname = 'result_08_01/soil_zero_timing_%s.png' % site_no
     plot_funcs.plot_subplot([sigma_ascat0, tb_h, insitu_sm], [sigma_conv0, tbh_conv0, insitu_t],
-                            x_unit='doy', symbol2='b-', vline=[vline0, ['g-', 'r-']], figname=figname,
+                            x_unit='doy', symbol2='b-', v_line=[vline0, ['g-', 'r-']], figname=figname,
                             x_lim=[secs_station[0], secs_station[-1]], red_dots=False)
 
 
@@ -4145,7 +4147,7 @@ def drawing_parameter(ids):
         plot_funcs.plot_subplot([npy_list[2][:, i_asc], npy_list[2][:, i_des], npy_list[2]],
                             [conv_sigma_a, conv_sigma_d, conv_sigma],
                             main_label=['$\sigma^0$ PM ', '$\sigma^0$ AM ', '$\sigma^0$ (dB)'],
-                            vline=[[npr_a_t1, sigma_melt_t1[0], npr_a_t2_0_x, sig_t2_0_x],
+                            v_line=[[npr_a_t1, sigma_melt_t1[0], npr_a_t2_0_x, sig_t2_0_x],
                                    ['k-', 'r-', 'k:', 'r:'], ['npr_up', 'sig_down', 'npr_max', 'sig_min']],
                             x_unit='sec', x_lim=npy_list[7],
                             figname='result_agu/result_2019/new/ascat_split_%d_%dk0.png' % (id_name, id0),
@@ -4272,7 +4274,7 @@ def drawing_parameter_v2(ids0, npy_type=['npr', 'ascat', 'conv_npr', 'conv_ascat
                                  npy_dict['ascat']],
                                 [conv_npr_a, npy_list[4], conv_sigma],
                                 main_label=['NPR PM ($10^{-2})$', 'NPR AM ($10^{-2})$', '$\sigma^0$ (dB)'],
-                                vline=[[npr_a_t1, sigma_melt_t1[0], npr_a_t2_0_x, sig_t2_0_x],
+                                v_line=[[npr_a_t1, sigma_melt_t1[0], npr_a_t2_0_x, sig_t2_0_x],
                                        ['k-', 'r-', 'k:', 'r:'], ['npr_up', 'sig_down', 'npr_max', 'sig_min']],
                                 x_unit='sec', x_lim=npy_dict['lim'],
                                 figname='result_agu/result_2019/t1_and_t2/20181202plot_ascat_%d_%dk0.png' % (id_name, id0),
@@ -4337,7 +4339,7 @@ def drawing_parameter_v2(ids0, npy_type=['npr', 'ascat', 'conv_npr', 'conv_ascat
             plot_funcs.plot_subplot([sigma_a, sigma_d, sigma_all],
                                 [conv_sigma_a, conv_sigma_d, conv_sigma],
                                 main_label=['$\sigma^0$ PM ', '$\sigma^0$ AM ', '$\sigma^0$ (dB)'],
-                                vline=[[npr_a_t1, sigma_melt_t1[0], npr_a_t2_0_x, sig_t2_0_x],
+                                v_line=[[npr_a_t1, sigma_melt_t1[0], npr_a_t2_0_x, sig_t2_0_x],
                                        ['k-', 'r-', 'k:', 'r:'], ['npr_up', 'sig_down', 'npr_max', 'sig_min']],
                                 x_unit='sec', x_lim=npy_dict['lim'],
                                 figname='result_agu/result_2019/new/ascat_split_%d_%dk0.png' % (id_name, id0),
@@ -4474,7 +4476,7 @@ def snow_station_amsr2():
                              [s_secs, s_measurements[:, 0, i_no, 1].ravel(), s_secs, pass_hr]],
                             [[air_sec, air_measure], [air_sec, air_measure]],
                             main_label=['SND (mm) vs %s' % snow_label, 'SWE (mm) vs %s' % snow_label],
-                            x_unit='sec', vline=[[snd_50-4*3600*24], ['r-'], ['snow free']],
+                            x_unit='sec', v_line=[[snd_50-4*3600*24], ['r-'], ['snow free']],
                             figname='result_08_01/2019_snow_%s_.png' % (site_no),
                             main_syb = ['k-', 'r-', 'b-'])
         snowmelt_amsr2.append(snd_50-4*3600*24)
@@ -4714,7 +4716,7 @@ def compare_stational(all_site=True, y=2016, id_check=[968]):
                                  [m_sec, m_value['Soil Moisture Percent -2in (pct)']],
                                  [m_sec, m_value[snow_text]]], main_label=['npr', 'Tsoil', 'Tair'],
                                 figname='result_agu/result_2019/new/%d_estimate_%s.png' % (sno[1], 'npr'),
-                                vline=[[onset_es['t1_npr'], onset_es['t2_npr']], ['r:', 'r-'], ['t1_npr', 't2_npr']],
+                                v_line=[[onset_es['t1_npr'], onset_es['t2_npr']], ['r:', 'r-'], ['t1_npr', 't2_npr']],
                                 h_line2=[[0, 0, 2], [npr_0, npr_1, 0], [':', ':', '--']],
                                 y_lim=[[0], [[0, 5]]],
                                 x_unit='doy')
@@ -4730,7 +4732,7 @@ def compare_stational(all_site=True, y=2016, id_check=[968]):
                                  [m_sec, m_value['Soil Moisture Percent -2in (pct)']],
                                  [m_sec, m_value[snow_text]]], main_label=['ascat', 'Tsoil', 'Tair'],
                                 figname='result_agu/result_2019/new/%d_estimate_%s.png' % (sno[1], 'ascat'),
-                                vline=[[onset_es['t1_ascat'][0], onset_es['t2_ascat'], onset_es['t3_ascat']],
+                                v_line=[[onset_es['t1_ascat'][0], onset_es['t2_ascat'], onset_es['t3_ascat']],
                                        ['r:', 'b-', 'r-'], ['t1_ascat', 't2_ascat', 't3_ascat']],
                                 x_unit='doy',
                                 annote=[[0], [text_example0]])
@@ -4742,7 +4744,7 @@ def compare_stational(all_site=True, y=2016, id_check=[968]):
                                  [m_sec, m_value['Soil Moisture Percent -2in (pct)']],
                                  [m_sec, m_value[snow_text]]], main_label=['tb', 'Tsoil', 'Tair'],
                                 figname='result_agu/result_2019/new/%d_estimate_%s.png' % (sno[1], 'tb'),
-                                vline=[[onset_es['t3_tbv'], onset_es['t3_tbh']],
+                                v_line=[[onset_es['t3_tbv'], onset_es['t3_tbh']],
                                        ['r:', 'r-'], ['t3_tbv', 't3_tbh']],
                                 x_unit='doy')
     return np.array(onset_out)
@@ -4780,7 +4782,7 @@ def in_situ_tsoil_sm_snd(year0=2016):
                                     [[ts[0], t_value], [ts[1], snow_value], [ts[2], sm_value]],
                                     main_label=['$T_{soil} (^oC)$', 'SND (cm)', 'VWC (%)'],
                                     figname='result_agu/test_insitu_zero%d.png' % sno0, h_line=[[0], [0], [':']],
-                                    vline=[[tsoil_zero_day, snd_zero_day], ['r-', 'r:'], ['t>0', 'snow=0']],
+                                    v_line=[[tsoil_zero_day, snd_zero_day], ['r-', 'r:'], ['t>0', 'snow=0']],
                                     x_unit='sec', y_lim=sm_lim, y_lim2=sm_lim)
     np.savetxt('./result_agu/result_2019/tsoil_snd_all.txt', zero_date_array, delimiter=',', fmt='%d')
     return 0
@@ -5950,7 +5952,7 @@ def ms_station(win=[0, 210], year0=2016, insitu=False):
                                     main_label=['npr', '$\sigma^0$ mid', '$\sigma^0$ all_c'],
                                     figname='ms_station_test%d' % sid[l0], x_unit='mmdd',
                                     main_syb=['k.', 'r--', 'b--', 'r--', 'b--'],
-                                    vline=[[], [], []])
+                                    v_line=[[], [], []])
         else:
             plot_funcs.plot_subplot([[t_smap, npr_smap],
                              [t_ascat, sigma0_correct_all], [t_sigma_all, v_sigma_c_all]],
@@ -6631,7 +6633,7 @@ def ms_station_new(sno_all=False, pixel_type='interest', detectors=False, site_p
                                          [sigma_conv_plot[0], sigma_conv_plot[1], sigma_conv_plot[2]],
                                          insitu_plot2[0:2]],
                                         main_label=['npr', '$\sigma^0$ mid', 'snow'],
-                                        figname='ms_pixel_test_%d_%d' % (sno0, smap_id), x_unit='doy', vline=v_line_local,
+                                        figname='ms_pixel_test_%d_%d' % (sno0, smap_id), x_unit='doy', v_line=v_line_local,
                                         vline_label=doy_all, h_line=[[-1], [0], [':']], y_lim=[[1], [[-20, -6]]]
                                         )
             # plotting 3*2
@@ -6678,7 +6680,7 @@ def ms_station_new(sno_all=False, pixel_type='interest', detectors=False, site_p
                                          [sigma_conv_bar_min[:, 1], sigma_conv_bar_min[:, 2]]],
                                         main_label=['npr', '$\sigma^0$ mid', '$\sigma^0$'],
                                         figname='ms_pixel_test_%d_%d' % (sno0, smap_id), x_unit='doy',
-                                        vline=v_line_local, vline_label=doy_all,
+                                        v_line=v_line_local, vline_label=doy_all,
                                         h_line2=[[0, 1, 2], [0.01, 1, -1], [':', ':', ':']],
                                         annotation_sigma0=[text_qa_w, text_qa_m],
                                         y_lim=[[0, 1, 2], [[0, 0.1], [-18, -4], [-18, -4]]],
@@ -6690,7 +6692,7 @@ def ms_station_new(sno_all=False, pixel_type='interest', detectors=False, site_p
                 plot_funcs.plot_subplot([npr_plot[:, valid0], sigma_plot],
                                         [npr_conv_plot, sigma_conv_plot],
                                         main_label=['npr', '$\sigma^0$ mid'],
-                                        figname='ms_pixel_test_%d_%d' % (sno0, smap_id), x_unit='doy', vline=v_line_local, vline_label=doy_all,
+                                        figname='ms_pixel_test_%d_%d' % (sno0, smap_id), x_unit='doy', v_line=v_line_local, vline_label=doy_all,
                                         h_line=[[-1], [0], [':']]
                                         )
 
@@ -7394,7 +7396,7 @@ def kernel_series_edges():
             continue
         ascat_note = id_array[0][i_pixel]
         plot_dict = dict()  # a dictionary save the
-        plot_dict['npr'], plot_dict['npr_conv'], plot_dict['ascat'] = [], [], []
+        plot_dict['npr'], plot_dict['ascat'] = [], []
         plot_dict['v_line'] = []
         # plot_dict['ascat_conv_melt'], plot_dict['ascat_conv_thaw'] = [], []
         plot_dict['npr_conv_bar'], plot_dict['ascat_conv_thaw_bar'], plot_dict['ascat_conv_melt_bar'] = [], [], []
@@ -7462,54 +7464,105 @@ def plot_KSE_melt():
     return 0
 
 
-def quick_process(station=False, single_check=False):
-    '''
+def get_in_situ_data(site_int_id, measurement='air', hr=14):
+    hr_pass =np.array([7, 14, 21])
+    hr_index = np.where(hr_pass==hr)[0][0]
+    in_si_tu_2016 = read_site.in_situ_series(site_int_id, in_situ_measure=measurement, y=2016)
+    in_si_tu_2017 = read_site.in_situ_series(site_int_id, in_situ_measure=measurement, y=2017)
+    in_si_tu_2018 = read_site.in_situ_series(site_int_id, in_situ_measure=measurement, y=2018)
+    in_si_tu_all = np.hstack((in_si_tu_2016[:, :, hr_index],
+                              in_si_tu_2017[:, :, hr_index],
+                              in_si_tu_2018[:, :, hr_index]))
+    return in_si_tu_all
 
+
+def check_possible_melt(convs, winter_std):
+    index = convs[1] < -3*winter_std
+    onset_secs = convs[0][index][0] if sum(index > 0) else -1
+    return onset_secs
+
+
+
+
+def quick_process(station=False, single_check=False, hour=14, snow_limit=[0, 150], air_window=7,
+                  smap_g=5, ascat_g=7):
+
+    """
+`   get the combining results. A table lists the detection of initials, main events, and ends, compared with above-zero
+    date
     :param station:
     :param single_check: quickly run this routine to plot for 1 single pixel
     :return:
-    '''
+    """
+
     # hystory(x=2)  # get the npz file of regional onset
     # hystory(x=1)  # save npz file of interested pixel
     #  prepare data 20190819
     # data_prepare_ascat(p0=['20170214', '20170215'], un_grid=False)
     # id_array = np.loadtxt('npz_indices_interest.txt', delimiter=',')
+    hr_pass = hour
     n125_n360 = np.load('n12_n36_array_4cols.npy').astype(int)
+    site_id_array = np.loadtxt('indice_interest_all_stations.txt', delimiter=',')
+    site_id_ascat = site_id_array[:, 0].astype(int)  # a ascat pixel which is coincide with a station
+    site_id_smap = site_id_array[:, 1].astype(int)
+    site_id_no = site_id_array[:, 2].astype(int)
     dict_year = dict()
-    year0 = 2017
+    yr0 = 2017
     id_pixel = 0
-    for year0 in [2016, 2017, 2018]:  # add 2016, 2018
-    #  N pixles, the corresponded ascat_id
-        sigma0_on_station = np.load('prepare_files/npz/ascat/ascat_interest_pixel_series_%d.npz' % (year0))
+    # read time series of sigma, smap. use year as keys, e.g., '2016'
+    for yr0 in [2016, 2017, 2018]:  # add 2016, 2018
+        # the sigma0 time series of interested ascat pixel
+        sigma0_on_station = np.load('prepare_files/npz/ascat/ascat_interest_pixel_series_%d.npz' % (yr0))
         id_array = sigma0_on_station['pixel_id']
-        smap_all_pixels = np.load('prepare_files/npz/smap/smap_all_series_A_%d.npz' % (year0))
-        # smap measurements of the interested pixels id = id_array[1]
+        smap_all_pixels = np.load('prepare_files/npz/smap/smap_all_series_A_%d.npz' % (yr0))
+        # smap measurements of the interested pixels (id = id_array[1])
         tbv_on_station, tbh_on_station, secs_smap_all_station = smap_all_pixels['cell_tb_v_aft'][id_array[1]], \
                                                           smap_all_pixels['cell_tb_h_aft'][id_array[1]], \
                                                           smap_all_pixels['cell_tb_time_seconds_aft.npy'][id_array[1]]
         series_npr_all_staions = (tbv_on_station-tbh_on_station)/(tbv_on_station+tbh_on_station)
         series_npr_all_staions[tbv_on_station < 100] = -999
-        dict_year[str(year0)] = [sigma0_on_station, series_npr_all_staions, secs_smap_all_station]
-
-    for i_pixel, smap_id0 in enumerate(id_array[1]):
-        if single_check:
-            if i_pixel > 1:
-                print 'check the pixel smap id %d' % smap_id0
+        dict_year[str(yr0)] = [sigma0_on_station, series_npr_all_staions, secs_smap_all_station]
+    # get results
+    results_table = np.zeros([id_array[1].size, 16])
+    loop_count = -1
+    for i_pixel, ascat_id_1d in enumerate(id_array[0]):
+        loop_count += 1
+        smap_id_1d = id_array[1][i_pixel]
+        if single_check:  # test one particular pixel
+            smap_id_1d = site_id_smap[site_id_no == single_check][0]
+            ascat_id_1d = site_id_ascat[site_id_no == single_check][0]
+            i_pixel = np.where(id_array[0] == ascat_id_1d)[0][0]
+            y_limit = [np.array([0, 1, 2]), np.array([[-0.02, 0.08], [-20, -6], snow_limit])]
+            y_limit_2 = [[0, 1], [[0, 0.05], [-3, 9]]]
+            print 'check the pixel smap id %d, ascat id %d' % (smap_id_1d, id_array[0][i_pixel])
+            if loop_count > 0:
                 return 0
-        ascat_id_1d = id_array[0][i_pixel]
-        plot_dict = dict()  # a dictionary save the
-        plot_dict['npr'], plot_dict['npr_conv'], plot_dict['ascat'] = [], [], []
+        else:
+            y_limit = [np.array([0, 1, 2]), np.array([[-0.02, 0.08], [-20, -6], snow_limit])]
+            y_limit_2 = [[0, 1], [[0, 0.05], [-3, 6]]]
+
+        # find corresponded station id, if applicable
+        if ascat_id_1d in site_id_ascat:
+            station_id = site_id_no[site_id_ascat==ascat_id_1d][0]
+            print "the site is", station_id
+            figname = 'ms_pixel_test_%d_%d' % (station_id, id_array[0][i_pixel])
+        else:
+            station_id = 947  # if no station in this pixel, set default station ID as 947
+            figname='ms_pixel_test_%d_%d' % (id_array[0][i_pixel], smap_id_1d)
+
+        plot_dict = dict()  # dictionary that saves time series, edge detection output, and in situ measurements
+        plot_dict['npr'], plot_dict['ascat'] = [], []
         plot_dict['v_line'] = []
         # plot_dict['ascat_conv_melt'], plot_dict['ascat_conv_thaw'] = [], []
         plot_dict['npr_conv_bar'], plot_dict['ascat_conv_thaw_bar'], plot_dict['ascat_conv_melt_bar'] = [], [], []
         # dictionary save the onset
         plot_dict['npr_onset'], plot_dict['ascat_onset'] = [], []
         plot_dict['onset0'], plot_dict['onset1'], plot_dict['onset2'] = [], [], []
-        for year0 in [2016, 2017, 2018]:  # 2016, 2017, 2018
+        for yr0 in [2016, 2017, 2018]:  # 2016, 2017, 2018
             # for each pixel, estimate the onset year by year
-            sigma0_one_year = dict_year[str(year0)][0]
-            npr_one_year = dict_year[str(year0)][1]
-            npr_secs_one_year = dict_year[str(year0)][2]
+            sigma0_one_year = dict_year[str(yr0)][0]
+            npr_one_year = dict_year[str(yr0)][1]
+            npr_secs_one_year = dict_year[str(yr0)][2]
             # saving npr and back scatter
             npr_array = np.array([npr_secs_one_year[i_pixel], npr_one_year[i_pixel]])  # npr t series
             valid_index = bxy.get_valid_index(npr_array, key_id=[0, 1], invalid=[-999])
@@ -7526,46 +7579,115 @@ def quick_process(station=False, single_check=False):
             valid_index = bxy.get_valid_index(ascat_array, key_id=[0, 1], invalid=[0])
             plot_dict['ascat'].append(ascat_array[:, valid_index])
             # detection
-            m_zone, su_zone, th_zone, win_zone = data_process.zone_intiation(year0)
+            m_zone, su_zone, th_zone, win_zone = data_process.zone_intiation(yr0)
             conv_npr_pixel, thaw_secs_npr, all_local_max, all_local_min,\
-            _ = data_process.smap_melt_initiation(npr_one_year[i_pixel], npr_secs_one_year[i_pixel],
-                                                           win_zone, su_zone, year0, gk=7, one_pixel_return=True)
+            _ = data_process.smap_melt_initiation(npr_one_year[i_pixel], npr_secs_one_year[i_pixel], win_zone,
+                                                  su_zone, yr0,
+                                                  gk=smap_g, one_pixel_return=True)
             plot_dict['npr_onset'].append(thaw_secs_npr)
             plot_dict['npr_conv_bar'].append(all_local_max[:, [1, 2]].T)
-            convolution_series, convolution_event = data_process.two_series_sigma_process\
-                (0, sigma0_one_year['sigma0_trip_aft'][i_pixel], sigma0_one_year['inc_angle_trip_aft'][i_pixel],
-                 sigma0_one_year['utc_line_nodes'][i_pixel],
-                 thaw_secs_npr, m_zone, th_zone, win_zone, su_zone,
-                 7, [7, 7, 7], False,  save_path='prepare_files/npy_ascat_one_station', is_return=True)
+            # ascat detection
+            ascat_pass_time = sigma0_one_year['utc_line_nodes'][i_pixel]
+            ascat_pass_hr = bxy.time_getlocaltime(ascat_pass_time, ref_time=[2000, 1, 1, 0])[-1]
+            pass_index = (ascat_pass_time > 0)
+            # pass_index = (ascat_pass_time > 0) & (ascat_pass_hr > 12) & (ascat_pass_hr < 20)
+            convolution_series, convolution_event = \
+                data_process.two_series_sigma_process(0,
+                                                      sigma0_one_year['sigma0_trip_aft'][i_pixel][pass_index],
+                                                      sigma0_one_year['inc_angle_trip_aft'][i_pixel][pass_index],
+                                                      sigma0_one_year['utc_line_nodes'][i_pixel][pass_index],
+                                                      thaw_secs_npr, m_zone, th_zone, win_zone, su_zone,
+                                                      7, [7, 7, 7], False,
+                                                      save_path='prepare_files/npy_ascat_one_station', is_return=True)
             plot_dict['ascat_conv_thaw_bar'].append(convolution_event[0][:, [1, 2]].T)
             plot_dict['ascat_conv_melt_bar'].append(convolution_event[1][:, [1, 2]].T)
             combine_result = np.load('prepare_files/npy_ascat_one_station/file0.npy')
-            plot_dict['onset0'].append(thaw_secs_npr), plot_dict['onset1'].append(combine_result[11])
+            plot_dict['onset0'].append(thaw_secs_npr)
+            # re consider the melt events, if the local minimum is significantly different from winter conv std
+            melt_events_minimum = combine_result[33:]
+            melt_evnets_time = combine_result[25:33]
+            conv_std_winter = combine_result[22]
+            onset_secs = check_possible_melt(np.array([melt_evnets_time, melt_events_minimum]), conv_std_winter)
+            index_events = (melt_events_minimum < -1) & (melt_events_minimum > -999)
+            strong_melt_secs = combine_result[25:33][index_events][0] if sum(index_events) > 0 else onset_secs
+            if strong_melt_secs == -1:
+                strong_melt_secs = combine_result[11]
+
+            plot_dict['onset1'].append(strong_melt_secs)
             plot_dict['onset2'].append(combine_result[14])
         # plotting
-        # prepare the main axis and second axis
-        second_axis = [
-                        np.hstack((plot_dict['npr_conv_bar'][0],
-                                   plot_dict['npr_conv_bar'][1],
-                                   plot_dict['npr_conv_bar'][2])),
-                        np.hstack((plot_dict['ascat_conv_thaw_bar'][0],
-                                   plot_dict['ascat_conv_thaw_bar'][1],
-                                   plot_dict['ascat_conv_melt_bar'][2])),
-                        np.hstack((plot_dict['ascat_conv_melt_bar'][0],
-                                   plot_dict['ascat_conv_melt_bar'][1],
-                                   plot_dict['ascat_conv_melt_bar'][2])),
-                      ]
         npr_plot = np.hstack((plot_dict['npr'][0], plot_dict['npr'][1], plot_dict['npr'][2]))
         ascat_plot = np.hstack((plot_dict['ascat'][0], plot_dict['ascat'][1], plot_dict['ascat'][2]))
+        # ascat extraction
+        ascat_pass_time = ascat_plot[0]
+        ascat_pass_time_tuple = bxy.time_getlocaltime(ascat_pass_time, ref_time=[2000, 1, 1, 0])
+        ascat_pass_hr, ascat_pass_doy = ascat_pass_time_tuple[-1], ascat_pass_time_tuple[3]
+        # pass_index = ~np.isnan(ascat_pass_time)
+        # # pass_index = (ascat_pass_time > 0) & (ascat_pass_hr > 12) & (ascat_pass_hr < 24)
+        # # pass_index2 = (ascat_pass_time > 0) & ((ascat_pass_doy < 60) | (ascat_pass_doy > 180))
+        # # pass_index = pass_index | pass_index2
+        # ascat_plot = ascat_plot[:, pass_index]
         vline_secs = plot_dict['onset0']+plot_dict['onset1']+plot_dict['onset2']
-        site_id_array = np.loadtxt('indice_interest_all_stations.txt', delimiter=',')
-        site_id_ascat = site_id_array[:, 0].astype(int)
-        site_id_no = site_id_array[:, 2].astype(int)
-        if ascat_id_1d in site_id_ascat:
-            print "the site is", site_id_no[site_id_ascat==ascat_id_1d]
-            figname = 'ms_pixel_test_%d_%d' % (id_array[0][i_pixel], site_id_no[site_id_ascat==ascat_id_1d][0])
-        else:
-            figname='ms_pixel_test_%d_%d' % (id_array[0][i_pixel], smap_id0)
+
+        # insitu data for 3 years
+        plot_dict['air_above_0'], plot_dict['air_temperature'], plot_dict['snow'], plot_dict['snow_depth_drop'] \
+            = [], [], [], []
+        for yr0 in [2016, 2017, 2018]:
+            hr_list = np.array([5, 7, 12, 14, 18, 21])
+            hr_index = np.where(hr_list == hr_pass)[0][0]
+            swe_one_year, swe_label = read_site.in_situ_series(station_id, y=yr0, hr=np.array([0]),
+                                                               in_situ_measure='snow')
+            times_one_day = swe_one_year.shape[2]
+            swe_2d_array = swe_one_year[:, :, 0]
+            valid_index = swe_2d_array[1, :] > -99
+            swe_2d_array = swe_2d_array[:, valid_index]
+            swe_difference = np.array([swe_2d_array[0, 1:], -1*np.diff(swe_2d_array[1])])
+            if swe_difference.size < 1:
+                swe_decrease_time = bxy.get_total_sec('%d0301' % yr0)
+            else:
+                swe_decrease_time = data_process.zero_find(swe_difference, w=3, th=3)
+            plot_dict['snow_depth_drop'].append(swe_decrease_time)
+            t_air_one_year, t_air_label = read_site.in_situ_series(station_id, y=yr0, hr=hr_list)
+            # swe_value, swe_date = read_site.read_measurements(site_no, 'snow', np.arange(366, 366+365), hr=0)
+            # swe_date-=365
+            time_above_zero_list = np.array([])
+            time_above_zero_list = [data_process.zero_find(t_air_one_year[:, :, i], w=air_window, th=-0.1)
+                                    for i in range(0, len(hr_list))]  # set temperature window as 7 days
+            if time_above_zero_list[hr_index] == 1:
+                time_above_zero_list[hr_index] = bxy.get_total_sec('%d0101' % yr0)
+            plot_dict['air_above_0'].append(time_above_zero_list[hr_index])
+            plot_dict['air_temperature'].append(t_air_one_year[:, :, hr_index])
+            plot_dict['snow'].append(swe_one_year[:, :, 0])
+        # each year save the plot dict
+        h50 = h5py.File('prepare_files/npz/station_measurement/station_plot_%d.h5' % station_id, 'a')
+        for key0 in plot_dict.keys():
+            print 'save the ', key0
+            if key0 in h50.keys():
+                del h50[key0]
+                h50[key0] = plot_dict[key0]  # delete and update
+                # dset = h50.create_dataset(key0, data=resampled_ascat0[key0].data)
+            else:
+                h50[key0] = plot_dict[key0]
+        # np.savez('prepare_files/npz/station_measurement/station_plot_%d.npz' % station_id, **plot_dict)
+        air_temperature = np.hstack((plot_dict['air_temperature'][0],
+                                     plot_dict['air_temperature'][1],
+                                     plot_dict['air_temperature'][2]))
+        air_temperature[air_temperature<-60] = np.nan
+        # get discrete temperature
+        discrete_temperature = air_temperature.copy()
+        # discrete_temperature[1] = 5 * (discrete_temperature[1].astype(int)/5)
+        # discrete_temperature[1][discrete_temperature[1] < -15] = -20
+        below_0_ind = discrete_temperature[1] < 0
+        above_5_ind = discrete_temperature[1] > 5
+        between_05_ind = (0 < discrete_temperature[1]) & (discrete_temperature[1] < 5)
+        discrete_temperature[1][above_5_ind] = 10
+        discrete_temperature[1][between_05_ind] = 5
+        discrete_temperature[1][below_0_ind] = -10
+        swe = np.hstack((plot_dict['snow'][0],
+                         plot_dict['snow'][1],
+                         plot_dict['snow'][2]))
+        #
+
         # # 3 subs
         # plot_funcs.plot_subplot([npr_plot, ascat_plot, ascat_plot],
         #                         second_axis,
@@ -7595,25 +7717,46 @@ def quick_process(station=False, single_check=False):
                                    plot_dict['npr_conv_bar'][1],
                                    plot_dict['npr_conv_bar'][2])),
                         ascat_bars,
+
                       ]
-        plot_funcs.plot_subplot([npr_plot, ascat_plot],
+        # makes the DOY labels
+        label_numober = bxy.time_getlocaltime(vline_secs, ref_time=[2000, 1, 1, 0])[-2]
+        label_str = ['DOY (%d, %d, %d)' % (label_numober[i], label_numober[j], label_numober[k]) for i, j, k
+                     in zip([0, 1, 2], [3, 4, 5], [6, 7, 8])]
+        if swe_label != 'Snow Water Equivalent (mm)':
+            y_limit[1][-1] /= 3
+
+        plot_funcs.plot_subplot([npr_plot, ascat_plot, swe],
                                 second_axis,
-                                main_label=['npr', '$\sigma^0$ mid', '$\sigma^0$'],
+                                main_label=['NPR', '$\sigma^0$ (dB)', swe_label],
                                 figname=figname, x_unit='doy',
-                                vline=[vline_secs,
+                                v_line=[vline_secs,
                                        ['k-', 'k-', 'k-', 'r-', 'r-', 'r-', 'b-', 'b-', 'b-'],
                                        ['p', 'p', 'p', 'n', 'n', 'n', 'p1', 'p1', 'p1']],
-                                vline_label=bxy.time_getlocaltime(vline_secs, ref_time=[2000, 1, 1, 0])[-2],
+                                v_line2=[[2, 2, 2, 2, 2, 2],
+                                         plot_dict['air_above_0'] + plot_dict['snow_depth_drop'],
+                                         [['k', '--'], ['k', '--'], ['k', '--'],
+                                          ['r', '--'], ['r', '--'], ['r', '--']]],
+                                vline_label=label_str,
+                                h_line=[[2], [0], ['--']],
                                 h_line2=[[0, 1, 1, 1], [0.01, 1, -1, 0], [':', ':', ':', '--']],
                                 # annotation_sigma0=[text_qa_w, text_qa_m],
                                 # x_lim=[bxy.get_total_sec('20160101'), bxy.get_total_sec('20181230')],
-                                y_lim=[[0, 1], [[0, 0.1], [-18, -4]]],
-                                y_lim2=[[0, 1], [[0, 0.05], [-4, 15]]],
-                                type_y2='bar'
+                                y_lim=y_limit, y_lim2=y_limit_2, type_y2='bar',
+                                color_bar=[discrete_temperature, swe]
                                 )
+        # save in table
+        results_table[loop_count, 0:9] = vline_secs
+        results_table[loop_count, 9:12] = plot_dict['air_above_0']
+        results_table[loop_count, 12:15] = plot_dict['snow_depth_drop']
+        results_table[loop_count, 15] = station_id
+
         if station:
             site_id = 947
             site_measure0 = in_situ_series(site_id, air_measure='air')
+    # save detection results
+    np.savetxt('combination_detect_results_air_temperature.txt', results_table.astype(int), fmt='%d', delimiter=',',
+                   header='0-3: NPR, 3-6: Melt, 6-9: End, 9-12: Above 0 degC, 12-15: snow depth drop')
     # plotting pixel by pixel
     #     npr_plot = np.array([pixel_2016_new[0][0][0], pixel_2016_new[0][0][1],
     #                          pixel_2017_new[0][0][0], pixel_2017_new[0][0][1],
@@ -7621,8 +7764,72 @@ def quick_process(station=False, single_check=False):
     return 0
 
 
+def detection_result(tab_name):
+    result_table = np.loadtxt(tab_name, delimiter=',').astype(int)
+    table_value_npr = result_table[:, 0:3].ravel()
+    t_tuple_npr = bxy.time_getlocaltime(result_table[:, 0:3].ravel())
+    t_tuple_ascat = bxy.time_getlocaltime(result_table[:, 3:9].ravel(), ref_time=[2000, 1, 1, 0])
+    t_tuple_station = bxy.time_getlocaltime(result_table[:, 9:12].ravel(), ref_time=[2000, 1, 1, 0], t_source='US/Alaska')
+    new_table = np.hstack((t_tuple_npr[3].reshape(-1, 3),
+                           t_tuple_ascat[3].reshape(-1, 6),
+                           t_tuple_station[3].reshape(-1, 3),
+                           result_table[:, -1].reshape(-1, 1)))
+    np.savetxt('combining_result_for_csv.csv', new_table, delimiter=',', fmt='%d')
+
+
+def air_temperature_onset(station_id, hr_pass=14):
+    onset_list = []
+    for yr0 in [2016, 2017, 2018]:
+            hr_list = np.array([5, 7, 9, 14, 18, 21])
+            hr_index = np.where(hr_list == hr_pass)[0][0]
+            swe_one_year = read_site.in_situ_series(station_id, y=yr0, hr=np.array([0]), in_situ_measure='snow')
+            t_air_one_year = read_site.in_situ_series(station_id, y=yr0, hr=hr_list)
+            # swe_value, swe_date = read_site.read_measurements(site_no, 'snow', np.arange(366, 366+365), hr=0)
+            # swe_date-=365
+            time_above_zero_list = [data_process.zero_find(t_air_one_year[:, :, i], w=7, th=-0.1)
+                                    for i in range(0, len(hr_list))]
+            onset_list.append(time_above_zero_list[hr_index])
+    return np.array(onset_list)
+
+
+def call_air_onset():
+    id_int = np.array([947, 948, 949, 950, 957, 958, 962, 968,
+                       1003, 1055, 1062, 1072, 1089, 1090, 1091, 1094,
+                       1103, 1175, 1177, 1182, 1183,
+                       1267, 1268, 2065, 2081, 2210, 2211, 2212, 2213])
+    onset_secs = np.zeros([id_int.size, 3])
+    for i0, id0 in enumerate(id_int):
+        air_onsets_1_station = air_temperature_onset(id0, hr_pass=14)
+        onset_secs[i0] = air_onsets_1_station
+    np.savetxt('test_air_onset.txt', onset_secs.astype(int), delimiter=',')
+    onset_doy = bxy.time_getlocaltime(onset_secs.ravel(), ref_time=[2000, 1, 1, 0], t_source='US/Alaska')[3]
+    np.savetxt('test_air_onset_doy.txt', onset_doy.reshape(-1, 3).astype(int), delimiter=',')
+    return 0
+
+
+
 if __name__ == "__main__":
-    quick_process(single_check=True)
+    # discuss_combining(site_nos=['2213'])
+    # quit0()
+    # quick_process(single_check=948, hour=14, snow_limit=[0, 250], air_window=7)
+    quick_process(hour=12, snow_limit=[0, 600], air_window=7, smap_g=3)
+    detection_result('combination_detect_results_air_temperature.txt')
+    quit0()
+    quick_process(hour=14, snow_limit=[0, 600], air_window=7, smap_g=3)
+    quit0()
+    # quick_process(single_check=947, hour=14, snow_limit=[0, 600], air_window=7, smap_g=3)
+    # quick_process(single_check=2213, hour=14, snow_limit=[0, 100], air_window=7)
+    quit0()
+    call_air_onset()
+    quit0()
+    # quick_process()  # single_check=1267
+    # quick_process(, hour=14)
+    quick_process(single_check=2213, hour=14)
+    quit0()
+    detection_result('combination_detect_results_air_temperature.txt')
+    quit0()
+    quick_process(single_check=1103, hour=14)
+    quick_process(single_check=1072, hour=14)
     hystory(x=-1)
     # hystory(x=1)
     # quick_process()
@@ -8397,7 +8604,7 @@ if __name__ == "__main__":
                              [s_secs, s_measurements[:, 0, i_no, 1].ravel(), s_secs, pass_hr]],
                             [[air_sec, air_measure], [air_sec, air_measure]],
                             main_label=['SND (mm) vs %s' % snow_label, 'SWE (mm) vs %s' % snow_label],
-                            x_unit='sec', vline=[[snd_50-4*3600*24], ['r-'], ['snow free']],
+                            x_unit='sec', v_line=[[snd_50-4*3600*24], ['r-'], ['snow free']],
                             figname='result_08_01/2019_snow_%s_.png' % (site_no),
                             main_syb = ['k-', 'r-', 'b-'])
         snowmelt_amsr2.append(snd_50-4*3600*24)
