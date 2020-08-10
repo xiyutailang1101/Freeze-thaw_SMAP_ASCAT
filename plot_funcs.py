@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.mlab as mlab
 import datetime
-from matplotlib.ticker import MultipleLocator, FormatStrFormatter, MaxNLocator
+from matplotlib.ticker import MultipleLocator, FormatStrFormatter, MaxNLocator, AutoMinorLocator
 from sys import exit as quit0
 import os
 import h5py
@@ -16,6 +16,8 @@ import data_process
 from matplotlib import gridspec
 from matplotlib.colors import LinearSegmentedColormap, colorConverter
 from matplotlib.legend_handler import HandlerLine2D
+from matplotlib import colors, cm, colorbar
+
 
 def pltyy(t1, s1, fname, label_y1, t2=None, s2=None, label_y2=None, symbol=['bo', 'r+'],
           label_x='Days of year', ylim=None, ylim2=None, clip_on=True, handle=[], nbins2=None,
@@ -75,7 +77,7 @@ def pltyy(t1, s1, fname, label_y1, t2=None, s2=None, label_y2=None, symbol=['bo'
     plt.savefig(fname + '.png', dpi=120)
     return ax1, ax2, plot_lines_list
 
-def plt_hist(x, date):
+def plt_hist(x):
     """
     Plot hist of x
     """
@@ -83,7 +85,7 @@ def plt_hist(x, date):
     # x = mu + sigma*np.random.randn(10000)
 
     # the histogram of the data
-    n, bins, patches = plt.hist(x, 50, normed=True, facecolor='green', alpha=0.75)
+    n, bins, patches = plt.hist(x, normed=True, facecolor='green', alpha=0.75)
     # add a 'best fit' line
     # y = mlab.normpdf(bins, mu, sigma)
     # l = plt.plot(bins, y, 'r--', linewidth=1)
@@ -93,7 +95,7 @@ def plt_hist(x, date):
     # plt.axis([40, 160, 0, 0.03])
     # plt.grid(True)
     plt.axis([0, 200, 0, 0.3])
-    plt.savefig('Th_%_' + date + '.png', dpi=120)
+    plt.savefig('Test_winter_mean_classify', dpi=120)
     plt.close()
     return 0
 
@@ -592,17 +594,18 @@ def quick_plot(x, y, figname='test_quick.png', lsymbol='o'):
     plt.close()
 
 
-def plot_subplot(main_axe, second_axe, main_label=[], vline=[], vline_label=False, line_type_main='k.',
+def plot_subplot(main_axe, second_axe, main_label=[], v_line=[], v_line2=[], vline_label=False,
+                 line_type_main=['k.', 'k.', 'k-'],
                  figname='result_08_01/test_plot_subplot.png', text='test', x_unit='normal',
                  h_line=[],  red_dots=False,  x_lim=False, y_lim=False, annote=[],
                  h_line2=[], symbol2='g-', annotation_sigma0=[], y_lim2=False, type_y2='line',
                  main_check=-1, time_fmt='%Y%j', fills=[-9999, -999, -99],
-                 main_syb = ['k.', 'b.', 'r--', 'k--', 'r--', 'b--']):
+                 color_bar=False):
     '''
     :param main_axe: each elements in formats of [t0, v0, t1, v1, t2, v2]
     :param second_axe:
     :param main_label:
-    :param vline: list, 0: the value, 1: the style which includes 'color/shape', 2: labels
+    :param v_line: list, 0: the value, 1: the style which includes 'color/shape', 2: labels
     :param figname:
     :param annote:
     :param annotation_sigma0: the standard deviation and mean value of time series
@@ -653,26 +656,26 @@ def plot_subplot(main_axe, second_axe, main_label=[], vline=[], vline_label=Fals
             for unvalid_value in fills:
                 y01[y01 == unvalid_value] = np.nan
             x01[x01 < 0] = np.nan
-            ax0.plot(x01, y01, line_type_main)
+            ax0.plot(x01, y01, line_type_main[i0])
             i_main += 1
             # check time
             t_ref = bxy.get_total_sec('20150101')
             if sum(x01[x01>0] < t_ref) > 0:
                 print 'the unvalid date of y axis %d has not been removed!' % i0
         ax0.set_ylabel(main_label[i0])
-        if y_lim is not False:
-            for axis_id in y_lim[0]:
-                    if i0 == axis_id:
-                        ax0.set_ylim(y_lim[1][y_lim[0].index(axis_id)])
+        # if y_lim is not False:
+        #     for axis_id in y_lim[0]:
+        #             if i0 == axis_id:
+        #                 ax0.set_ylim(y_lim[1][y_lim[0]==axis_id])
         if x_lim is not False:
             ax0.set_xlim(x_lim)
         if i0 < len(second_axe):
-            if len(vline) > 0:
+            if len(v_line) > 0:
                 # ax1.text((insitu_frz*1.0-250)/x_length, y_text, 'DOY '+str(int(insitu_frz)), transform=ax1.transAxes,
                 #          va='top', ha='center', size=16)
                 # ax0.axvspan(vline[0][i0], vline[0][-1], color=(0.8, 0.8, 0.8), alpha=0.8, lw=0)
                 i_vline = 0
-                for vl0, st0 in zip(vline[0], vline[1]):
+                for vl0, st0 in zip(v_line[0], v_line[1]):
 
                     if vl0>0:
                         pause = -1
@@ -681,21 +684,34 @@ def plot_subplot(main_axe, second_axe, main_label=[], vline=[], vline_label=Fals
                             vline_obj_list.append(vline_obj)
                         # ax0.axvspan(vl0, vline[0][-1], color=(0.8, 0.8, 0.8), alpha=0.5, lw=0)
                     i_vline += 1
-                if i0 < 1:
-                    plt.legend(vline_obj_list, vline[2],
-                               bbox_to_anchor=[0., 3.42, 1., .102], loc=3, ncol=2, mode='expand', borderaxespad=0.,
-                               prop={'size': 12})
+                # subplot add legend for vertical lines
+                # if i0 < 1:
+                #     plt.legend(vline_obj_list, vline[2],
+                #                bbox_to_anchor=[0., 3.42, 1., .102], loc=3, ncol=2, mode='expand', borderaxespad=0.,
+                #                prop={'size': 12})
                     no0 = 1
+            # old label format for onsets. v line_label format: (ons0_2016, ons0_2017, ons0_2018, ons1_2016, ...)
+            # v line [0] is the x coordinates in unit of seconds
+            # if vline_label is not False:
+            #     if i0 < 1:
+            #         i_t = 0
+            #         for sec0, lable0 in zip(vline[0], vline_label):
+            #             x_text = sec0
+            #             # location y of label: upmost * ratio, ratio = (1 - 0.1 * (i_t/number of groups)
+            #             y_text = (y_lim[1][i0][1]*0.95) * (1 - 0.1*(i_t/3))  # get
+            #             # print x_text, y_text
+            #             ax0.text(x_text, y_text, str(lable0), va='top', ha='center', size=16)
+            #             i_t += 1
+            # new formatted label DOY (onset0, onset1, onset2)
             if vline_label is not False:
                 if i0 < 1:
-                    i_t = 0
-                    for sec0, lable0 in zip(vline[0], vline_label):
+                    # i_t = 0
+                    for sec0, label0 in zip(v_line[0], vline_label):
                         x_text = sec0
                         # location y of label: upmost * ratio, ratio = (1 - 0.1 * (i_t/number of groups)
-                        y_text = (y_lim[1][i0][1]*0.95) * (1 - 0.1*(i_t/3))  # get
+                        y_text = (y_lim[1][i0][1]*1.2)  # get
                         # print x_text, y_text
-                        ax0.text(x_text, y_text, 'DOY '+str(lable0), va='top', ha='center', size=16)
-                        i_t += 1
+                        ax0.text(x_text, y_text, label0, va='top', ha='center', size=16)
 
             # second axis
             ax0_0 = ax0.twinx()
@@ -739,6 +755,10 @@ def plot_subplot(main_axe, second_axe, main_label=[], vline=[], vline_label=Fals
                     if i0 == axis_id:
                         ax0_0.set_ylim(y_lim2[1][y_lim2[0].index(axis_id)])
 
+    if y_lim is not False:
+        for axis_id in y_lim[0]:
+            axs[axis_id].set_ylim(y_lim[1][axis_id])
+                # ax0.set_ylim(y_lim[1][y_lim[0]==axis_id])
     if red_dots is not False:
         # ax0.set_title(text)
         axs[red_dots[2]].plot(red_dots[0], red_dots[1], 'r.')
@@ -759,33 +779,58 @@ def plot_subplot(main_axe, second_axe, main_label=[], vline=[], vline_label=Fals
             y0 = [np.nanmin(sigma0s[1]), np.nanmin(sigma0s[3]), np.nanmin(sigma0s[5])]
             for i0 in range(0, len(y0)):
                 axs[1].text(x0[i0], y0[i0], annote0[i0], va='top', ha='center', size=16)
-        # ax0.text(x_text, y_text, 'DOY '+str(lable0), va='top', ha='center', size=16)
-        # ax.text(0.02, 0.95, text4[i], transform=ax.transAxes, va='top', fontsize=16)
-    for i0, ax0 in enumerate(axs):
-        if i0 == main_check:  # plot outliers of a given main axes variable
-            ## first crit, the outlier greater than double stds.
-            # diff = np.diff(main_axe[i0][1])
-            # d_std = np.nanstd(diff)
-            # crit = np.where(np.abs(diff) > 2 * d_std)
-            # crit2 = [ix +1 for ix in crit[0]]
-            # new crit, sigma greater than -13.5
-            x_t0, y_t0 = main_axe[i0][0], main_axe[i0][1]
-            p_sp = [bxy.get_total_sec(str0, fmt=time_fmt, reftime=[2000, 1, 1, 0])
-                    for str0 in ['2015308', '2016130', '2016288', '2017030']]
-            th_high = -13.3
-            period_index = ((x_t0 > p_sp[0]) & (x_t0 < p_sp[1])) | ((x_t0 > p_sp[2]) & (x_t0 < p_sp[3]))
-            crit2 = (y_t0 > th_high) & (period_index)
-            # ax0.plot(main_axe[i0][0][crit2], main_axe[i0][1][crit2], 'r.')
-            # if i0+1 < n:
-            #     axs[i0+1].plot(main_axe[i0+1][0][crit2], main_axe[i0+1][1][crit2], 'r.')
-            # check wether the dropping of sigma is outlier
-            p_sp_thaw = [bxy.get_total_sec(str0, fmt=time_fmt, reftime=[2000, 1, 1, 0])
-                         for str0 in ['2016130', '2016132']]
-            p_thaw_index = (x_t0 > p_sp_thaw[0]) & (x_t0 < p_sp_thaw[1])
-            # ax0.plot(main_axe[i0][0][p_thaw_index], main_axe[i0][1][p_thaw_index], 'rs')
-            if i0+1 < n:
-                axs[i0+1].plot(main_axe[i0+1][0][p_thaw_index], main_axe[i0+1][1][p_thaw_index], 'rs')
+
+    # highlight markers
+    # for i0, ax0 in enumerate(axs):
+    #     if i0 == main_check:  # plot outliers of a given main axes variable
+    #         ## first crit, the outlier greater than double stds.
+    #         # diff = np.diff(main_axe[i0][1])
+    #         # d_std = np.nanstd(diff)
+    #         # crit = np.where(np.abs(diff) > 2 * d_std)
+    #         # crit2 = [ix +1 for ix in crit[0]]
+    #         # new crit, sigma greater than -13.5
+    #         x_t0, y_t0 = main_axe[i0][0], main_axe[i0][1]
+    #         p_sp = [bxy.get_total_sec(str0, fmt=time_fmt, reftime=[2000, 1, 1, 0])
+    #                 for str0 in ['2015308', '2016130', '2016288', '2017030']]
+    #         th_high = -13.3
+    #         period_index = ((x_t0 > p_sp[0]) & (x_t0 < p_sp[1])) | ((x_t0 > p_sp[2]) & (x_t0 < p_sp[3]))
+    #         crit2 = (y_t0 > th_high) & (period_index)
+    #         # ax0.plot(main_axe[i0][0][crit2], main_axe[i0][1][crit2], 'r.')
+    #         # if i0+1 < n:
+    #         #     axs[i0+1].plot(main_axe[i0+1][0][crit2], main_axe[i0+1][1][crit2], 'r.')
+    #         # check wether the dropping of sigma is outlier
+    #         p_sp_thaw = [bxy.get_total_sec(str0, fmt=time_fmt, reftime=[2000, 1, 1, 0])
+    #                      for str0 in ['2016130', '2016132']]
+    #         p_thaw_index = (x_t0 > p_sp_thaw[0]) & (x_t0 < p_sp_thaw[1])
+    #         # ax0.plot(main_axe[i0][0][p_thaw_index], main_axe[i0][1][p_thaw_index], 'rs')
+    #         if i0+1 < n:
+    #             axs[i0+1].plot(main_axe[i0+1][0][p_thaw_index], main_axe[i0+1][1][p_thaw_index], 'rs')
+    if color_bar is not False:
+        # set color for air temperature
+        # color_bar: 0: time and value of air, 1 time and value of swe
+        air_temp = color_bar[0][1]
+        # print 'the discrete air temperatures are: ', np.unique(air_temp)
+        color_min = min(air_temp[air_temp >= -10].min(), -10)
+        color_max = max(air_temp[air_temp >= 10].min(), 10)
+        normalize = colors.Normalize(vmin=color_min, vmax=color_max)
+        cmap = plt.get_cmap('coolwarm')
+        swe_date = color_bar[1][0]
+        swe_value = color_bar[1][1]
+        k = 1
+        for j in range(swe_date.size/k-1):
+            axs[2].fill_between([swe_date[j], swe_date[j+k]], [swe_value[j], swe_value[j+k]],
+                               color=cmap(normalize(air_temp[j])))
+    # cax = fig0.add_axes([0.12, 0.8, 0.5, 0.05])
+    # cb2 = colorbar.ColorbarBase(cax, cmap=cmap, norm=normalize, ticks=[-10, -5, 0, 5, 10, 15], orientation='horizontal')
+    # cb2.set_label('Air temperature ($^\circ$C)', labelpad=-50)
+
+    num_twin_axis, num_axis = len(ax_twins), len(axs)
     # set ticks
+    # ax0.xaxis.set_major_locator(MultipleLocator(40))
+    plt.locator_params(axis='x', nbins=52)
+    # ax0.tick_params(which='major', width=2.00)
+    # ax0.xaxis.set_minor_locator(AutoMinorLocator(9))
+    # ax0.tick_params(which='minor', width=1.50)
     ax0.ticklabel_format(style='plain')
     if x_unit != 'normal':
         plt.draw()
@@ -800,22 +845,87 @@ def plot_subplot(main_axe, second_axe, main_label=[], vline=[], vline_label=Fals
                 x_tick0 = '%d/%d\n%d:00' % (sec2time[1], sec2time[2], sec2time[-1])
                 new_labels.append(x_tick0)
             elif x_unit=='doy':
-                x_tick0 = '%d-%d\n%d:00' % (sec2time[0], sec2time[3], sec2time[-1])
+                # x_tick0 = '%d-%d\n%d:00' % (sec2time[0], sec2time[3], sec2time[-1])
+                x_tick0 = '%d' % (sec2time[3])
                 new_labels.append(x_tick0)
             elif x_unit=='mmdd':
                 x_tick0 = '%d/%d/%d\n%d:00' % (sec2time[0], sec2time[1], sec2time[2], sec2time[-1])
                 new_labels.append(x_tick0)
-        ax0.set_xticklabels(new_labels)
+        ax0.set_xticklabels(new_labels, rotation='vertical')
+        print 'number of x ticks: ', len(new_labels)
+        # plt.xticks(new_labels, rotation='vertical')
+        # ax0.xticks(rotation=90)
+        # plt.xticks(rotation=75)
     # # h_line or v_line
     if len(h_line2) > 0:
         for ax_no, hline_x, ls in zip(h_line2[0], h_line2[1], h_line2[2]):
+            print 'add h_line to subplots %d, twin axis' % ax_no
+            if ax_no > num_twin_axis - 1:
+                print 'the subplots number %d is out of number of subplots: %d, twin axis' % (ax_no, num_twin_axis)
             ax_twins[ax_no].axhline(y=hline_x, linestyle=ls)
     if len(h_line) > 0:
         for ax_no, hline_x, ls in zip(h_line[0], h_line[1], h_line[2]):
+            print 'add h_line to subplots %d, main axis' % ax_no
+            if ax_no > num_axis - 1:
+                print 'the subplots number %d is out of number of subplots %d, main axis' % (ax_no, num_twin_axis)
             axs[ax_no].axhline(y=hline_x, linestyle=ls)
+    if len(v_line2) > 0:
+        for ax_no, v0, ls in zip(v_line2[0], v_line2[1], v_line2[2]):
+            # print 'add v_line to subplots %d, main axis' % ax_no
+            if ax_no > num_axis - 1:
+                print 'the subplots number %d is out of number of subplots %d, main axis' % (ax_no, num_twin_axis)
+            axs[ax_no].axvline(x=v0, color=ls[0], ls=ls[1])
+
     plt.savefig(figname)
     plt.close()
     del main_label[0: ]
+    return 0
+
+
+def plot_convolution(series, kernel, output, figname='npr_method.png', mode='npr'):
+    '''
+    :param series: time unit: day
+    :param kernel:
+    :param output:
+    :return:
+    '''
+    # ax0 = plt.subplot2grid((2, 6), (0, 0))
+    # # fig0, axs = plt.subplots(2, sharex=True, figsize=(8, 5.5))
+    # ax0.plot(kernel[0], kernel[1])  # kernel[0], kernel[1]
+    # axs[1].plot(kernel[0], kernel[1])
+    # axs_kernel = axs[0].twinx()
+    params = {'mathtext.default': 'regular'}
+    plt.rcParams.update(params)
+    ax1 = plt.subplot2grid((2, 6), (0, 0), colspan=6)
+    # ax0 = ax1.twinx()
+    ax2 = plt.subplot2grid((2, 6), (1, 0), colspan=6, sharex=ax1)
+    ax1.plot(series[0], series[1], 'k-o', markersize=3)
+    ax1.set_xlim([30, 180])
+    # ax1.set_ylim([-1, 10])
+    ax1.plot(kernel[0], kernel[1], 'k-')
+    ax1.yaxis.set_major_locator(MaxNLocator(4))
+
+    ax2.bar(output[0], output[1], color='k')
+    ax2.set_ylim([-3, 3])
+    ax2.axhline(y=0, linestyle='--', c='k')
+
+    if mode == 'npr':
+    # npr
+        ax1.set_ylabel('NPR (10$^{-2}$)')
+        ax2.set_ylabel('$E_{NPR} (10^{-2})$')
+        ax2.axhline(y=1, linestyle=':', c='k')
+    elif mode == 'sigma0':
+    # sigma0
+        ax1.set_ylabel('$\sigma^0 (dB)$')
+        ax2.set_ylabel('$E_{\sigma^0} (dB)$')
+        ax2.axhline(y=-1, linestyle=':', c='k')
+
+    ax2.set_xlabel('Day of year')
+
+
+    plt.subplots_adjust(wspace=0, hspace=0)
+    plt.tight_layout()
+    plt.savefig(figname, dpi=120)
     return 0
 
 
@@ -850,6 +960,55 @@ def update_prop(handle, orig):
     x, y = handle.get_data()
     handle.set_data([np.mean(x)]*2, [0, 2*y[0]])
 
+
+def time_series_of_4_stations(series_list, series_nos,
+                              figname='test_time_series_of_4_station.png',
+                              ylim=[-20, -6]):
+    # input the required time series
+    # h5_name = 'prepare_files/npz/station_measurement/station_plot_%d.h5' % site_id_no
+    # data_h5 = h5py.File(h5_name, 'r')
+    # ascat_plot = data_h5['ascat/2018'].value
+    axs_list = []
+    subgrid_no = np.sqrt(len(series_list)).astype(int)
+    for i0, series0 in enumerate(series_list):
+        sub_loc = np.unravel_index(i0, (subgrid_no, subgrid_no))
+        ax = plt.subplot2grid((subgrid_no, subgrid_no), sub_loc)
+        ax.plot(series0[0], series0[1], 'k-')
+        ax.text(0.8, 0.9, series_nos[i0].astype(int), transform=ax.transAxes, va='top')
+        if ylim is not False:
+            ax.set_ylim(ylim)
+        set_plot_tick('doy', ax)
+        axs_list.append(ax)
+    plt.tight_layout()
+    plt.savefig(figname)
+    axs_list = []
+    # split the window and plot
+    return 0
+
+
+def set_plot_tick(x_unit, ax0):
+    if x_unit != 'normal':
+        plt.draw()
+        tick_labels = ax0.get_xticklabels(which='major')
+        # labels = [item.get_text() for item in tick_labels]
+        labels = [item._x for item in tick_labels]
+        new_labels = []
+        for label0 in labels:
+            sec_int = int(label0)
+            sec2time = bxy.time_getlocaltime([sec_int], ref_time=[2000, 1, 1, 0])
+            if x_unit=='sec':
+                x_tick0 = '%d/%d\n%d:00' % (sec2time[1], sec2time[2], sec2time[-1])
+                new_labels.append(x_tick0)
+            elif x_unit=='doy':
+                # x_tick0 = '%d-%d\n%d:00' % (sec2time[0], sec2time[3], sec2time[-1])
+                x_tick0 = '%d' % (sec2time[3])
+                new_labels.append(x_tick0)
+            elif x_unit=='mmdd':
+                x_tick0 = '%d/%d/%d\n%d:00' % (sec2time[0], sec2time[1], sec2time[2], sec2time[-1])
+                new_labels.append(x_tick0)
+        ax0.set_xticklabels(new_labels, rotation='vertical')
+        print 'number of x ticks: ', len(new_labels)
+        return 0
 
 # def plot_h5_region(h5_file, atts=[], resolution=125):
 #     # h5_name = 'result_08_01/ascat_resample_all/ascat_%s_%s_%d_%s.h5' % (sate, datez, hour0, ob)

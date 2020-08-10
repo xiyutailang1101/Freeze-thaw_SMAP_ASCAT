@@ -416,13 +416,53 @@ def read_measurements(site_no, measure_name, doy, hr=0, year0=2016, t_unit='day'
         f_no = -1
     else:
         f_no = 0
-    stats_t, t5 = read_sno(site_file, measure_name, site_no, field_no=f_no, t_unit=t_unit)  # t5: doy and measurements
+    in_situ_name, t5 = read_sno(site_file, measure_name, site_no, field_no=f_no, t_unit=t_unit)  # t5: doy and measurements
     att=["Soil Moisture Percent -2in (pct)", "Soil Temperature Observed -2in (degC)",
                          "Air Temperature Observed (degC)", "Snow"]
     m_daily, m_doy = data_process.cal_emi(t5, [],  doy, hrs=hr, t_unit=t_unit)
     # check
 
-    return m_daily[m_daily > -90], m_doy[m_daily > -90]
+    return m_daily, m_doy
+
+
+def read_measurements_v3(site_no, measure_name, doy, hr=0, year0=2016, t_unit='day'):
+    """
+    v3: return a string of the name of in situ measurements, such as "Soil Moisture Percent -2in (pct)"
+    :param site_no:
+    :param measure_name:
+    :param doy:
+    :param hr:
+    :param year0:
+    :param t_unit: sec or day
+    :return:
+    """
+    sno_lib = site_infos.get_type(site_no, all_site=True)
+    if t_unit =='sec':
+        doy = bxy.get_total_sec('%d0101' % year0)+(doy-1)*3600*24
+    if site_no not in sno_lib:
+        print 'can not find station in the get_type function'
+        return np.zeros(doy.size) - 999, doy
+    site_type = site_infos.get_type(site_no)
+    if year0 == 2016:
+        site_file = './copy0519/txt/'+site_type + site_no + '.txt'
+    else:
+        site_file = './copy0519/txt/'+site_type + site_no + '_new.txt'
+    if site_no in ['1183', '961', '952', '948', '1182', '958', '1234', '1232',
+                '1266', '987', '1062', '1003', '1064', '1063', '1037', '1092', '1035', '1094',
+                '1268', '1055', '1279', '1096', '1093', '1089', '1267', '1091', '1267', '1264', '1092', '954', '957',
+                '1103', '1072']:
+        site_file = './copy0519/txt/'+site_type + site_no + '_all.txt'
+    if measure_name == 'snow':
+        f_no = -1
+    else:
+        f_no = 0
+    in_situ_name, t5 = read_sno(site_file, measure_name, site_no, field_no=f_no, t_unit=t_unit)  # t5: doy and measurements
+    att=["Soil Moisture Percent -2in (pct)", "Soil Temperature Observed -2in (degC)",
+                         "Air Temperature Observed (degC)", "Snow"]
+    m_daily, m_doy = data_process.cal_emi(t5, [],  doy, hrs=hr, t_unit=t_unit)
+    # check
+
+    return m_daily, m_doy, in_situ_name
 
 
 def read_measurements_v2(site_no, measure_list, doy, hr=0, year0=2016):
@@ -505,6 +545,7 @@ def read_sno(sno_file, filed_name, station_id, field_no=0, t_unit='day'):
                         field_no = row.index("Snow Depth (cm)")
                         snow_id = 1
                 print 'col No. is: ', field_no, row[field_no]  # show what filed is read
+                field_name = row[field_no]
                 # if row[field_no] == 'Snow Depth (cm)':  # special for snow
                 #     snow_id = 1
             elif index_row>-1:
@@ -536,8 +577,8 @@ def read_sno(sno_file, filed_name, station_id, field_no=0, t_unit='day'):
             n_inter += 1
     f1.closed
     if t_unit == 'sec':
-        return 1, np.array([filed_sec, filed_value])
-    return 1, np.array([filed_date, filed_value])
+        return field_name, np.array([filed_sec, filed_value])  # return field_name, rather than 1
+    return field_name, np.array([filed_date, filed_value])
 
 
 def read_sno_v2(sno_file, filed_name, station_id, field_no=0):
@@ -813,3 +854,57 @@ def get_secs_values(site_no, measure_name, doy, ref_date='20160101', nan_value=0
 #     statu, var_all = read_sno('_', var_name, site_no)
 #     m_value, m_date = data_process.cal_emi(var_all, ' ', t0[0], hrs=t0[1])
 #     return [np.modf(m_date)[1], np.round(np.modf(m_date)[0]*24), m_value]
+
+
+def get_3_year_insitu(station_id_int, m_name='air'):
+    """
+
+    :param station_id_int:
+    :param m_name:
+    :return: ndarray with shape equals (period length , 2*number of period). For every two elements, the 1st is the time in unit of secs,
+    the other is the value.
+    """
+    # get in situ measurement
+    # pixel_num = np.loadtxt('result_agu/result_2019/points_num_tp.txt', delimiter=',')
+    # num01 = pixel_num[0][pixel_num[1] == t_station][0].astype(int)
+    tair0, tair1, tair2 = in_situ_series(station_id_int, in_situ_measure=m_name), \
+                          in_situ_series(station_id_int, y=2017, in_situ_measure=m_name), \
+                          in_situ_series(station_id_int, y=2018, in_situ_measure=m_name)
+    t_air_all = np.concatenate((tair0, tair1, tair2), axis=1)  # dimension: att(x y), date, pass hr(7 14 18)
+    # plot 3 year data
+    air_plot = \
+        [t_air_all[0, :, 0], t_air_all[1, :, 0],
+         t_air_all[0, :, 1], t_air_all[1, :, 1],
+         t_air_all[0, :, 2], t_air_all[1, :, 2]]
+    # np.savetxt('result_08_01/plot_data/%d_%s_%d.txt' % (num01, m_name, t_station), air_plot)
+    return np.array(air_plot)
+
+
+def in_situ_series(sno, y=2016, in_situ_measure='air', hr=[7, 14, 18]):
+    m_name = site_infos.in_situ_vars(sno)
+    if in_situ_measure == 'air':
+        if sno in [2065, 2081]:
+            in_situ_measure = 'Air Temperature Average (degC)'
+        else:
+            in_situ_measure = 'Air Temperature Observed (degC)'
+    secs_insitu_0 = bxy.get_total_sec('%d0101' % y)
+    # doy_insitu = np.array([np.arange(1, 366), np.arange(1, 366), np.arange(1, 366)]).T.ravel()
+    num_hr = len(hr)
+    doy_insitu = np.matmul(np.array(np.zeros([num_hr, 1])+1), np.array([np.arange(1, 366)])).T.ravel()
+    hr_array = np.matmul(np.array([hr]).T, np.array([np.zeros(365)+1])).T.ravel()
+    # hr_array0 = np.zeros([doy_insitu.size/3, 1])
+    # hr_array = np.matmul(hr_array0+1, np.array([hr]))
+    air_value_tr, air_date_tr, in_situ_name = \
+            read_measurements_v3(str(sno), in_situ_measure, doy_insitu.astype(int),
+                                 hr=hr_array.astype(int), t_unit='sec', year0=y)
+    # check x time
+    x_time = bxy.time_getlocaltime(air_date_tr, ref_time=[2000, 1, 1, 0], t_source='US/Alaska')
+    air_value, air_date = air_value_tr.reshape(-1, num_hr), air_date_tr.reshape(-1, num_hr)  # Col 0, 1, 2: hr7, hr14 hr18
+    # air_win = 7
+    # w, w_valid = data_process.n_convolve3(air_value[0], air_win)
+    # air0_index0 = np.where(w>5)
+    # for ind0 in air0_index0[0]:
+    #     if air_date[ind0] > bxy.get_total_sec('%d0307' % year0):
+    #         tair_zero_day = air_date[ind0] - air_win*24*3600
+    #         break
+    return np.array([air_date, air_value]), in_situ_name

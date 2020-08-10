@@ -901,7 +901,9 @@ def discuss_combining(site_nos = ['2213']):
     for i, site_no in enumerate(site_nos):
         i+=1
         sigconv, sigseries, ons_new, gg, sig_pass, peakdate_sig = \
-                data_process.ascat_plot_series(site_no, orb_no=0, inc_plot=False, sigma_g=k_width) # 0 for ascending
+                data_process.ascat_plot_series(site_no, orb_no=0, inc_plot=False, sigma_g=k_width,
+                                               txt_path='./result_08_01/point/ascat/ascat_site_series/')
+                                               # 0 for ascending
 
         tbv1, tbh1, npr1, gau1, ons1, sitetime, peakdate1 = test_def.main(site_no, [], sm_wind=7, mode='annual', tbob='_A_', sig0=k_width)  # result npr
         ax0 = plt.subplot2grid((4, 1), (i, 0))
@@ -2631,7 +2633,7 @@ def combining2(doy_array, y=2016, smap_atts=['cell_tb_v_aft', 'cell_tb_h_aft', '
                               np.array([ascat_pixel[key01], ascat_pixel[key00]])],
                             [conv_tb_a, conv_tb_a, conv_ascat],
                             main_label=['tb PM ($K$)', 'tb AM (K)$', '$\sigma^0$ (dB)'],
-                            vline=[[tb_a_onset2, tb_a_t3_0_cross, s_t3_up],
+                            v_line=[[tb_a_onset2, tb_a_t3_0_cross, s_t3_up],
                                    ['k-', 'b-', 'r-'], ['tb_down', 'tb_min', 'sig_up']],  # tb down, tb min, sigma up
                             x_unit='sec', x_lim=[ini_secs, end_secs],
                             figname='result_08_01/20181202plot_ascat_%d_%d_tb.png' % (id_name[land_id==i1][0], i1))
@@ -2664,7 +2666,7 @@ def combining2(doy_array, y=2016, smap_atts=['cell_tb_v_aft', 'cell_tb_h_aft', '
                                                 [conv_npr, conv_npr_d, conv_ascat],
                                                 main_label=['NPR PM ($10^{-2})$', 'NPR AM$',
                                                             '$\sigma^0$ (dB)'],
-                                                vline=[[npr_a_t1, s_melt_t1[0], npr_a_t2_0_x, sig_t2_0_x],
+                                                v_line=[[npr_a_t1, s_melt_t1[0], npr_a_t2_0_x, sig_t2_0_x],
                                                 ['k-', 'r-', 'k:', 'r:'], ['npr_up', 'sig_down', 'npr_max', 'sig_min']],
                                                 x_unit='doy', x_lim=[ini_secs, end_secs],
                                                 y_lim=[[2], [[-15, -8]]],
@@ -3096,7 +3098,7 @@ def combine_detection(thaw_window, freeze_window,
                 plot_funcs.plot_subplot([[t_x_odd[0], npr], [t_x_odd[1], series_valid],
                                          [t_x_odd[1], inc_valid[non_outlier]]],
                                         [[t_x_odd[2], conv[1]], [t_x_odd[3], conv_a[1]]],
-                                        vline=[vline_list2, ['r-', 'b-', 'b-']],
+                                        v_line=[vline_list2, ['r-', 'b-', 'b-']],
                                         # vline=[onset_map_0_1d[i0], 'b-'],
                                         main_label=['npr', 'sigma0', 'incidence'],
                                         x_lim=x_period, y_lim2=[[1], [[-3, 3]]], y_lim=[[1], [[-20, -5]]],
@@ -3509,7 +3511,7 @@ def exp_soil_tb_sigma(site_no):
     vline0 = [(v0+365)*24*3600+sec_2015 for v0 in [min_date_v[1], onset_t1[0]]]
     figname = 'result_08_01/soil_zero_timing_%s.png' % site_no
     plot_funcs.plot_subplot([sigma_ascat0, tb_h, insitu_sm], [sigma_conv0, tbh_conv0, insitu_t],
-                            x_unit='doy', symbol2='b-', vline=[vline0, ['g-', 'r-']], figname=figname,
+                            x_unit='doy', symbol2='b-', v_line=[vline0, ['g-', 'r-']], figname=figname,
                             x_lim=[secs_station[0], secs_station[-1]], red_dots=False)
 
 
@@ -3555,7 +3557,7 @@ def exp_soil_tb_sigma_copy(site_no):
     vline0 = [(v0+365)*24*3600+sec_2015 for v0 in [min_date_v[1], onset_t1[0]]]
     figname = 'result_08_01/soil_zero_timing_%s.png' % site_no
     plot_funcs.plot_subplot([sigma_ascat0, tb_h, insitu_sm], [sigma_conv0, tbh_conv0, insitu_t],
-                            x_unit='doy', symbol2='b-', vline=[vline0, ['g-', 'r-']], figname=figname,
+                            x_unit='doy', symbol2='b-', v_line=[vline0, ['g-', 'r-']], figname=figname,
                             x_lim=[secs_station[0], secs_station[-1]], red_dots=False)
 
 
@@ -3935,7 +3937,7 @@ def read_ak_yearly_melt(year0):
 
 def quick_plot_map_v2(value, resolution, points=False, points_index=False,
                       fig_name='finer_ascat', z_value=[30, 180], s_info= [0,  -151.5, 62.1], year0=2016,
-                      p_name=False):
+                      p_name=False, p_value=False):
     """
     plot ak map, mark the pixel of interest
     :param points_info:
@@ -3948,9 +3950,10 @@ def quick_plot_map_v2(value, resolution, points=False, points_index=False,
     value[out_bound] = 0
     value_ma = np.ma.masked_array(value, mask=[(value == -999)])
     p_odd_latlon = np.array([lons_grid.ravel()[p_sensor], lats_grid.ravel()[p_sensor]])
-    data_process.pass_zone_plot(lons_grid, lats_grid, value_ma, './result_08_01/', fname=fig_name,
+    data_process.pass_zone_plot(lons_grid, lats_grid, value_ma, './results2/', fname=fig_name,
                                 odd_points=p_odd_latlon.T, odd_index=p_sensor,
-                                z_max=z_value[0], z_min=z_value[1], prj='aea', title_str='test', txt=p_name)  # fpath1
+                                z_max=z_value[0], z_min=z_value[1], prj='aea', title_str=' ',
+                                txt=p_name, txt_value=p_value)  # fpath1
     return 0
 
     input_onset16 = read_ak_yearly_melt(2016)
@@ -4145,7 +4148,7 @@ def drawing_parameter(ids):
         plot_funcs.plot_subplot([npy_list[2][:, i_asc], npy_list[2][:, i_des], npy_list[2]],
                             [conv_sigma_a, conv_sigma_d, conv_sigma],
                             main_label=['$\sigma^0$ PM ', '$\sigma^0$ AM ', '$\sigma^0$ (dB)'],
-                            vline=[[npr_a_t1, sigma_melt_t1[0], npr_a_t2_0_x, sig_t2_0_x],
+                            v_line=[[npr_a_t1, sigma_melt_t1[0], npr_a_t2_0_x, sig_t2_0_x],
                                    ['k-', 'r-', 'k:', 'r:'], ['npr_up', 'sig_down', 'npr_max', 'sig_min']],
                             x_unit='sec', x_lim=npy_list[7],
                             figname='result_agu/result_2019/new/ascat_split_%d_%dk0.png' % (id_name, id0),
@@ -4272,7 +4275,7 @@ def drawing_parameter_v2(ids0, npy_type=['npr', 'ascat', 'conv_npr', 'conv_ascat
                                  npy_dict['ascat']],
                                 [conv_npr_a, npy_list[4], conv_sigma],
                                 main_label=['NPR PM ($10^{-2})$', 'NPR AM ($10^{-2})$', '$\sigma^0$ (dB)'],
-                                vline=[[npr_a_t1, sigma_melt_t1[0], npr_a_t2_0_x, sig_t2_0_x],
+                                v_line=[[npr_a_t1, sigma_melt_t1[0], npr_a_t2_0_x, sig_t2_0_x],
                                        ['k-', 'r-', 'k:', 'r:'], ['npr_up', 'sig_down', 'npr_max', 'sig_min']],
                                 x_unit='sec', x_lim=npy_dict['lim'],
                                 figname='result_agu/result_2019/t1_and_t2/20181202plot_ascat_%d_%dk0.png' % (id_name, id0),
@@ -4337,7 +4340,7 @@ def drawing_parameter_v2(ids0, npy_type=['npr', 'ascat', 'conv_npr', 'conv_ascat
             plot_funcs.plot_subplot([sigma_a, sigma_d, sigma_all],
                                 [conv_sigma_a, conv_sigma_d, conv_sigma],
                                 main_label=['$\sigma^0$ PM ', '$\sigma^0$ AM ', '$\sigma^0$ (dB)'],
-                                vline=[[npr_a_t1, sigma_melt_t1[0], npr_a_t2_0_x, sig_t2_0_x],
+                                v_line=[[npr_a_t1, sigma_melt_t1[0], npr_a_t2_0_x, sig_t2_0_x],
                                        ['k-', 'r-', 'k:', 'r:'], ['npr_up', 'sig_down', 'npr_max', 'sig_min']],
                                 x_unit='sec', x_lim=npy_dict['lim'],
                                 figname='result_agu/result_2019/new/ascat_split_%d_%dk0.png' % (id_name, id0),
@@ -4474,7 +4477,7 @@ def snow_station_amsr2():
                              [s_secs, s_measurements[:, 0, i_no, 1].ravel(), s_secs, pass_hr]],
                             [[air_sec, air_measure], [air_sec, air_measure]],
                             main_label=['SND (mm) vs %s' % snow_label, 'SWE (mm) vs %s' % snow_label],
-                            x_unit='sec', vline=[[snd_50-4*3600*24], ['r-'], ['snow free']],
+                            x_unit='sec', v_line=[[snd_50-4*3600*24], ['r-'], ['snow free']],
                             figname='result_08_01/2019_snow_%s_.png' % (site_no),
                             main_syb = ['k-', 'r-', 'b-'])
         snowmelt_amsr2.append(snd_50-4*3600*24)
@@ -4714,7 +4717,7 @@ def compare_stational(all_site=True, y=2016, id_check=[968]):
                                  [m_sec, m_value['Soil Moisture Percent -2in (pct)']],
                                  [m_sec, m_value[snow_text]]], main_label=['npr', 'Tsoil', 'Tair'],
                                 figname='result_agu/result_2019/new/%d_estimate_%s.png' % (sno[1], 'npr'),
-                                vline=[[onset_es['t1_npr'], onset_es['t2_npr']], ['r:', 'r-'], ['t1_npr', 't2_npr']],
+                                v_line=[[onset_es['t1_npr'], onset_es['t2_npr']], ['r:', 'r-'], ['t1_npr', 't2_npr']],
                                 h_line2=[[0, 0, 2], [npr_0, npr_1, 0], [':', ':', '--']],
                                 y_lim=[[0], [[0, 5]]],
                                 x_unit='doy')
@@ -4730,7 +4733,7 @@ def compare_stational(all_site=True, y=2016, id_check=[968]):
                                  [m_sec, m_value['Soil Moisture Percent -2in (pct)']],
                                  [m_sec, m_value[snow_text]]], main_label=['ascat', 'Tsoil', 'Tair'],
                                 figname='result_agu/result_2019/new/%d_estimate_%s.png' % (sno[1], 'ascat'),
-                                vline=[[onset_es['t1_ascat'][0], onset_es['t2_ascat'], onset_es['t3_ascat']],
+                                v_line=[[onset_es['t1_ascat'][0], onset_es['t2_ascat'], onset_es['t3_ascat']],
                                        ['r:', 'b-', 'r-'], ['t1_ascat', 't2_ascat', 't3_ascat']],
                                 x_unit='doy',
                                 annote=[[0], [text_example0]])
@@ -4742,7 +4745,7 @@ def compare_stational(all_site=True, y=2016, id_check=[968]):
                                  [m_sec, m_value['Soil Moisture Percent -2in (pct)']],
                                  [m_sec, m_value[snow_text]]], main_label=['tb', 'Tsoil', 'Tair'],
                                 figname='result_agu/result_2019/new/%d_estimate_%s.png' % (sno[1], 'tb'),
-                                vline=[[onset_es['t3_tbv'], onset_es['t3_tbh']],
+                                v_line=[[onset_es['t3_tbv'], onset_es['t3_tbh']],
                                        ['r:', 'r-'], ['t3_tbv', 't3_tbh']],
                                 x_unit='doy')
     return np.array(onset_out)
@@ -4780,7 +4783,7 @@ def in_situ_tsoil_sm_snd(year0=2016):
                                     [[ts[0], t_value], [ts[1], snow_value], [ts[2], sm_value]],
                                     main_label=['$T_{soil} (^oC)$', 'SND (cm)', 'VWC (%)'],
                                     figname='result_agu/test_insitu_zero%d.png' % sno0, h_line=[[0], [0], [':']],
-                                    vline=[[tsoil_zero_day, snd_zero_day], ['r-', 'r:'], ['t>0', 'snow=0']],
+                                    v_line=[[tsoil_zero_day, snd_zero_day], ['r-', 'r:'], ['t>0', 'snow=0']],
                                     x_unit='sec', y_lim=sm_lim, y_lim2=sm_lim)
     np.savetxt('./result_agu/result_2019/tsoil_snd_all.txt', zero_date_array, delimiter=',', fmt='%d')
     return 0
@@ -5645,8 +5648,6 @@ def combine_detect_v2(id_array, year0, ascat_series, smap_series, all_region=Tru
     # from variables
     # the keys of ascat dictionary
     t_tb, npr = smap_series[0], smap_series[1]
-    # check sigma type
-    # index_asc = ascat_series['sate_type'] < 2
     sigma0_type = ascat_series['sate_type']
     sigma0_all, inc0_all, times0_all = ascat_series['sigma0_trip_mid'], \
                        ascat_series['inc_angle_trip_mid'], \
@@ -5758,7 +5759,9 @@ def combine_detect_v2(id_array, year0, ascat_series, smap_series, all_region=Tru
         return 0, 0
 
 
-def ms_read_ascat(year0=2016, pixel_id=False, t_window=[0, 210], ascat_att0=[]):
+def ms_read_ascat(year0=2016, pixel_id=False, t_window=[0, 210],
+                  ascat_att0=['sigma0_trip_aft', 'inc_angle_trip_aft', 'utc_line_nodes', 'sigma0_trip_fore',
+                  'inc_angle_trip_fore', 'sigma0_trip_mid', 'inc_angle_trip_mid']):
     '''
 
     :param year0:
@@ -5770,9 +5773,9 @@ def ms_read_ascat(year0=2016, pixel_id=False, t_window=[0, 210], ascat_att0=[]):
     '''
     path_files = get_yearly_files(t_window=t_window, year0=year0)
     # path_files = get_yearly_files(t_window=[30, 40], year0=year0)
-    if len(ascat_att0) < 1:
-        ascat_att0=['sigma0_trip_aft', 'inc_angle_trip_aft', 'utc_line_nodes', 'sigma0_trip_fore',
-                                      'inc_angle_trip_fore', 'sigma0_trip_mid', 'inc_angle_trip_mid']
+    # if len(ascat_att0) < 1:
+    #     ascat_att0=['sigma0_trip_aft', 'inc_angle_trip_aft', 'utc_line_nodes', 'sigma0_trip_fore',
+    #                                   'inc_angle_trip_fore', 'sigma0_trip_mid', 'inc_angle_trip_mid']
     # if pixel_id is not False:
     #     if pixel_id.size > 1e4:
     #         print 'all pixels in alaska are read'
@@ -5950,7 +5953,7 @@ def ms_station(win=[0, 210], year0=2016, insitu=False):
                                     main_label=['npr', '$\sigma^0$ mid', '$\sigma^0$ all_c'],
                                     figname='ms_station_test%d' % sid[l0], x_unit='mmdd',
                                     main_syb=['k.', 'r--', 'b--', 'r--', 'b--'],
-                                    vline=[[], [], []])
+                                    v_line=[[], [], []])
         else:
             plot_funcs.plot_subplot([[t_smap, npr_smap],
                              [t_ascat, sigma0_correct_all], [t_sigma_all, v_sigma_c_all]],
@@ -5979,8 +5982,10 @@ def quick_alaska_onset(year0):
 def map_plot2(year0, p_latlon=np.array([[-99, -99.], [-99., 99.]]),
               p_index=[np.array([-1, -1]), np.array([-1, -1])],
               p_name=['test0', 'test1'], threshold_sigma=-3, onset_name=False, mode='normal',
+              folder_name='.'
               ):
     '''
+    plot the freeze/thaw map using onset_all_201x file in the R3 folder
     the mask include: sigma0_min, the minimum of sigma0 during melt_zone0
     :param year0:
     :param p_latlon:
@@ -6002,14 +6007,15 @@ def map_plot2(year0, p_latlon=np.array([[-99, -99.], [-99., 99.]]),
     # plot them in the map
     # ['smap_onset', 'coef_b', 'sigma0_summer', 'sigma0_winter', 'ascat_edge',
     # 'ascat_lvl', 'ascat_onset', 'ascat_melt_signal', 'smap_melt_signal', 'coef_a']
-    value_npz = np.load('onset_all_%d.npz' % year0)
+    npz_fname = glob.glob('%s/*onset_all_%d*.npz' % (folder_name, year0))
+    value_npz = np.load(npz_fname[0])
     if onset_name:
         value_npz = np.load(onset_name)
         fig_prefix = onset_name.split('_')[-1][0: -4] + mode
     else:
         fig_prefix = ''
     onset = value_npz['ascat_onset']  # arr_1
-    ascat_winter = value_npz['sigma0_winter']
+    # ascat_winter = value_npz['sigma0_winter']
     v_valid = (onset!=0)&(onset!=-999)  # plot onset
     onset[v_valid] = bxy.time_getlocaltime(onset[v_valid], ref_time=[2000, 1, 1, 0])[-2]
 
@@ -6024,23 +6030,28 @@ def map_plot2(year0, p_latlon=np.array([[-99, -99.], [-99., 99.]]),
     quick_plot_map_v2(lvl_array2, resolution=12.5, fig_name='finer_lvl_%s' % year0 + fig_prefix, z_value=[-2, 10],
                       points=p_latlon, points_index=p_index)
 
-    # winter/summer std
+    # winter/summer std and edge value
     if isplot[0]:
         value_array2 = data_process.make_mask(value_npz['sigma0_winter_std'])  # arr_3, plot level
         quick_plot_map_v2(value_array2, resolution=12.5, fig_name='finer_winter_std_%s' % year0 + fig_prefix,
                           z_value=[0, 1], points=p_latlon, points_index=p_index)
-        value_array2 = data_process.make_mask(value_npz['sigma0_summer_std'])  # arr_3, plot level
-        quick_plot_map_v2(value_array2, resolution=12.5, fig_name='finer_summer_std_%s' % year0 + fig_prefix,
-                          z_value=[0, 1], points=p_latlon, points_index=p_index)
-        value_array2 = data_process.make_mask(0.6*value_npz['sigma0_summer_std'] + 0.4*value_npz['sigma0_winter_std'])
-        quick_plot_map_v2(value_array2, resolution=12.5, fig_name='finer_mean_std_%s' % year0 + fig_prefix,
-                          z_value=[0, 1], points=p_latlon, points_index=p_index)
+
+        value_array2 = data_process.make_mask(value_npz['ascat_edge'])  # arr_3, plot level
+        quick_plot_map_v2(value_array2, resolution=12.5, fig_name='ascat_edge_%s' % year0 + fig_prefix,
+                          z_value=[-7, 0], points=p_latlon, points_index=p_index)
+        # value_array2 = data_process.make_mask(value_npz['sigma0_summer_std'])  # arr_3, plot level
+        # quick_plot_map_v2(value_array2, resolution=12.5, fig_name='finer_summer_std_%s' % year0 + fig_prefix,
+        #                   z_value=[0, 1], points=p_latlon, points_index=p_index)
+        # value_array2 = data_process.make_mask(0.6*value_npz['sigma0_summer_std'] + 0.4*value_npz['sigma0_winter_std'])
+        # quick_plot_map_v2(value_array2, resolution=12.5, fig_name='finer_mean_std_%s' % year0 + fig_prefix,
+        #                   z_value=[0, 1], points=p_latlon, points_index=p_index)
 
 
     # ascat (mean winter - min sigma0 on melt)
     if isplot[1]:
-        compare_sigma = value_npz['sigma0_winter'] - value_npz['sigma0_min']
-        compare_sigma[value_npz['sigma0_min'] < -9000] = -999
+        # compare_sigma = value_npz['sigma0_winter'] - value_npz['sigma0_min']
+        compare_sigma = value_npz['sigma0_winter'] - 2*value_npz['sigma0_winter_std']
+        # compare_sigma[value_npz['sigma0_min'] < -9000] = -999
         diff_mask = compare_sigma.copy()
         mask_sigma_variation = data_process.make_mask(compare_sigma)
         quick_plot_map_v2(mask_sigma_variation, resolution=12.5, fig_name='finer_sigma0_drop_%s' % year0 + fig_prefix,
@@ -6048,10 +6059,10 @@ def map_plot2(year0, p_latlon=np.array([[-99, -99.], [-99., 99.]]),
 
     # ascat (winter-2std - melt_min)
     if isplot[2]:
-        compare_sigma = value_npz['sigma0_winter'] - value_npz['sigma0_winter_std'] - value_npz['sigma0_min']
-        winter_melt_difference = compare_sigma.copy()
-        compare_sigma[value_npz['sigma0_min'] < -9000] = -999
-        std_mask = compare_sigma.copy()
+        # compare_sigma = value_npz['sigma0_winter'] - value_npz['sigma0_winter_std'] - value_npz['sigma0_min']
+        compare_sigma = value_npz['sigma0_winter'] - 2*value_npz['sigma0_winter_std']
+        # compare_sigma[value_npz['sigma0_min'] < -9000] = -999
+        # std_mask = compare_sigma.copy()
         mask_sigma_variation = data_process.make_mask(compare_sigma)
         quick_plot_map_v2(mask_sigma_variation, resolution=12.5,
                           fig_name='finer_difference_double_std_%s' % year0 + fig_prefix,
@@ -6062,7 +6073,7 @@ def map_plot2(year0, p_latlon=np.array([[-99, -99.], [-99., 99.]]),
         compare_sigma = (value_npz['sigma0_winter'] + value_npz['sigma0_melt_std'] - value_npz['sigma0_melt_mean']) / \
                          value_npz['sigma0_winter_std']
         winter_melt_difference = compare_sigma.copy()
-        compare_sigma[value_npz['sigma0_min'] < -9000] = -999
+        # compare_sigma[value_npz['sigma0_min'] < -9000] = -999
         std_mask = compare_sigma.copy()
         mask_sigma_variation = data_process.make_mask(compare_sigma)
         quick_plot_map_v2(mask_sigma_variation, resolution=12.5,
@@ -6072,7 +6083,7 @@ def map_plot2(year0, p_latlon=np.array([[-99, -99.], [-99., 99.]]),
     # ascat 0.5 (winter_std + summer_std)
     if isplot[4]:
         compare_sigma = 0.5*(value_npz['sigma0_winter_std'] + value_npz['sigma0_summer_std'])
-        compare_sigma[value_npz['sigma0_min'] < -9000] = -999
+        # compare_sigma[value_npz['sigma0_min'] < -9000] = -999
         mask_sigma_variation = data_process.make_mask(compare_sigma)
         quick_plot_map_v2(mask_sigma_variation, resolution=12.5,
                           fig_name='finer_winter_and_melt_std03_mean_%s' % year0 + fig_prefix,
@@ -6081,31 +6092,28 @@ def map_plot2(year0, p_latlon=np.array([[-99, -99.], [-99., 99.]]),
     # ascat difference (melt - winter)
     if isplot[5]:
         compare_sigma = value_npz['sigma0_winter'] - value_npz['sigma0_melt_mean']
-        compare_sigma[value_npz['sigma0_min'] < -9000] = -999
+        # compare_sigma[value_npz['sigma0_min'] < -9000] = -999
         mask_sigma_variation = data_process.make_mask(compare_sigma)
         quick_plot_map_v2(mask_sigma_variation, resolution=12.5,
                           fig_name='finer_winter_and_melt_difference_%s' % year0 + fig_prefix,
                           z_value=[-4, 4], points=p_latlon, points_index=p_index)
 
     # ascat onset
-    onset[value_npz['ascat_lvl'] < 1.5] = -999  # onset with lvl < 1.5 are masked
-    mask_01 = [(value_npz['ascat_lvl'] < 2) |
-               (value_npz['sigma0_min'] < -9000) |
-               ((winter_std > 0.5) & (diff_mask < 3*winter_std))|
-               (winter_std > 0.75)]  # < 6*winter_std
-    mask_02 = [(diff_mask < 1) |
-               (value_npz['sigma0_min'] < -9000)]
-    mask_03 = [(value_npz['ascat_lvl'] < 2) |
-               (value_npz['sigma0_min'] < -9000)]
-    onset[mask_01] = -999
+    # onset[value_npz['ascat_lvl'] < .05] = -999  # onset with lvl < 1.5 are masked
+    onset[(value_npz['ascat_edge'] > 0) | (value_npz['ascat_edge'] < -100)] = -999
+    # mask_01 = [(value_npz['ascat_lvl'] < 2) |
+    #            ((winter_std > 0.5) & (diff_mask < 3*winter_std))|
+    #            (winter_std > 0.75)]  # < 6*winter_std
+    # onset[mask_01] = -999
     # onset[compare_sigma > threshold_sigma] = -999
     value_array = data_process.make_mask(onset)
     quick_plot_map_v2(value_array, resolution=12.5, z_value=[30, 160],
-                      fig_name='finer_ascat_%s_%d' % (year0 + fig_prefix, 0),
+                      fig_name='finer_ascat_%s_%d' % (year0 + fig_prefix, 1),
                       points=p_latlon, p_name=p_name, points_index=p_index)
 
     # ascat winter
     if isplot[6]:
+        # ascat_winter = value_npz['sigma0_mean_winter']
         winter_array = data_process.make_mask(ascat_winter)
         quick_plot_map_v2(winter_array, resolution=12.5, fig_name='winter_%s' % year0 + fig_prefix,
                           z_value=[-20, -5], points=p_latlon, points_index=p_index, p_name=p_name)
@@ -6119,16 +6127,16 @@ def map_plot2(year0, p_latlon=np.array([[-99, -99.], [-99., 99.]]),
                           z_value=[0, 15], points=p_latlon, points_index=p_index, p_name=p_name)
         quick_plot_map_v2(kernel2_grid, resolution=12.5, fig_name='kernels_2_%s' % year0 + fig_prefix,
                           z_value=[0, 15], points=p_latlon, points_index=p_index, p_name=p_name)
-    if isplot[8]:
-        onset_correct = bxy.time_getlocaltime(value_npz['melt_events_time'][:, 0])[-2]
-        onset_correct[value_npz['ascat_lvl'] < 1.5] = -999  # onset with lvl < 1.5 are masked
-        onset_correct[value_npz['melt_events_time'][:, 0] == -9999] = -999
-        # onset_correct[mask_01] = -999  #
-        # onset[compare_sigma > threshold_sigma] = -999
-        value_array = data_process.make_mask(onset_correct)
-        quick_plot_map_v2(value_array, resolution=12.5, z_value=[30, 160],
-                          fig_name='finer_ascat_correct_%s_%d' % (year0 + fig_prefix, 0),
-                          points=p_latlon, p_name=p_name, points_index=p_index)
+    # if isplot[8]:
+    #     onset_correct = bxy.time_getlocaltime(value_npz['melt_events_time'][:, 0])[-2]
+    #     onset_correct[value_npz['ascat_lvl'] < 1.5] = -999  # onset with lvl < 1.5 are masked
+    #     onset_correct[value_npz['melt_events_time'][:, 0] == -9999] = -999
+    #     # onset_correct[mask_01] = -999  #
+    #     # onset[compare_sigma > threshold_sigma] = -999
+    #     value_array = data_process.make_mask(onset_correct)
+    #     quick_plot_map_v2(value_array, resolution=12.5, z_value=[30, 160],
+    #                       fig_name='finer_ascat_correct_%s_%d' % (year0 + fig_prefix, 0),
+    #                       points=p_latlon, p_name=p_name, points_index=p_index)
     if mode == 'quick':
         print 'quick location has been done'
         return 0
@@ -6137,7 +6145,7 @@ def map_plot2(year0, p_latlon=np.array([[-99, -99.], [-99., 99.]]),
     compare_sigma = (value_npz['sigma0_winter'] - value_npz['sigma0_melt_mean']) / \
              np.sqrt(value_npz['sigma0_winter_std']**2 + value_npz['sigma0_melt_std']**2)
     winter_melt_difference = compare_sigma.copy()
-    compare_sigma[value_npz['sigma0_min'] < -9000] = -999
+    # compare_sigma[value_npz['sigma0_min'] < -9000] = -999
     mask_sigma_variation = data_process.make_mask(compare_sigma)
     # fig_name='finer_winter_std_sigma0_%s'
     # 'finer_winter_and_melt_%s'
@@ -6147,7 +6155,7 @@ def map_plot2(year0, p_latlon=np.array([[-99, -99.], [-99., 99.]]),
 
     compare_sigma = value_npz['sigma0_winter'] + value_npz['sigma0_melt_std'] - value_npz['sigma0_melt_mean']
     winter_melt_difference = compare_sigma.copy()
-    compare_sigma[value_npz['sigma0_min'] < -9000] = -999
+    # compare_sigma[value_npz['sigma0_min'] < -9000] = -999
     mask_sigma_variation = data_process.make_mask(compare_sigma)
     # fig_name='finer_winter_std_sigma0_%s'
     # 'finer_winter_and_melt_%s'
@@ -6160,7 +6168,7 @@ def map_plot2(year0, p_latlon=np.array([[-99, -99.], [-99., 99.]]),
     # compare_sigma = melt-melt_std - (winter - winter_std)
     # compare_sigma = (melt- melt_std -winter)/winter_std
     compare_sigma = summer-winter
-    compare_sigma[value_npz['sigma0_min'] < -9000] = -999
+    # compare_sigma[value_npz['sigma0_min'] < -9000] = -999
     mask_sigma_variation = data_process.make_mask(compare_sigma)
     quick_plot_map_v2(mask_sigma_variation, resolution=12.5, fig_name='fine_sigma0_difference_%s' % year0 + fig_prefix,
                       z_value=[-4, 4], points=p_latlon, points_index=p_index)
@@ -6183,8 +6191,218 @@ def map_plot2(year0, p_latlon=np.array([[-99, -99.], [-99., 99.]]),
     return 0
 
 
-def map_plot1(year0, p_latlon=np.array([[-99, -99.], [-99., 99.]]),
+def map_plot3(year0, p_latlon=np.array([[-99, -99.], [-99., 99.]]),
               p_index=[np.array([-1, -1]), np.array([-1, -1])],
+              p_name=['test0', 'test1'], threshold_sigma=-3, onset_name=False, mode='normal',
+              folder_name='.'
+              ):
+    '''
+    use new path: ./npz_folder_2020/, keys of npz are updated
+    the mask include: sigma0_min, the minimum of sigma0 during melt_zone0
+    :param year0:
+    :param p_latlon:
+    :param p_index:
+    :param p_name:
+    :param threshold_sigma:
+    :param onset_name:
+    :param mode:
+    :return:
+    '''
+    if mode == 'quick':
+        isplot=[True, True, False, False, False, False, False, False, True]
+    else:
+        isplot=[True, True, True, True, True, True, True, True, True]
+    n125_n360 = np.load('n12_n36_array.npy').astype(int)
+    if len(p_name) == 0:
+        for ix in np.arange(0, p_latlon.shape[0]):
+            p_name.append('test')
+    # plot them in the map
+    # ['smap_onset', 'coef_b', 'sigma0_summer', 'sigma0_winter', 'ascat_edge',
+    # 'ascat_lvl', 'ascat_onset', 'ascat_melt_signal', 'smap_melt_signal', 'coef_a']
+    npz_fname = glob.glob('%s/*onset_all_%d*.npz' % (folder_name, year0))
+    value_npz = np.load(npz_fname[0])
+    if onset_name:
+        value_npz = np.load(onset_name)
+        fig_prefix = onset_name.split('_')[-1][0: -4] + mode
+    else:
+        fig_prefix = ''
+    onset = value_npz['ascat_onset']  # arr_1
+    # ascat_winter = value_npz['sigma0_winter']
+    v_valid = (onset!=0)&(onset!=-999)  # plot onset
+    onset[v_valid] = bxy.time_getlocaltime(onset[v_valid], ref_time=[2000, 1, 1, 0])[-2]
+
+    year0 = str(year0)
+
+    # ascat lvl
+    lvl_value = value_npz['lvl_on_melt_date'].copy()
+    lvl_value[value_npz['lvl_on_melt_date']<2] = -999
+    lvl_array2 = data_process.make_mask(lvl_value)  # arr_3, plot level
+    quick_plot_map_v2(lvl_array2, resolution=12.5, fig_name='finer_lvl_%s' % year0 + fig_prefix, z_value=[-2, 10],
+                      points=p_latlon, points_index=p_index)
+
+    # winter/summer std and edge value
+    if isplot[0]:
+        value_array2 = data_process.make_mask(value_npz['sigma0_std_winter'])  # arr_3, plot level
+        quick_plot_map_v2(value_array2, resolution=12.5, fig_name='finer_winter_std_%s' % year0 + fig_prefix,
+                          z_value=[0, 1], points=p_latlon, points_index=p_index)
+
+        value_array2 = data_process.make_mask(value_npz['conv_on_melt_date'])  # arr_3, plot level
+        quick_plot_map_v2(value_array2, resolution=12.5, fig_name='ascat_edge_%s' % year0 + fig_prefix,
+                          z_value=[-7, 0], points=p_latlon, points_index=p_index)
+        # value_array2 = data_process.make_mask(value_npz['sigma0_summer_std'])  # arr_3, plot level
+        # quick_plot_map_v2(value_array2, resolution=12.5, fig_name='finer_summer_std_%s' % year0 + fig_prefix,
+        #                   z_value=[0, 1], points=p_latlon, points_index=p_index)
+        # value_array2 = data_process.make_mask(0.6*value_npz['sigma0_summer_std'] + 0.4*value_npz['sigma0_winter_std'])
+        # quick_plot_map_v2(value_array2, resolution=12.5, fig_name='finer_mean_std_%s' % year0 + fig_prefix,
+        #                   z_value=[0, 1], points=p_latlon, points_index=p_index)
+
+
+    # ascat (mean winter - min sigma0 on melt)
+    if isplot[1]:
+        # compare_sigma = value_npz['sigma0_winter'] - value_npz['sigma0_min']
+        compare_sigma = value_npz['sigma0_mean_winter'] - 2*value_npz['sigma0_std_winter']
+        # compare_sigma[value_npz['sigma0_min'] < -9000] = -999
+        diff_mask = compare_sigma.copy()
+        mask_sigma_variation = data_process.make_mask(compare_sigma)
+        quick_plot_map_v2(mask_sigma_variation, resolution=12.5, fig_name='finer_sigma0_drop_%s' % year0 + fig_prefix,
+                          z_value=[-4, 8], points=p_latlon, points_index=p_index)
+
+    # ascat (winter-2std - melt_min)
+    if isplot[2]:
+        # compare_sigma = value_npz['sigma0_winter'] - value_npz['sigma0_winter_std'] - value_npz['sigma0_min']
+        compare_sigma = value_npz['sigma0_winter'] - 2*value_npz['sigma0_winter_std']
+        # compare_sigma[value_npz['sigma0_min'] < -9000] = -999
+        # std_mask = compare_sigma.copy()
+        mask_sigma_variation = data_process.make_mask(compare_sigma)
+        quick_plot_map_v2(mask_sigma_variation, resolution=12.5,
+                          fig_name='finer_difference_double_std_%s' % year0 + fig_prefix,
+                          z_value=[-4, 4], points=p_latlon, points_index=p_index)
+
+    # ascat (melt-std - winter)/winter_std
+    if isplot[3]:
+        compare_sigma = (value_npz['sigma0_winter'] + value_npz['sigma0_melt_std'] - value_npz['sigma0_melt_mean']) / \
+                         value_npz['sigma0_winter_std']
+        winter_melt_difference = compare_sigma.copy()
+        # compare_sigma[value_npz['sigma0_min'] < -9000] = -999
+        std_mask = compare_sigma.copy()
+        mask_sigma_variation = data_process.make_mask(compare_sigma)
+        quick_plot_map_v2(mask_sigma_variation, resolution=12.5,
+                          fig_name='finer_winter_and_melt_std02snr_%s' % year0 + fig_prefix,
+                          z_value=[-4, 4], points=p_latlon, points_index=p_index)
+
+    # ascat 0.5 (winter_std + summer_std)
+    if isplot[4]:
+        compare_sigma = 0.5*(value_npz['sigma0_winter_std'] + value_npz['sigma0_summer_std'])
+        # compare_sigma[value_npz['sigma0_min'] < -9000] = -999
+        mask_sigma_variation = data_process.make_mask(compare_sigma)
+        quick_plot_map_v2(mask_sigma_variation, resolution=12.5,
+                          fig_name='finer_winter_and_melt_std03_mean_%s' % year0 + fig_prefix,
+                          z_value=[0, 1], points=p_latlon, points_index=p_index)
+
+    # ascat difference (melt - winter)
+    if isplot[5]:
+        compare_sigma = value_npz['sigma0_winter'] - value_npz['sigma0_melt_mean']
+        # compare_sigma[value_npz['sigma0_min'] < -9000] = -999
+        mask_sigma_variation = data_process.make_mask(compare_sigma)
+        quick_plot_map_v2(mask_sigma_variation, resolution=12.5,
+                          fig_name='finer_winter_and_melt_difference_%s' % year0 + fig_prefix,
+                          z_value=[-4, 4], points=p_latlon, points_index=p_index)
+
+    # ascat onset
+    # onset[value_npz['ascat_lvl'] < .05] = -999  # onset with lvl < 1.5 are masked
+    onset[(value_npz['conv_on_melt_date'] > 0) | (value_npz['conv_on_melt_date'] < -100)] = -999
+    # mask_01 = [(value_npz['ascat_lvl'] < 2) |
+    #            ((winter_std > 0.5) & (diff_mask < 3*winter_std))|
+    #            (winter_std > 0.75)]  # < 6*winter_std
+    # onset[mask_01] = -999
+    # onset[compare_sigma > threshold_sigma] = -999
+    value_array = data_process.make_mask(onset)
+    quick_plot_map_v2(value_array, resolution=12.5, z_value=[30, 160],
+                      fig_name='finer_ascat_%s_%d' % (year0 + fig_prefix, 1),
+                      points=p_latlon, p_name=p_name, points_index=p_index)
+
+    # ascat winter
+    if isplot[6]:
+        # ascat_winter = value_npz['sigma0_mean_winter']
+        winter_array = data_process.make_mask(ascat_winter)
+        quick_plot_map_v2(winter_array, resolution=12.5, fig_name='winter_%s' % year0 + fig_prefix,
+                          z_value=[-20, -5], points=p_latlon, points_index=p_index, p_name=p_name)
+
+    # ascat kernels
+    if isplot[7]:
+        kernel1, kernel2 = value_npz['sigma0_kernels'][0], value_npz['sigma0_kernels'][1]
+        kernel1_grid = data_process.make_mask(kernel1)
+        kernel2_grid = data_process.make_mask(kernel2)
+        quick_plot_map_v2(kernel1_grid, resolution=12.5, fig_name='kernels_1_%s' % year0 + fig_prefix,
+                          z_value=[0, 15], points=p_latlon, points_index=p_index, p_name=p_name)
+        quick_plot_map_v2(kernel2_grid, resolution=12.5, fig_name='kernels_2_%s' % year0 + fig_prefix,
+                          z_value=[0, 15], points=p_latlon, points_index=p_index, p_name=p_name)
+    # if isplot[8]:
+    #     onset_correct = bxy.time_getlocaltime(value_npz['melt_events_time'][:, 0])[-2]
+    #     onset_correct[value_npz['ascat_lvl'] < 1.5] = -999  # onset with lvl < 1.5 are masked
+    #     onset_correct[value_npz['melt_events_time'][:, 0] == -9999] = -999
+    #     # onset_correct[mask_01] = -999  #
+    #     # onset[compare_sigma > threshold_sigma] = -999
+    #     value_array = data_process.make_mask(onset_correct)
+    #     quick_plot_map_v2(value_array, resolution=12.5, z_value=[30, 160],
+    #                       fig_name='finer_ascat_correct_%s_%d' % (year0 + fig_prefix, 0),
+    #                       points=p_latlon, p_name=p_name, points_index=p_index)
+    if mode == 'quick':
+        print 'quick location has been done'
+        return 0
+
+    # other masks
+    # compare_sigma = (value_npz['sigma0_winter'] - value_npz['sigma0_melt_mean']) / \
+    #          np.sqrt(value_npz['sigma0_winter_std']**2 + value_npz['sigma0_melt_std']**2)
+    # winter_melt_difference = compare_sigma.copy()
+    # # compare_sigma[value_npz['sigma0_min'] < -9000] = -999
+    # mask_sigma_variation = data_process.make_mask(compare_sigma)
+    # # fig_name='finer_winter_std_sigma0_%s'
+    # # 'finer_winter_and_melt_%s'
+    # quick_plot_map_v2(mask_sigma_variation, resolution=12.5,
+    #                   fig_name='finer_winter_and_melt_std03root_%s' % year0 + fig_prefix,
+    #                   z_value=[-4, 4], points=p_latlon, points_index=p_index)
+
+    # compare_sigma = value_npz['sigma0_winter'] + value_npz['sigma0_melt_std'] - value_npz['sigma0_melt_mean']
+    # winter_melt_difference = compare_sigma.copy()
+    # # compare_sigma[value_npz['sigma0_min'] < -9000] = -999
+    # mask_sigma_variation = data_process.make_mask(compare_sigma)
+    # # fig_name='finer_winter_std_sigma0_%s'
+    # # 'finer_winter_and_melt_%s'
+    # quick_plot_map_v2(mask_sigma_variation, resolution=12.5,
+    #                   fig_name='finer_winter_and_melt_diff_%s' % year0 + fig_prefix,
+    #                   z_value=[-4, 4], points=p_latlon, points_index=p_index)
+
+    # compare winter and summmer sigma0 variation
+    winter, melt = value_npz['sigma0_winter'], value_npz['sigma0_melt_mean']
+    # compare_sigma = summer-winter
+    # # compare_sigma[value_npz['sigma0_min'] < -9000] = -999
+    # mask_sigma_variation = data_process.make_mask(compare_sigma)
+    # quick_plot_map_v2(mask_sigma_variation, resolution=12.5, fig_name='fine_sigma0_difference_%s' % year0 + fig_prefix,
+    #                   z_value=[-4, 4], points=p_latlon, points_index=p_index)
+    # smap onset
+    h0 = h5py.File('result_08_01/area/smap_area_result/SMAP_alaska_A_GRID_%s.h5' % '20151102')
+    lons_grid = h0['cell_lon'].value
+    onset_array = np.zeros(lons_grid.shape)
+    smap_fname = glob.glob('./npz_folder_final_hopefully/smap_onset_all_%d_*.npz' % year0)
+    value_smap_onset = np.load(smap_fname)
+    onset_s = smap_fname['smap_onset']
+    onset_s_doy = np.zeros(onset_s.shape)
+    valid = onset_s > 1e5
+    onset_s_doy[valid] = bxy.time_getlocaltime(onset_s[valid])[-2]
+    mask = np.load(('./result_05_01/other_product/mask_ease2_360N.npy'))
+    mask_1d = mask.reshape(1, -1)[0]
+    land_id = np.where(mask_1d != 0)[0]
+    land_2d = np.unravel_index(land_id, mask.shape)
+    onset_array[land_2d] = onset_s_doy
+    quick_plot_map_v2(onset_array, resolution=36, fig_name='smap_%s' % year0 + fig_prefix,
+                      z_value=[30, 160], points=p_latlon, p_name=p_name, points_index=p_index)
+    p_name=0
+    return 0
+
+
+def map_plot1(year0, p_latlon=np.array([[-99, -99.], [-99., 99.]]),
+              p_index=[np.array([-1, -1]), np.array([43489, 20543])],
               p_name=['test0', 'test1'], threshold_sigma=-3, onset_name=False, mode='normal',
               ):
     '''
@@ -6235,13 +6453,19 @@ def map_plot1(year0, p_latlon=np.array([[-99, -99.], [-99., 99.]]),
     # ascat lvl
     # lvl_value = value_npz['ascat_lvl'].copy()
     # lvl_value = value_npz['lvl_on_melt_date'].copy()
-    lvl_value_ratio = value_npz['conv_on_melt_date']/value_npz['winter_conv_std']
+    # lvl_value_ratio = value_npz['conv_on_melt_date']/value_npz['winter_conv_std']
     lvl_value_ab = value_npz['conv_on_melt_date']
     lvl_value = lvl_value_ab
     # lvl_value[value_npz['lvl_on_melt_date']<2] = -999
     lvl_array2 = data_process.make_mask(lvl_value)  # arr_3, plot level
     quick_plot_map_v2(lvl_array2, resolution=12.5, fig_name='finer_lvl_%s' % year0 + fig_prefix, z_value=[-2, 10],
                       points=p_latlon, points_index=p_index)
+
+    # plot point check
+    check_points = np.zeros([p_index.shape[1], 10]) - 99
+    check_points[:, 0] = p_index[1]
+    headers = '#id, smap_id, lat, lon, row, col, smap_onset, ascat_melt_onset, lvl_on_melt_date'
+
 
     # winter/summer std
     if isplot[0]:
@@ -6368,9 +6592,10 @@ def map_plot1(year0, p_latlon=np.array([[-99, -99.], [-99., 99.]]),
         value_array = data_process.make_mask(onset_correct)
         value_array2 = data_process.make_mask(valid_conv_on_onsets)
         value_array3 = data_process.make_mask(correct_lvl)
+        value_pixels = np.array([onset_correct[n125_n360[0]==p0][0] for p0 in p_name])
         quick_plot_map_v2(value_array, resolution=12.5, z_value=[30, 160],
                           fig_name='finer_ascat_correct_%s_%d' % (year0 + fig_prefix, 0),
-                          points=p_latlon, p_name=p_name, points_index=p_index)
+                          points=p_latlon, p_name=p_name, p_value=value_pixels, points_index=p_index)
         quick_plot_map_v2(value_array2, resolution=12.5, z_value=[-10, 0],
                           fig_name='finer_ascat_correct_%s_%d_convs' % (year0 + fig_prefix, 0),
                           points=p_latlon, p_name=p_name, points_index=p_index)
@@ -6427,6 +6652,7 @@ def map_plot1(year0, p_latlon=np.array([[-99, -99.], [-99., 99.]]),
     onset_array[land_2d] = onset_s_doy
     quick_plot_map_v2(onset_array, resolution=36, fig_name='smap_%s' % year0 + fig_prefix,
                       z_value=[30, 160], points=p_latlon, p_name=p_name, points_index=p_index)
+
     p_name=0
     return 0
 
@@ -6631,7 +6857,7 @@ def ms_station_new(sno_all=False, pixel_type='interest', detectors=False, site_p
                                          [sigma_conv_plot[0], sigma_conv_plot[1], sigma_conv_plot[2]],
                                          insitu_plot2[0:2]],
                                         main_label=['npr', '$\sigma^0$ mid', 'snow'],
-                                        figname='ms_pixel_test_%d_%d' % (sno0, smap_id), x_unit='doy', vline=v_line_local,
+                                        figname='ms_pixel_test_%d_%d' % (sno0, smap_id), x_unit='doy', v_line=v_line_local,
                                         vline_label=doy_all, h_line=[[-1], [0], [':']], y_lim=[[1], [[-20, -6]]]
                                         )
             # plotting 3*2
@@ -6678,7 +6904,7 @@ def ms_station_new(sno_all=False, pixel_type='interest', detectors=False, site_p
                                          [sigma_conv_bar_min[:, 1], sigma_conv_bar_min[:, 2]]],
                                         main_label=['npr', '$\sigma^0$ mid', '$\sigma^0$'],
                                         figname='ms_pixel_test_%d_%d' % (sno0, smap_id), x_unit='doy',
-                                        vline=v_line_local, vline_label=doy_all,
+                                        v_line=v_line_local, vline_label=doy_all,
                                         h_line2=[[0, 1, 2], [0.01, 1, -1], [':', ':', ':']],
                                         annotation_sigma0=[text_qa_w, text_qa_m],
                                         y_lim=[[0, 1, 2], [[0, 0.1], [-18, -4], [-18, -4]]],
@@ -6690,7 +6916,7 @@ def ms_station_new(sno_all=False, pixel_type='interest', detectors=False, site_p
                 plot_funcs.plot_subplot([npr_plot[:, valid0], sigma_plot],
                                         [npr_conv_plot, sigma_conv_plot],
                                         main_label=['npr', '$\sigma^0$ mid'],
-                                        figname='ms_pixel_test_%d_%d' % (sno0, smap_id), x_unit='doy', vline=v_line_local, vline_label=doy_all,
+                                        figname='ms_pixel_test_%d_%d' % (sno0, smap_id), x_unit='doy', v_line=v_line_local, vline_label=doy_all,
                                         h_line=[[-1], [0], [':']]
                                         )
 
@@ -6853,14 +7079,10 @@ def ms_get_interest_series_v2(pixel_type='interest', year0=2016,
             prepare_smap_series(smap_all_id, input_ascat=ascat_dict_yearly, input_smap=smap_yearly)
     else:
         # set index
-        # N125_2d, ascat_125n_1d = bxy.latlon2index(p_latlon)
-        # smap_360n_index = index_ascat2smap(ascat_125n_1d)
+        ascat_index = ascat_index.astype(int)
         N125_2d = np.unravel_index(ascat_index, (300, 300))
-        # n125_n360 = np.array([ascat_index, smap_index])
-        # np.savetxt('npz_indices_%s.txt' % pixel_type,
-        #            np.array([ascat_index, smap_index, np.array(points).astype(int)]), delimiter=',', fmt='%d')
-        # read data based on index
-        ascat_dict_yearly = ms_read_ascat(year0, t_window=time_window, pixel_id=N125_2d)
+        path_files = get_yearly_files(t_window=np.array([0, 364]), year0=year0)
+        ascat_dict_yearly = data_process.ascat_alaska_grid_v3(path_ascat=path_files, pid=N125_2d)
         # save the interested pixel measurments
         np.savez('npy_series_file/ascat_%s_series_%d.npz' % (pixel_type, year0), **ascat_dict_yearly)
         # ascat_dict_yearly = {'sigma0_trip_mid': np.array([0, 0]), 'inc_angle_trip_mid': np.array([0, 0]),
@@ -6876,7 +7098,7 @@ def ms_get_interest_series_v2(pixel_type='interest', year0=2016,
 
 def ms_get_interest_series(pixel_type='interest', is_check=False,
                            ascat_index=np.array([]), smap_index=np.array([]), pixel_name=np.array([]),
-                           time_window=[0, 210], gk=[7, 9, 12]):
+                           time_window=[0, 210], year0=2016):
     '''
     :param is_check:
     :param pixel_type: interest, all, outlier; gk: Gaussian kernels
@@ -6909,40 +7131,40 @@ def ms_get_interest_series(pixel_type='interest', is_check=False,
         a1 = -1
         print 'dont check in ms_get_interest_series'
         return a1
-    for year0 in [2016, 2017, 2018]:
-        smap_yearly = get_yearly_smap(t_window=[0, 210], year0=year0)
-        start0 = bxy.get_time_now()
-        if pixel_type == 'all':  # all alaska pixels
-            # set index
-            n125_n360 = np.load('n12_n36_array.npy').astype(int)
-            ascat_all_id = np.unravel_index(n125_n360[0], (300, 300))
-            smap_all_id = np.unique(n125_n360[1])
-            # read data
-            ascat_dict_yearly = ms_read_ascat(year0, t_window=time_window, pixel_id=ascat_all_id)
-            npr_series, pid_smap = \
-                prepare_smap_series(smap_all_id, input_ascat=ascat_dict_yearly, input_smap=smap_yearly)
-        else:
-            # set index
-            # N125_2d, ascat_125n_1d = bxy.latlon2index(p_latlon)
-            # smap_360n_index = index_ascat2smap(ascat_125n_1d)
-            N125_2d = np.unravel_index(ascat_index, (300, 300))
-            n125_n360 = np.array([ascat_index, smap_index])
-            np.savetxt('npz_indices_%s.txt' % pixel_type,
-                       np.array([ascat_index, smap_index, np.array(pixel_name).astype(int)]), delimiter=',', fmt='%d')
-            # read data based on index
-            ascat_dict_yearly = ms_read_ascat(year0, t_window=time_window, pixel_id=N125_2d)
-            # ascat_dict_yearly = {'sigma0_trip_mid': np.array([0, 0]), 'inc_angle_trip_mid': np.array([0, 0]),
-            #                      'utc_line_nodes': np.array([0, 0])}
-            npr_series, pid_smap = prepare_smap_series(smap_index,
-                                                       input_ascat=ascat_dict_yearly, input_smap=smap_yearly,
-                                                       ascat_index=ascat_index)
+# for year0 in [2016, 2017, 2018]:
+    smap_yearly = data_process.get_smap_dict(np.arange(0, 364), y=year0)  # gridded smap measurements one year
+    start0 = bxy.get_time_now()
+    if pixel_type == 'all':  # all alaska pixels
+        # set index
+        n125_n360 = np.load('n12_n36_array.npy').astype(int)
+        ascat_all_id = np.unravel_index(n125_n360[0], (300, 300))
+        smap_all_id = np.unique(n125_n360[1])
+        # read data
+        ascat_dict_yearly = ms_read_ascat(year0, t_window=time_window, pixel_id=ascat_all_id)
+        npr_series, pid_smap = \
+            prepare_smap_series(smap_all_id, input_ascat=ascat_dict_yearly, input_smap=smap_yearly)
+    else:
+        # set index
+        N125_2d = np.unravel_index(ascat_index, (300, 300))
+        n125_n360 = np.array([ascat_index, smap_index])
+        np.savetxt('npz_indices_%s.txt' % pixel_type,
+                   np.array([ascat_index, smap_index, np.array(pixel_name).astype(int)]), delimiter=',', fmt='%d')
+        # read data based on index
+        path_files = get_yearly_files(np.array([0, 364]), year0=year0)
+        ascat_dict_yearly = data_process.ascat_alaska_grid_v3(path_ascat=path_files, pid=N125_2d)
+        # ascat_dict_yearly = ms_read_ascat(year0, t_window=time_window, pixel_id=N125_2d)
+        # ascat_dict_yearly = {'sigma0_trip_mid': np.array([0, 0]), 'inc_angle_trip_mid': np.array([0, 0]),
+        #                      'utc_line_nodes': np.array([0, 0])}
+        npr_series, pid_smap = prepare_smap_series(smap_index,
+                                                   input_ascat=ascat_dict_yearly, input_smap=smap_yearly,
+                                                   ascat_index=ascat_index)
 
         start1 = bxy.get_time_now()
 
         print("----read ascat part in %d: %s seconds ---" % (year0, start1-start0))
-        onsets, pixels = combine_detect_v2(n125_n360, year0, ascat_dict_yearly, npr_series, all_region=True,
-                                        npz_name=pixel_type, pid_smap=pid_smap, gk=gk, npz_doc='npz_folder_085_new')
-        ascat_dict_yearly, npr_series = 0, 0
+        # onsets, pixels = combine_detect_v2(n125_n360, year0, ascat_dict_yearly, npr_series, all_region=True,
+        #                                 npz_name=pixel_type, pid_smap=pid_smap, gk=gk, npz_doc='npz_folder_085_new')
+        # ascat_dict_yearly, npr_series = 0, 0
 
 
 def index_ascat2smap(ascat_index):
@@ -7083,27 +7305,31 @@ def hystory(x=2):
     if x == 0:
         a = 0
         data_process.re_detection_plot()
+    elif x < 0:
+        print 'test function, no processing'
     elif x==2:
         n125_n360 = np.load('n12_n36_array_4cols.npy')
         type = 'all'
-        for year0 in [2016, 2018]:
+        for year0 in [2016, 2017, 2018]:
+        # for year0 in [2018]:
             start0 = bxy.get_time_now()
             ascat_dict_yearly, npr_series, pid_smap = ms_get_interest_series_v2(pixel_type=type, year0=year0,
-                                                                                time_window=[0, 210])
+                                                                                time_window=[0, 360])
+            # [0, 210]
             # save the required series
             np.save('npy_series_file/npr_series_%d.npy', npr_series)
             print 'prepare two series data for year %d takes %s seconds' % (year0, bxy.get_time_now()-start0)
             start0 = bxy.get_time_now()
             onsets, pixels = combine_detect_v2(n125_n360, year0, ascat_dict_yearly, npr_series, all_region=True,
                                                npz_name=type, pid_smap=pid_smap, gk=[5, 7, 7],
-                                               npz_doc='npz_folder_final_hopefully')
-            ascat_npy2npz(year0=year0)
+                                               npz_doc='npz_folder_2020_8')
+            ascat_npy2npz(year0=year0, npz_doc='npz_folder_2020_8')
             print 'combine detect v2 for year %d takes %s seconds' % (year0, bxy.get_time_now()-start0)
-    elif x==1:
+    elif x==1:  # save data of interested
         ascat_outlier_index = np.loadtxt('map_plot_check_pixel_2018.txt', delimiter=',')
         ascat_1d_id = ascat_outlier_index[0:2, 0].astype(int)
         smap_1d_id = ascat_outlier_index[0:2, -1].astype(int)
-        for year0 in [2016, 2018]:
+        for year0 in [2016, 2017, 2018]:
             ## save smap do not delete
             # smap_yearly = data_process.get_smap_dict(np.arange(0, 300), y=year0)
             # np.savez('smap_all_series_D_%d.npz' % (year0), **smap_yearly[1])
@@ -7112,6 +7338,31 @@ def hystory(x=2):
             ascat_dict_yearly = ms_read_ascat(year0, t_window=[0, 300], pixel_id=ascat_row_col)  # reading
             ascat_dict_yearly['pixel_id'] = np.array([ascat_1d_id, smap_1d_id])
             np.savez('prepare_files/npz/ascat/ascat_interest_pixel_series_%d.npz' % year0, **ascat_dict_yearly)
+    elif x==3:
+        # site_array = np.loadtxt('npz_indices_interest.txt', delimiter=',').astype(int)  # 0: a, 1: s, 2: site no
+        site_array = np.loadtxt('indice_interest_all_stations.txt', delimiter=',').astype(int)
+        # ascat_outlier_index = np.loadtxt('map_plot_check_pixel_2018.txt', delimiter=',')
+        ascat_1d_id = site_array[:, 0]
+        smap_1d_id = site_array[:, 1]
+        # list_str = site_array[2].astype(str)
+        # lat_list = [site_infos.change_site(list0)[1] for list0 in list_str]
+        # lon_list = [site_infos.change_site(list0)[2] for list0 in list_str]
+        # save_all_station = np.zeros([5, ascat_1d_id.size])
+        # head = 'ascat_1d_id, smap_1d_id, site_number, site_lat, site_lon'
+        # save_all_station[0:3] = site_array
+        # save_all_station[3] = lat_list
+        # save_all_station[4] = lon_list
+        # np.savetxt('indice_interest_all_stations.txt', save_all_station.T, delimiter=',', fmt='%.3f', header=head)
+        for year0 in [2016, 2017, 2018]:
+            ## save smap do not delete
+            smap_yearly = data_process.get_smap_dict(np.arange(0, 365), y=year0)
+            np.savez('smap_all_series_A_%d.npz' % (year0), **smap_yearly[0])
+            np.savez('smap_all_series_D_%d.npz' % (year0), **smap_yearly[1])
+            # save ascat
+            # ascat_row_col = np.unravel_index(ascat_1d_id, (300, 300))
+            # ascat_dict_yearly = ms_read_ascat(year0, t_window=[0, 365], pixel_id=ascat_row_col)  # reading
+            # ascat_dict_yearly['pixel_id'] = np.array([ascat_1d_id, smap_1d_id])
+            # np.savez('prepare_files/npz/ascat/ascat_interest_pixel_series_%d.npz' % year0, **ascat_dict_yearly)
     quit0()
 
 
@@ -7160,13 +7411,8 @@ def check_final_outlier():
                                                                      [p02_new, p02_ind_smap, p02_ind_ascat]])
 
 
-def quick_location(loc=np.array([[-150.0, 70], [-156.0, 58.0]]), map_name='onset_all_2018_18220.npz',
+def quick_location(loc=np.array([[-160.0, 70.0], [-150.0, 60.0]]), map_name='onset_all_2018_18220.npz',
                    index_1d_input=np.array([0]), pixel_name=np.array([0]), plot=True, year0=2016):
-    '''
-    enter the lon/lat or 1d index in grid 300 x 300, plot the map together with interested pixels
-    :param loc: 2d array, pixels X lon/lat
-    :return:
-    '''
     index_2d_125, index_1d_125 = bxy.latlon2index(loc)
     # lons, lats, _ = ind2latlon([0, n1d])
     # p02_new = np.array([lons.ravel()[n1d], lats.ravel()[n1d]]).T  # how to precisely get the lat/lon from 1d ind
@@ -7175,12 +7421,13 @@ def quick_location(loc=np.array([[-150.0, 70], [-156.0, 58.0]]), map_name='onset
         pixel_name = np.concatenate((index_1d_125, pixel_name))
         index_1d_125 = np.concatenate((index_1d_125, index_1d_input))
     index_1d_360 = np.array([p_table[1][p_table[0] == p02_0] for p02_0 in index_1d_125])
+    index_1d_valid = np.array([[ix[0], iy] for ix, iy in zip(index_1d_360, index_1d_125) if ix.size > 0]).transpose()
     # check if any station pixels are included
     index_table_station = np.loadtxt('npz_indices_interest.txt', delimiter=',').astype(int)
     if plot:
         year = year0
         a1 = map_plot1(year, onset_name=map_name, p_name=pixel_name,
-                       p_index=[index_1d_360, index_1d_125], mode='quick')
+                       p_index=index_1d_valid.astype(int), mode='quick')
     return index_1d_360, index_1d_125
 
 
@@ -7345,17 +7592,11 @@ def file_name_formated(npz_doc='npz_folder_0813', npz_type='all', year0=2018):
                                                 time_str_array_formated[3])
 
 
-def quick_process():
-    # hystory(x=2)  # get the npz file of regional onset
-    # hystory(x=1)  # save npz file of interested pixel
-    #  prepare data 20190819
-    # data_prepare_ascat(p0=['20170214', '20170215'], un_grid=False)
-    # id_array = np.loadtxt('npz_indices_interest.txt', delimiter=',')
-    n125_n360 = np.load('n12_n36_array_4cols.npy').astype(int)
+def kernel_series_edges():
+    # data input
+    std_0 = 7
     dict_year = {}
-    year0 = 2017
-    id_pixel = 0
-    for year0 in [2016, 2017, 2018]:  # add 2016, 2018
+    for year0 in [2018]:  # add 2016, 2018
     #  N pixles, the corresponded ascat_id
         sigma0_on_station = np.load('prepare_files/npz/ascat/ascat_interest_pixel_series_%d.npz' % (year0))
         id_array = sigma0_on_station['pixel_id']
@@ -7367,17 +7608,20 @@ def quick_process():
         series_npr_all_staions = (tbv_on_station-tbh_on_station)/(tbv_on_station+tbh_on_station)
         series_npr_all_staions[tbv_on_station < 100] = -999
         dict_year[str(year0)] = [sigma0_on_station, series_npr_all_staions, secs_smap_all_station]
-
+    # loop by pixel
     for i_pixel, smap_id0 in enumerate(id_array[1]):
+        if i_pixel > 1:
+            continue
+        ascat_note = id_array[0][i_pixel]
         plot_dict = dict()  # a dictionary save the
-        plot_dict['npr'], plot_dict['npr_conv'], plot_dict['ascat'] = [], [], []
+        plot_dict['npr'], plot_dict['ascat'] = [], []
         plot_dict['v_line'] = []
         # plot_dict['ascat_conv_melt'], plot_dict['ascat_conv_thaw'] = [], []
         plot_dict['npr_conv_bar'], plot_dict['ascat_conv_thaw_bar'], plot_dict['ascat_conv_melt_bar'] = [], [], []
         # dictionary save the onset
         plot_dict['npr_onset'], plot_dict['ascat_onset'] = [], []
         plot_dict['onset0'], plot_dict['onset1'], plot_dict['onset2'] = [], [], []
-        for year0 in [2016, 2017, 2018]:  # 2016, 2017, 2018
+        for year0 in [2018]:  # 2016, 2017, 2018
             # for each pixel, estimate the onset year by year
             sigma0_one_year = dict_year[str(year0)][0]
             npr_one_year = dict_year[str(year0)][1]
@@ -7392,9 +7636,10 @@ def quick_process():
             plot_dict['ascat'].append(ascat_array[:, valid_index])
             # detection
             m_zone, su_zone, th_zone, win_zone = data_process.zone_intiation(year0)
-            conv_npr_pixel, thaw_secs_npr, all_local_max, all_local_min,\
-            _ = data_process.smap_melt_initiation(npr_one_year[i_pixel], npr_secs_one_year[i_pixel],
-                                                           win_zone, su_zone, year0, gk=7, one_pixel_return=True)
+            # npr
+            conv_npr_pixel, thaw_secs_npr, all_local_max, all_local_min, _\
+                = data_process.smap_melt_initiation(npr_one_year[i_pixel], npr_secs_one_year[i_pixel],
+                                                           win_zone, su_zone, year0, gk=std_0, one_pixel_return=True)
             plot_dict['npr_onset'].append(thaw_secs_npr)
             plot_dict['npr_conv_bar'].append(all_local_max[:, [1, 2]].T)
             convolution_series, convolution_event = data_process.two_series_sigma_process\
@@ -7407,156 +7652,970 @@ def quick_process():
             combine_result = np.load('prepare_files/npy_ascat_one_station/file0.npy')
             plot_dict['onset0'].append(thaw_secs_npr), plot_dict['onset1'].append(combine_result[11])
             plot_dict['onset2'].append(combine_result[14])
-        # plotting
-        # prepare the main axis and second axis
+        # npr: npr series, npr kernel, npr edges (convolution bars)
+            k_npr = bxy.make_kernal(std_0)
+            np.savez('npr_KSE.npz', series=plot_dict['npr'], kernel=k_npr, kernel2=0, edge=plot_dict['npr_conv_bar'])
+            # k_ascat = bxy.make_kernal(combine_result[3], combine_result[4])
+            k_ascat = bxy.make_kernal(7, 3)
+            np.savez('ascat_KSE.npz', series=plot_dict['ascat'], kernel=k_ascat, edge=plot_dict['ascat_conv_melt_bar'])
+
+
+def plot_KSE(npz_name, fig_name, mode='npr'):
+    npr_kse = np.load(npz_name)
+    plot_npr = npr_kse['series']
+    if mode == 'npr':
+        series = np.array([bxy.time_getlocaltime(plot_npr[0][0])[3], plot_npr[0][1]*100])
+        kernel = np.array([npr_kse['kernel'][0]+40+10, npr_kse['kernel'][1]*10])
+        edge_npr = npr_kse['edge']
+        edges = np.array([bxy.time_getlocaltime(edge_npr[0][0])[3], edge_npr[0][1]*100])
+    elif mode == 'sigma0':
+        series = np.array([bxy.time_getlocaltime(plot_npr[0][0])[3], plot_npr[0][1]])
+        kernel = np.array([npr_kse['kernel'][0]+40+10, npr_kse['kernel'][1]*10])
+        edge_npr = npr_kse['edge']
+        edges = np.array([bxy.time_getlocaltime(edge_npr[0][0])[3], edge_npr[0][1]])
+        edges = edges[:, edges[1]<0]
+    series50 = series[:, (series[0] > 30) & (series[0] < 180)]
+    plot_funcs.plot_convolution(series50, kernel, edges, figname=fig_name, mode=mode)
+
+
+def plot_KSE_melt():
+    return 0
+
+
+def get_in_situ_data(site_int_id, measurement='air', hr=14):
+    hr_pass =np.array([7, 14, 21])
+    hr_index = np.where(hr_pass==hr)[0][0]
+    in_si_tu_2016 = read_site.in_situ_series(site_int_id, in_situ_measure=measurement, y=2016)
+    in_si_tu_2017 = read_site.in_situ_series(site_int_id, in_situ_measure=measurement, y=2017)
+    in_si_tu_2018 = read_site.in_situ_series(site_int_id, in_situ_measure=measurement, y=2018)
+    in_si_tu_all = np.hstack((in_si_tu_2016[:, :, hr_index],
+                              in_si_tu_2017[:, :, hr_index],
+                              in_si_tu_2018[:, :, hr_index]))
+    return in_si_tu_all
+
+
+def check_possible_melt(convs, winter_std):
+    index = convs[1] < -3*winter_std
+    onset_secs = convs[0][index][0] if sum(index > 0) else -1
+    return onset_secs
+
+
+
+
+def quick_process(station=False, single_check=False, hour=14, snow_limit=[0, 150], air_window=7,
+                  smap_g=5, ascat_g=7, h5_file=False):
+
+    """
+`   get the combining results. A table lists the detection of initials, main events, and ends, compared with above-zero
+    date
+    :param station:
+    :param single_check: quickly run this routine to plot for 1 single pixel
+    :return:
+    """
+
+    # hystory(x=2)  # get the npz file of regional onset
+    # hystory(x=1)  # save npz file of interested pixel
+    #  prepare data 20190819
+    # data_prepare_ascat(p0=['20170214', '20170215'], un_grid=False)
+    # id_array = np.loadtxt('npz_indices_interest.txt', delimiter=',')
+    hr_pass = hour
+    site_id_array = np.loadtxt('indice_interest_all_stations.txt', delimiter=',')
+    site_id_ascat = site_id_array[:, 0].astype(int)  # a ascat pixel which is coincide with a station
+    site_id_smap = site_id_array[:, 1].astype(int)
+    site_id_no = site_id_array[:, 2].astype(int)
+
+    # if h5_file:
+    #     quick_process_h5_prepare(single_check, hour, air_window)
+
+    id_array = site_id_array[:, 0].astype(int)
+    results_table = np.zeros([id_array.size, 16])
+    quick_process_h5_prepare(False, hour, air_window, smap_g, ascat_g)
+    for i_pixel, ascat_id_1d in enumerate(id_array):
+        # plotting, separate from the process
+        if single_check:  # test one particular pixel
+            y_limit = [np.array([0, 1, 2]), np.array([[-0.02, 0.08], [-20, -6], snow_limit])]
+            y_limit_2 = [[0, 1], [[0, 0.05], [-3, 9]]]
+            station_id = single_check
+        else:
+            station_id = site_id_no[i_pixel]
+            y_limit = [np.array([0, 1, 2]), np.array([[-0.02, 0.08], [-20, -6], snow_limit])]
+            y_limit_2 = [[0, 1], [[0, 0.05], [-3, 6]]]
+        h5_name = 'prepare_files/npz/station_measurement/station_plot_%d.h5' % station_id
+        if os.path.exists(h5_name):
+            print 'the file has already there \n', h5_name
+        else:
+            quick_process_h5_prepare(station_id, hour, air_window, smap_g, ascat_g)
+        plot_h5 = h5py.File('prepare_files/npz/station_measurement/station_plot_%d.h5' % station_id, 'r')
+        air_temperature = np.hstack((plot_h5['air_temperature/2016'].value,
+                                     plot_h5['air_temperature/2017'].value,
+                                     plot_h5['air_temperature/2018'].value))
+        air_temperature[air_temperature<-60] = np.nan
+        # get discrete temperature
+        discrete_temperature = air_temperature.copy()
+        # discrete_temperature[1] = 5 * (discrete_temperature[1].astype(int)/5)
+        # discrete_temperature[1][discrete_temperature[1] < -15] = -20
+        below_0_ind = discrete_temperature[1] < 0
+        above_5_ind = discrete_temperature[1] > 5
+        between_05_ind = (0 < discrete_temperature[1]) & (discrete_temperature[1] < 5)
+        discrete_temperature[1][above_5_ind] = 10
+        discrete_temperature[1][between_05_ind] = 5
+        discrete_temperature[1][below_0_ind] = -10
+        swe = np.hstack((plot_h5['snow/2016'].value,
+                         plot_h5['snow/2017'].value,
+                         plot_h5['snow/2018'].value))
+        #
+
+        # # 3 subs
+        # plot_funcs.plot_subplot([npr_plot, ascat_plot, ascat_plot],
+        #                         second_axis,
+        #                         main_label=['npr', '$\sigma^0$ mid', '$\sigma^0$'],
+        #                         figname=figname, x_unit='doy',
+        #                         vline=[vline_secs,
+        #                                ['k-', 'k-', 'k-', 'r-', 'r-', 'r-', 'b-', 'b-', 'b-'],
+        #                                ['p', 'p', 'p', 'n', 'n', 'n', 'p1', 'p1', 'p1']],
+        #                         vline_label=bxy.time_getlocaltime(vline_secs, ref_time=[2000, 1, 1, 0])[-2],
+        #                         h_line2=[[0, 1, 2], [0.01, 1, -1], [':', ':', ':']],
+        #                         # annotation_sigma0=[text_qa_w, text_qa_m],
+        #                         # x_lim=[bxy.get_total_sec('20160101'), bxy.get_total_sec('20181230')],
+        #                         y_lim=[[0, 1, 2], [[0, 0.1], [-18, -4], [-18, -4]]],
+        #                         y_lim2=[[0, 1, 2], [[0, 0.05], [0, 6], [-6, 0]]],
+        #                         type_y2='bar'
+        #                         )
+        # 2 subs
+        ascat_bars = np.hstack((plot_h5['ascat_conv_thaw_bar/2016'].value,
+                                plot_h5['ascat_conv_thaw_bar/2017'].value,
+                                plot_h5['ascat_conv_thaw_bar/2018'].value,
+                                plot_h5['ascat_conv_melt_bar/2016'].value,
+                                plot_h5['ascat_conv_melt_bar/2017'].value,
+                                plot_h5['ascat_conv_melt_bar/2018'].value))
+
         second_axis = [
-                        np.hstack((plot_dict['npr_conv_bar'][0],
-                                   plot_dict['npr_conv_bar'][1],
-                                   plot_dict['npr_conv_bar'][2])),
-                        np.hstack((plot_dict['ascat_conv_thaw_bar'][0],
-                                   plot_dict['ascat_conv_thaw_bar'][1],
-                                   plot_dict['ascat_conv_melt_bar'][2])),
-                        np.hstack((plot_dict['ascat_conv_melt_bar'][0],
-                                   plot_dict['ascat_conv_melt_bar'][1],
-                                   plot_dict['ascat_conv_melt_bar'][2])),
+                        np.hstack((plot_h5['npr_conv_bar/2016'].value,
+                                   plot_h5['npr_conv_bar/2017'].value,
+                                   plot_h5['npr_conv_bar/2018'].value)),
+                        ascat_bars,
+
                       ]
-        npr_plot = np.hstack((plot_dict['npr'][0], plot_dict['npr'][1], plot_dict['npr'][2]))
-        ascat_plot = np.hstack((plot_dict['ascat'][0], plot_dict['ascat'][1], plot_dict['ascat'][2]))
-        vline_secs = plot_dict['onset0']+plot_dict['onset1']+plot_dict['onset2']
-        plot_funcs.plot_subplot([npr_plot, ascat_plot, ascat_plot],
+        # check and reset v line
+        onset0, onset1, onset2 = plot_h5['onset0'].value, plot_h5['onset1'].value, plot_h5['onset2'].value
+        new_onset1 = onset1.copy()
+        vline_secs = np.concatenate((onset0, onset1, onset2))
+        for i0 in range(0, 3):
+            if onset1[i0] == -9999:
+               local_min = plot_h5['ascat_conv_melt_bar/%d' % (2016 + i0)].value
+               winter_index = local_min[0] < onset0[i0]
+               melting_index = (local_min[0] > onset0[i0]) & (local_min[0] < onset2[i0])
+               winter_std = np.nanstd(local_min[1][winter_index])
+               lm_winter_mean = np.nanmean(local_min[1][winter_index])
+               valid_local_min_index = local_min[1][melting_index] < lm_winter_mean-2.5*winter_std
+               if sum(valid_local_min_index) > 0:
+                   new_onset1[i0] = local_min[0][melting_index][valid_local_min_index][0]
+        vline_secs = np.concatenate((onset0, new_onset1, onset2))
+        # makes the DOY labels
+        label_numober = bxy.time_getlocaltime(vline_secs.astype(int), ref_time=[2000, 1, 1, 0])[-2]
+        label_str = ['DOY (%d, %d, %d)' % (label_numober[i], label_numober[j], label_numober[k]) for i, j, k
+                     in zip([0, 1, 2], [3, 4, 5], [6, 7, 8])]
+        swe_label = plot_h5['snow/label'].value
+        if swe_label != 'Snow Water Equivalent (mm)':
+            y_limit[1][-1] /= 3
+        fig_name = 'ms_pixel_test_%d_%d' % (station_id, site_id_ascat[site_id_no == station_id])
+        npr_plot = np.hstack((plot_h5['npr/2016'].value, plot_h5['npr/2017'].value, plot_h5['npr/2018'].value))
+        ascat_plot = np.hstack((plot_h5['ascat/2016'].value, plot_h5['ascat/2017'].value, plot_h5['ascat/2018'].value))
+        plot_funcs.plot_subplot([npr_plot, ascat_plot, swe],
                                 second_axis,
-                                main_label=['npr', '$\sigma^0$ mid', '$\sigma^0$'],
-                                figname='ms_pixel_test_%d_%d' % (id_array[0][i_pixel], smap_id0), x_unit='doy',
-                                vline=[vline_secs,
+                                main_label=['NPR', '$\sigma^0$ (dB)', swe_label],
+                                figname=fig_name, x_unit='doy',
+                                v_line=[vline_secs,
                                        ['k-', 'k-', 'k-', 'r-', 'r-', 'r-', 'b-', 'b-', 'b-'],
                                        ['p', 'p', 'p', 'n', 'n', 'n', 'p1', 'p1', 'p1']],
-                                vline_label=bxy.time_getlocaltime(vline_secs, ref_time=[2000, 1, 1, 0])[-2],
-                                h_line2=[[0, 1, 2], [0.01, 1, -1], [':', ':', ':']],
+                                v_line2=[[2, 2, 2, 2, 2, 2],
+                                         np.concatenate((plot_h5['air_above_0'].value,
+                                                         plot_h5['snow_depth_drop'].value)),
+                                         [['k', '--'], ['k', '--'], ['k', '--'],
+                                          ['r', '--'], ['r', '--'], ['r', '--']]],
+                                vline_label=label_str,
+                                h_line=[[2], [0], ['--']],
+                                h_line2=[[0, 1, 1, 1], [0.01, 1, -1, 0], [':', ':', ':', '--']],
                                 # annotation_sigma0=[text_qa_w, text_qa_m],
                                 # x_lim=[bxy.get_total_sec('20160101'), bxy.get_total_sec('20181230')],
-                                y_lim=[[0, 1, 2], [[0, 0.1], [-18, -4], [-18, -4]]],
-                                y_lim2=[[0, 1, 2], [[0, 0.05], [0, 6], [-6, 0]]],
-                                type_y2='bar'
+                                y_lim=y_limit, y_lim2=y_limit_2, type_y2='bar',
+                                color_bar=[discrete_temperature, swe]
                                 )
+        # save in table
+        results_table[i_pixel, 0:9] = vline_secs
+        results_table[i_pixel, 9:12] = plot_h5['air_above_0']
+        results_table[i_pixel, 12:15] = plot_h5['snow_depth_drop']
+        results_table[i_pixel, 15] = station_id
 
+        if single_check:
+                return 0
+    # save detection results
+    np.savetxt('combination_detect_results_air_temperature.txt', results_table.astype(int), fmt='%d', delimiter=',',
+                   header='0-3: NPR, 3-6: Melt, 6-9: End, 9-12: Above 0 degC, 12-15: snow depth drop')
     # plotting pixel by pixel
     #     npr_plot = np.array([pixel_2016_new[0][0][0], pixel_2016_new[0][0][1],
     #                          pixel_2017_new[0][0][0], pixel_2017_new[0][0][1],
     #                          pixel_2018_new[0][0][0], pixel_2018_new[0][0][1]])
-    return 0
-    npr_plot = plot_dict['npr']
-    npr_conv_plot = plot_dict['npr_conv']
-    # npr_conv_bar = # three initiations
-    npr_conv_bar = np.vstack((pixel_2016_new[0][0][3],
-                              pixel_2017_new[0][0][3],
-                              pixel_2018_new[0][0][3]))
-    t_2016, v_2016 = bxy.remove_unvalid_time(pixel_2016_new[1][0][0], pixel_2016_new[1][0][1])
-    t_2017, v_2017 = bxy.remove_unvalid_time(pixel_2017_new[1][0][0], pixel_2017_new[1][0][1])
-    t_2018, v_2018 = bxy.remove_unvalid_time(pixel_2018_new[1][0][0], pixel_2018_new[1][0][1])
-    sigma_plot = np.array([t_2016, v_2016, t_2017, v_2017, t_2018, v_2018])
-    sigma_conv_plot = [pixel_2016_new[1][0][2],
-                       pixel_2017_new[1][0][2],
-                       pixel_2018_new[1][0][2]]
-    simga_conv_plot_more = [pixel_2016_new[1][0][3],
-                           pixel_2017_new[1][0][3],
-                           pixel_2018_new[1][0][3]]
-    sigma_conv_bar_max = np.vstack((pixel_2016_new[1][0][4],
-                                    pixel_2017_new[1][0][4],
-                                    pixel_2018_new[1][0][4]))
-    sigma_conv_bar_min = np.vstack((pixel_2016_new[1][0][5],
-                                    pixel_2017_new[1][0][5],
-                                    pixel_2018_new[1][0][5]))
-    sigma_qa_w = [onset_2016_new[3], onset_2017_new[3], onset_2018_new[3]]
-    sigma_qa_m = [onset_2016_new[4], onset_2017_new[4], onset_2018_new[4]]
-    text_qa_w, text_qa_m = ['%.2f$\pm$\n%.2f' % (list0[0], list0[1]) for list0 in sigma_qa_w], \
-                           ['%.2f$\pm$\n%.2f' % (list0[0], list0[1]) for list0 in sigma_qa_m]
-    # calculate data quality indicator: [(mean1-std1)-mean0]/std0
-    indicator0 = [[(list_m[0] - list_m[1] - list_w[0])/list_w[1]][0][0]
-                  for list_w, list_m in zip(sigma_qa_w,  sigma_qa_m)]
-    ind_array = np.zeros(5)
-    ind_array[0: 2] = np.array([int(sno0), smap_id])
-    ind_array[2:] = indicator0
-    ind_mat.append(ind_array)
-    # np.savetxt('sigma_variation_indicator.txt', np.array([]))
-    # simga_conv_plot.shape = 6, -1
-    print onset_2016_new
-    positive_edge = np.array([onset_2016_new[0][0], onset_2017_new[0][0], onset_2018_new[0][0]])
-    negative_edge = np.array([onset_2016_new[1][0], onset_2017_new[1][0], onset_2018_new[1][0]])
-    positive_edge2 = np.array([onset_2016_new[2][0], onset_2017_new[2][0], onset_2018_new[2][0]])
-    # plotting
-    # value for timing
-    doy_p, doy_n, doy_end = bxy.time_getlocaltime(positive_edge)[-2], \
-                            bxy.time_getlocaltime(negative_edge, ref_time=[2000, 1, 1, 0])[-2], \
-                            bxy.time_getlocaltime(positive_edge2, ref_time=[2000, 1, 1, 0])[-2]
-    doy_all = np.concatenate((doy_p, doy_n, doy_end))
-    sec_all = np.concatenate((positive_edge, negative_edge, positive_edge2))
+    if single_check:
+        return 0
 
-    v_line_local = [sec_all, ['k-', 'k-', 'k-', 'r-', 'r-', 'r-', 'b-', 'b-', 'b-'],
-                    ['p', 'p', 'p', 'n', 'n', 'n', 'p1', 'p1', 'p1']]
-    # read measurement
-    if pixel_type == 'interest':
-        if site_plot == 'single':
-            insitu_plot2 = get_3_year_insitu(int(sno0), m_name='snow')
-            insitu_plot = get_3_year_insitu(int(sno0), m_name="air")
-            plot_funcs.plot_subplot([npr_plot, sigma_plot, insitu_plot[0:2]],
-                                    [[npr_conv_plot[0], npr_conv_plot[1], npr_conv_plot[2]],
-                                     [sigma_conv_plot[0], sigma_conv_plot[1], sigma_conv_plot[2]],
-                                     insitu_plot2[0:2]],
-                                    main_label=['npr', '$\sigma^0$ mid', 'snow'],
-                                    figname='ms_pixel_test_%d_%d' % (sno0, smap_id), x_unit='doy', vline=v_line_local,
-                                    vline_label=doy_all, h_line=[[-1], [0], [':']], y_lim=[[1], [[-20, -6]]]
-                                    )
-        # plotting 3*2
-        elif site_plot == 'grid':
-            subplot_loc = np.unravel_index(site_order, (3, 2))
-            ax = plt.subplot2grid((3, 2), subplot_loc)
-            ax_2 = ax.twinx()
-            ax.plot(npr_plot[0], npr_plot[1]*100, 'k.',  npr_plot[2], npr_plot[3]*100, 'k.',
-                    npr_plot[4], npr_plot[5]*100, 'k.', markersize=2)
-            ax_2.plot(sigma_plot[0], sigma_plot[1], 'b.', sigma_plot[2], sigma_plot[3], 'b.',
-                      sigma_plot[4], sigma_plot[5], 'b.', markersize=2)
-            ax.set_ylim([-5, 5])
-            ax_2.set_ylim([-15, 10])
-            ax.text(0.5, 0.5, str(sno0), transform=ax.transAxes, va='top', ha='left', fontsize=16)
-            # ax_2.plot(**sigma_plot)
-            if site_order == 5:
-                plt.savefig('gridded_plot')
 
-    elif pixel_type == 'interest':
-        valid0 = npr_plot[1] > 0
-        if detectors:
-            plot_funcs.plot_subplot([npr_plot, sigma_plot, sigma_plot],
-                                    [[npr_conv_bar[:, 1], npr_conv_bar[:, 2]],
-                                     [sigma_conv_bar_max[:, 1], sigma_conv_bar_max[:, 2]],
-                                     [sigma_conv_bar_min[:, 1], sigma_conv_bar_min[:, 2]]],
-                                    main_label=['npr', '$\sigma^0$ mid', '$\sigma^0$'],
-                                    figname='ms_pixel_test_%d_%d' % (sno0, smap_id), x_unit='doy',
-                                    vline=v_line_local, vline_label=doy_all,
-                                    h_line2=[[0, 1, 2], [0.01, 1, -1], [':', ':', ':']],
-                                    annotation_sigma0=[text_qa_w, text_qa_m],
-                                    y_lim=[[0, 1, 2], [[0, 0.1], [-18, -4], [-18, -4]]],
-                                    y_lim2=[[0, 1, 2], [[0, 0.05], [0, 6], [-6, 0]]],
-                                    type_y2='bar'
-                                    )
+def quick_process_prepare(station=False, single_check=False, hour=14, snow_limit=[0, 150], air_window=7):
+    """
+`   get the combining results. A table lists the detection of initials, main events, and ends, compared with above-zero
+    date
+    :param station:
+    :param single_check: quickly run this routine to plot for 1 single pixel
+    :return:
+    """
+    site_id_array = np.loadtxt('indice_interest_all_stations.txt', delimiter=',')
+    quick_process_h5_prepare(station, hour)
+
+
+def quick_process_two_series_detect(data_h5, smap_g=3, inc_correct=False):
+    plot_h5 = dict()
+    plot_h5['npr_onset'] = np.zeros(3)
+    plot_h5['ascat_onset'] = np.zeros(3)
+    plot_h5['onset0'] = np.zeros(3)
+    plot_h5['onset1'] = np.zeros(3)
+    plot_h5['onset2'] = np.zeros(3)
+    plot_h5['air_above_0'], plot_h5['snow_depth_drop'] = np.zeros(3), np.zeros(3)
+    for j0, yr0 in enumerate([2016, 2017, 2018]):
+        m_zone, su_zone, th_zone, win_zone = data_process.zone_intiation(yr0)
+        # npr dectect
+        npr_one_year = data_h5['npr/%d' % yr0].value
+        conv_npr_pixel, thaw_secs_npr, npr_local_max, all_local_min, _ = \
+            data_process.smap_melt_initiation(npr_one_year[1], npr_one_year[0], win_zone, su_zone, yr0,
+                                              gk=smap_g, one_pixel_return=True)
+        plot_h5['npr_onset'][j0] = thaw_secs_npr
+        plot_h5['npr_local_max_%d' % yr0] = npr_local_max[:, [1, 2]].T
+        plot_h5['onset0'][j0] = thaw_secs_npr
+        # ascat detect
+        sigma0_one_year = data_h5['ascat/%d' % yr0].value
+        if inc_correct:
+            sigma0_c = data_process.angular_correct(sigma0_one_year[1], sigma0_one_year[2], sigma0_one_year[0],
+                                                    inc_c=40)
+            sigma0_one_year[1] = sigma0_c
+            plot_h5['sigma0_c_%d' % yr0] = sigma0_c
+        ascat_pass_time = sigma0_one_year[0]
+        pass_index = (ascat_pass_time > 0)
+        convolution_series, convolution_event = \
+            data_process.two_series_sigma_process(0, sigma0_one_year[1], sigma0_one_year[2], sigma0_one_year[0],
+                                                  thaw_secs_npr, m_zone, th_zone, win_zone, su_zone,
+                                                  melt_buff=30, gk=[-1, 7, 7], angular=False,
+                                                  save_path='prepare_files/npy_ascat_one_station', is_return=True)
+
+        plot_h5['ascat_local_max_%d' % yr0] = convolution_event[0][:, [1, 2]].T
+        plot_h5['ascat_local_min_%d' % yr0] = convolution_event[1][:, [1, 2]].T
+        # read output from ascat
+        combine_result = np.load('prepare_files/npy_ascat_one_station/file0.npy')
+        melt_events_minimum = combine_result[33:]
+        melt_evnets_time = combine_result[25:33]
+        conv_std_winter = combine_result[22]
+        onset_secs = check_possible_melt(np.array([melt_evnets_time, melt_events_minimum]), conv_std_winter)
+        index_events = (melt_events_minimum < -1) & (melt_events_minimum > -999)
+        strong_melt_secs = combine_result[25:33][index_events][0] if sum(index_events) > 0 else onset_secs
+        if strong_melt_secs == -1:
+            strong_melt_secs = combine_result[11]
+        plot_h5['onset1'][j0], plot_h5['onset2'][j0] = strong_melt_secs, combine_result[14]
+    return plot_h5
+
+
+def quick_process_validate(plot_h5, data_h5, air_window=7, hour_index=False):
+    """
+    [5, 7, 12, 14, 18, 21], air temperature measured time
+    :param plot_h5:
+    :param data_h5:
+    :param air_window:
+    :param hour_index: indices corresponded to the time of a measurement, i.e., index 1 is 7:00 am,
+                        False: use the averaged measurement
+    :return:
+    """
+    # air temperature of all years
+    t_air_all_year = np.array([[0], [0]])
+    # in situ output
+    for j0, yr0 in enumerate([2016, 2017, 2018]):
+        # air temperature
+        if hour_index:
+            t_air_one_year = data_h5['air_temperature/%d' % yr0].value[:, :, hour_index]  # [:, :, 2], 12:00 local time
         else:
-            valid0 = npr_plot[1] > 0
-            plot_funcs.plot_subplot([npr_plot[:, valid0], sigma_plot],
-                                    [npr_conv_plot, sigma_conv_plot],
-                                    main_label=['npr', '$\sigma^0$ mid'],
-                                    figname='ms_pixel_test_%d_%d' % (sno0, smap_id), x_unit='doy', vline=v_line_local, vline_label=doy_all,
-                                    h_line=[[-1], [0], [':']]
-                                    )
+            hourly_air = data_h5['air_temperature/%d' % yr0].value[1, :, :]
+            hourly_air[hourly_air == -99] = np.nan
+            t_air_one_year = np.array([data_h5['air_temperature/%d' % yr0].value[0, :, 0],
+                                       np.mean(hourly_air, axis=1)])
+        time_above_zero_list, t_air_win_mean = \
+            data_process.zero_find_v2(t_air_one_year, w=air_window, th=-0.05, limit=bxy.get_total_sec('%d0301' % yr0))
+        # t_air_all_year = np.hstack((t_air_all_year, t_air_one_year))
+        t_air_all_year = np.hstack((t_air_all_year, np.array([t_air_one_year[0], t_air_win_mean])))
+        plot_h5['air_above_0'][j0] = time_above_zero_list
+        # snow
+        swe_2d_array = data_h5['snow/%d' % yr0].value
+        valid_index = swe_2d_array[1, :] > -99
+        swe_2d_array = swe_2d_array[:, valid_index]
+        swe_difference = np.array([swe_2d_array[0, 1:], -1*np.diff(swe_2d_array[1]), swe_2d_array[1, 1:]])
+        if swe_difference.size < 1:
+            swe_decrease_time = bxy.get_total_sec('%d0301' % yr0)
+        else:
+            label0 = data_h5['snow/label'].value[0]
+            # swe * 1/relative density = snd; 20 * 1/0.4 = 50
+            if label0 == 'Snow Water Equivalent (mm)':
+                th0 = 40
+            else:
+                th0 = 10
+            # swe_decrease_time = data_process.zero_find(swe_difference, w=3, th=3)
+            swe_decrease_time = data_process.vary_find(swe_difference, w=5, th=th0)
+        plot_h5['snow_depth_drop'][j0] = swe_decrease_time
+    plot_h5['air_temperature_val'] = t_air_all_year[:, 1:]
+    return plot_h5
 
+
+def multi_station_plot(site_id_nos, key='ascat', lim=[-20, -6]):
+    # plotting 2018 default
+    plot_list = []
+    for s0 in site_id_nos:
+        h5_name = 'prepare_files/npz/station_measurement/station_plot_%d.h5' % s0
+        data_h5 = h5py.File(h5_name, 'r')
+        plot0 = data_h5['%s/2018' % key].value[0: 2]
+        plot_list.append(plot0)
+    # 'test_time_series_of_4_station.png'
+    plot_funcs.time_series_of_4_stations(plot_list, site_id_nos,
+                                         figname='test_%s_of_4_station.png' % key,
+                                         ylim=lim)
+    plot_list = []
+
+def quick_process_plot(plot_dict, single_check, site_id_no, snow_limit=[0, 250],
+                       h5_path='prepare_files/npz/station_measurement/station_plot_',
+                       is_color=True, inc_correct=False):
+    """
+    plot, the time series is from h5 data, the calculated result is returned from step2
+    :param plot_dict:
+    :param single_check:
+    :param site_id_no:
+    :param snow_limit:
+    :return:
+    """
+    # read h5 file get time series data
+    h5_name = '%s%d.h5' % (h5_path, site_id_no)
+    data_h5 = h5py.File(h5_name, 'r')
+    npr_plot = np.hstack((data_h5['npr/2016'].value, data_h5['npr/2017'].value, data_h5['npr/2018'].value))
+    ascat_plot = np.hstack((data_h5['ascat/2016'].value, data_h5['ascat/2017'].value, data_h5['ascat/2018'].value))
+    if inc_correct:
+        ascat_plot[1] = np.hstack((plot_dict['sigma0_c_2016'], plot_dict['sigma0_c_2017'], plot_dict['sigma0_c_2018']))
+    # air_temperature = np.hstack((data_h5['air_temperature/2016'].value[:, :, hour_index],
+    #                              data_h5['air_temperature/2017'].value[:, :, hour_index],
+    #                              data_h5['air_temperature/2018'].value[:, :, hour_index]))
+    air_temperature = plot_dict['air_temperature_val']  # modify on 04/06/2020, the T_air derived from q_p_validate
+    air_temperature[air_temperature<-60] = np.nan
+    # get discrete temperature
+    discrete_temperature = air_temperature.copy()
+    # discrete_temperature[1] = 5 * (discrete_temperature[1].astype(int)/5)
+    # discrete_temperature[1][discrete_temperature[1] < -15] = -20
+    below_0_ind = discrete_temperature[1] < 0
+    above_5_ind = discrete_temperature[1] > 5
+    between_05_ind = (0 < discrete_temperature[1]) & (discrete_temperature[1] < 5)
+    discrete_temperature[1][above_5_ind] = 10
+    discrete_temperature[1][between_05_ind] = 5
+    discrete_temperature[1][below_0_ind] = -10
+    swe = np.hstack((data_h5['snow/2016'].value,
+                     data_h5['snow/2017'].value,
+                     data_h5['snow/2018'].value))
+
+    # plotting, separate from the process
+    results_table = np.zeros(16)
+    if single_check:  # test one particular pixel
+        y_limit = [np.array([0, 1, 2]), np.array([[-0.02, 0.08], [-20, -6], snow_limit])]
+        y_limit_2 = [[0, 1], [[0, 0.05], [-3, 9]]]
+        x_lim = [bxy.get_total_sec('20160101'), bxy.get_total_sec('20190101')]
+        station_id = single_check
+    else:
+        station_id = site_id_no
+        y_limit = [np.array([0, 1, 2]), np.array([[-0.02, 0.08], [-20, -6], snow_limit])]
+        y_limit_2 = [[0, 1], [[0, 0.05], [-3, 6]]]
+        x_lim = [bxy.get_total_sec('20160101'), bxy.get_total_sec('20190101')]
+    # # 3 subs
+    # plot_funcs.plot_subplot([npr_plot, ascat_plot, ascat_plot],
+    #                         second_axis,
+    #                         main_label=['npr', '$\sigma^0$ mid', '$\sigma^0$'],
+    #                         figname=figname, x_unit='doy',
+    #                         vline=[vline_secs,
+    #                                ['k-', 'k-', 'k-', 'r-', 'r-', 'r-', 'b-', 'b-', 'b-'],
+    #                                ['p', 'p', 'p', 'n', 'n', 'n', 'p1', 'p1', 'p1']],
+    #                         vline_label=bxy.time_getlocaltime(vline_secs, ref_time=[2000, 1, 1, 0])[-2],
+    #                         h_line2=[[0, 1, 2], [0.01, 1, -1], [':', ':', ':']],
+    #                         # annotation_sigma0=[text_qa_w, text_qa_m],
+    #                         # x_lim=[bxy.get_total_sec('20160101'), bxy.get_total_sec('20181230')],
+    #                         y_lim=[[0, 1, 2], [[0, 0.1], [-18, -4], [-18, -4]]],
+    #                         y_lim2=[[0, 1, 2], [[0, 0.05], [0, 6], [-6, 0]]],
+    #                         type_y2='bar'
+    #                         )
+    # 2 subs
+    ascat_bars = np.hstack((plot_dict['ascat_local_max_2016'],
+                            plot_dict['ascat_local_max_2017'],
+                            plot_dict['ascat_local_max_2018'],
+                            plot_dict['ascat_local_min_2016'],
+                            plot_dict['ascat_local_min_2017'],
+                            plot_dict['ascat_local_min_2018']))
+
+    second_axis = [
+                    np.hstack((plot_dict['npr_local_max_2016'],
+                               plot_dict['npr_local_max_2017'],
+                               plot_dict['npr_local_max_2018'])),
+                    ascat_bars,
+
+                  ]
+    # check and reset v line
+    onset0, onset1, onset2 = plot_dict['onset0'], plot_dict['onset1'], plot_dict['onset2']
+    new_onset1 = onset1.copy()
+    for i0 in range(0, 3):
+        if onset1[i0] == -9999:
+           local_min = plot_dict['ascat_local_min_%d' % (2016 + i0)]
+           winter_index = local_min[0] < onset0[i0]
+           melting_index = (local_min[0] > onset0[i0]) & (local_min[0] < onset2[i0])
+           winter_std = np.nanstd(local_min[1][winter_index])
+           lm_winter_mean = np.nanmean(local_min[1][winter_index])
+           valid_local_min_index = local_min[1][melting_index] < lm_winter_mean-2.5*winter_std
+           if sum(valid_local_min_index) > 0:
+               new_onset1[i0] = local_min[0][melting_index][valid_local_min_index][0]
+    vline_secs = np.concatenate((onset0, new_onset1, onset2))
+    # makes the DOY labels
+    label_numober = bxy.time_getlocaltime(vline_secs.astype(int), ref_time=[2000, 1, 1, 0])[-2]
+    label_str = ['DOY (%d, %d, %d)' % (label_numober[i], label_numober[j], label_numober[k]) for i, j, k
+                 in zip([0, 1, 2], [3, 4, 5], [6, 7, 8])]
+    swe_label = data_h5['snow/label'].value
+    if swe_label != 'Snow Water Equivalent (mm)':
+        y_limit[1][-1] /= 3
+    site_id_array = np.loadtxt('indice_interest_all_stations.txt', delimiter=',')
+    ascat_1d_id = site_id_array[:, 0][site_id_array[:, 2] == station_id].astype(int)
+    if ascat_1d_id.size<1:
+        ascat_1d_id = station_id
+    fig_name = 'ms_pixel_test_%d_%d' % (station_id, ascat_1d_id)
+    if is_color:
+        colorbar_list = [discrete_temperature, swe]
+    else:
+        colorbar_list = False
+    plot_funcs.plot_subplot([npr_plot, ascat_plot, swe],
+                            second_axis,
+                            main_label=['NPR', '$\sigma^0$ (dB)', swe_label],
+                            figname=fig_name, x_unit='doy',
+                            v_line=[vline_secs,
+                                   ['k-', 'k-', 'k-', 'r-', 'r-', 'r-', 'b-', 'b-', 'b-'],
+                                   ['p', 'p', 'p', 'n', 'n', 'n', 'p1', 'p1', 'p1']],
+                            v_line2=[[2, 2, 2, 2, 2, 2],
+                                     np.concatenate((plot_dict['air_above_0'],
+                                                     plot_dict['snow_depth_drop'])),
+                                     [['k', '--'], ['k', '--'], ['k', '--'],
+                                      ['r', '--'], ['r', '--'], ['r', '--']]],
+                            vline_label=label_str,
+                            h_line=[[2], [0], ['--']],
+                            h_line2=[[0, 1, 1, 1], [0.01, 1, -1, 0], [':', ':', ':', '--']],
+                            # annotation_sigma0=[text_qa_w, text_qa_m],
+                            # x_lim=[bxy.get_total_sec('20160101'), bxy.get_total_sec('20181230')],
+                            y_lim=y_limit, y_lim2=y_limit_2, type_y2='bar', x_lim=x_lim,
+                            color_bar=colorbar_list
+                            )
+    # save in table
+    results_table[0:9] = vline_secs
+    results_table[9:12] = plot_dict['air_above_0']
+    results_table[12:15] = plot_dict['snow_depth_drop']
+    results_table[15] = station_id
+    return results_table
+    # save detection results
+    # np.savetxt('combination_detect_results_air_temperature.txt', results_table.astype(int), fmt='%d', delimiter=',',
+    #                header='0-3: NPR, 3-6: Melt, 6-9: End, 9-12: Above 0 degC, 12-15: snow depth drop')
+    # plotting pixel by pixel
+    #     npr_plot = np.array([pixel_2016_new[0][0][0], pixel_2016_new[0][0][1],
+    #                          pixel_2017_new[0][0][0], pixel_2017_new[0][0][1],
+    #                          pixel_2018_new[0][0][0], pixel_2018_new[0][0][1]])
+
+
+def quick_process_h5_prepare(single_check, hour_pass, hr_array=np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                                                                         11, 12, 13, 14, 15, 16, 17, 18, 19,
+                                                                         20, 21, 22, 23])):
+    site_id_array = np.loadtxt('indice_interest_all_stations.txt', delimiter=',')
+    site_id_ascat = site_id_array[:, 0].astype(int)  # a ascat pixel which is coincide with a station
+    site_id_smap = site_id_array[:, 1].astype(int)
+    site_id_no = site_id_array[:, 2].astype(int)
+    dict_year = dict()
+    id_array = np.array([site_id_ascat, site_id_smap])
+    for yr0 in [2016, 2017, 2018]:  # add 2016, 2018
+        # the sigma0 time series of interested ascat pixel
+        sigma0_on_station = np.load('prepare_files/npz/ascat/ascat_interest_pixel_series_%d.npz' % (yr0))
+        smap_all_pixels = np.load('prepare_files/npz/smap/smap_all_series_A_%d.npz' % (yr0))
+        # smap measurements of the interested pixels (id = id_array[1])
+        tbv_on_station, tbh_on_station, secs_smap_all_station = smap_all_pixels['cell_tb_v_aft'][id_array[1]], \
+                                                          smap_all_pixels['cell_tb_h_aft'][id_array[1]], \
+                                                          smap_all_pixels['cell_tb_time_seconds_aft.npy'][id_array[1]]
+        series_npr_all_staions = (tbv_on_station-tbh_on_station)/(tbv_on_station+tbh_on_station)
+        series_npr_all_staions[tbv_on_station < 100] = -999
+        dict_year[str(yr0)] = [sigma0_on_station, series_npr_all_staions, secs_smap_all_station]
+
+    # save 3 years data for each staion or interested pixel
+    if single_check:  # test one particular pixel
+        # smap_id_1d = site_id_smap[site_id_no == single_check][0]
+        # ascat_id_1d = site_id_ascat[site_id_no == single_check][0]
+        # i_pixel = np.where(site_id_no == single_check)[0][0]
+        station_ascat_id_list = [single_check]
+    else:
+        station_ascat_id_list = site_id_no
+
+    for i_pixel, station_id0 in enumerate(station_ascat_id_list):
+        # h5 files that saves time series and in situ measurements
+        # h5_path = 'prepare_files/npz/station_measurement/station_plot_%d.h5' % station_id0
+        h5_path = 'prepare_files/h5/station_measurement/station_plot_%d.h5' % station_id0
+        if os.path.exists(h5_path):
+            print 'the %s has already there', h5_path
+            continue
+        # else:
+        plot_h5 = h5py.File(h5_path, 'a')
+        npr0 = plot_h5.create_group('npr')
+        ascat0 = plot_h5.create_group('ascat')
+        ascat1 = plot_h5.create_group('ascat_original_angle')
+        # plot_h5.create_dataset('v_line', ())
+        # plot_h5['ascat_conv_melt'], plot_h5['ascat_conv_thaw'] = [], []
+        for i0, yr0 in enumerate([2016, 2017, 2018]):  # 2016, 2017, 2018
+            # for each pixel, estimate the onset year by year
+            sigma0_one_year = dict_year[str(yr0)][0]
+            npr_one_year = dict_year[str(yr0)][1]
+            npr_secs_one_year = dict_year[str(yr0)][2]
+            # saving npr and back scatter
+            npr_array = np.array([npr_secs_one_year[i_pixel], npr_one_year[i_pixel]])  # npr t series
+            valid_index = bxy.get_valid_index(npr_array, key_id=[0, 1], invalid=[-999])
+            npr_save = npr_array[:, valid_index]
+            npr0.create_dataset('%d' % yr0, npr_save.shape, data=npr_save)
+            ascat_array = np.array([sigma0_one_year['utc_line_nodes'][i_pixel],  # ascat back scatter t seies
+                                    sigma0_one_year['sigma0_trip_aft'][i_pixel],
+                                    sigma0_one_year['inc_angle_trip_aft'][i_pixel]])
+
+            ascat1.create_dataset('%d' % yr0, ascat_array.shape, data=ascat_array)
+            sigma0_45 = data_process.angular_correct(ascat_array[1], ascat_array[2], ascat_array[0])
+            ascat_array[1] = sigma0_45
+            # plot check
+            index0 = ascat_array[0]>0
+            # plot_funcs.quick_plot(ascat_array[0][index0], sigma0_45[index0])
+            valid_index = bxy.get_valid_index(ascat_array, key_id=[0, 1], invalid=[0])
+            ascat_save = ascat_array[:, valid_index]
+            ascat0.create_dataset('%d' % yr0, ascat_save.shape, data=ascat_save)
+
+        # insitu data for 3 years
+        air_temperature, snow_data = plot_h5.create_group('air_temperature'), plot_h5.create_group('snow')
+        for i0, yr0 in enumerate([2016, 2017, 2018]):
+            swe_one_year, swe_label = read_site.in_situ_series(station_id0, y=yr0, hr=np.array([0]),
+                                                               in_situ_measure='snow')
+            t_air_one_year, t_air_label = read_site.in_situ_series(station_id0, y=yr0, hr=hr_array)
+            # one_year_air = t_air_one_year[:, :, hr_index]
+            one_year_air = t_air_one_year
+            air_temperature.create_dataset('%d' % yr0, shape=one_year_air.shape, data=one_year_air)
+
+            one_year_snow = swe_one_year[:, :, 0]
+            snow_data.create_dataset('%d' % yr0, shape=one_year_snow.shape, data=one_year_snow)
+        air_temperature.create_dataset('label', shape=(1, ), data=t_air_label)
+        snow_data.create_dataset('label', shape=(1, ), data=swe_label)
+        plot_h5.close()
+        if single_check:
+            return 0
+
+
+def quick_process_outlier_prepare(ascat_indices=np.array([44629, 44623]).astype(int)):
+    # format change, from npz to h5
+    # 1 the structures of npz and h5 files
+    # 2 create h5 group (i.e., keys),
+    npz_keys = ['sigma0_trip_mid', 'inc_angle_trip_mid', 'utc_line_nodes']
+    h5_keys = ['air_temperature', 'ascat', 'ascat_original_angle', 'npr', 'snow']
+    year_keys = ['2016', '2017', '2018']
+
+    index_table = site_infos.get_ind_table()
+
+    smap_indices = np.zeros(ascat_indices.shape).astype(int) - 99
+    for i0, ind0 in enumerate(ascat_indices):
+        smap_indices[i0] = index_table[1][index_table[0]==ind0][0]
+    # initial secs for each year
+    # read npz
+    dict_ascat = dict()
+    dict_smap = dict()
+    for yr0 in [2016, 2017, 2018]:  # add 2016, 2018
+        # the sigma0 time series of interested ascat pixel
+        smap_all_pixels = np.load('prepare_files/npz/smap/smap_all_series_A_%d.npz' % (yr0))
+        # smap measurements of the interested pixels (id = id_array[1])
+        tbv_on_station, tbh_on_station, secs_smap_all_station = smap_all_pixels['cell_tb_v_aft'][smap_indices], \
+                                                          smap_all_pixels['cell_tb_h_aft'][smap_indices], \
+                                                          smap_all_pixels['cell_tb_time_seconds_aft.npy'][smap_indices]
+        series_npr_all_staions = (tbv_on_station-tbh_on_station)/(tbv_on_station+tbh_on_station)
+        series_npr_all_staions[tbv_on_station < 100] = -999
+        dict_smap[str(yr0)] = [secs_smap_all_station, series_npr_all_staions]
+
+    # get time series of ascat from gridded files
+    for yr0 in [2016, 2017, 2018]:
+        # read npz of ascat and smap to a dict
+        sigma0_on_pixels = np.load('./npy_series_file/ascat_outlier_series_%d.npz' % yr0)
+        dict_ascat[str(yr0)] = sigma0_on_pixels  # dict contains npz files
+
+    # save the time series data into h5 file
+    for i0, pixel_id0 in enumerate(ascat_indices):
+        # create h5 files
+        h5_path = 'prepare_files/h5/pixel_check/pixel_plot_%d.h5' % pixel_id0
+        if os.path.exists(h5_path):
+            print 'the %s has already there', h5_path
+            continue
+        else:
+            plot_h5 = h5py.File(h5_path, 'a')
+            npr0 = plot_h5.create_group('npr')
+            ascat0 = plot_h5.create_group('ascat')
+            ascat1 = plot_h5.create_group('ascat_original_angle')
+            air_temperature = plot_h5.create_group('air_temperature')
+            snow_data = plot_h5.create_group('snow')
+            air_temperature.create_dataset('label', shape=(1, ), data='no data')
+            snow_data.create_dataset('label', shape=(1, ), data='no data')
+        for yr0 in [2016, 2017, 2018]:
+            sigma0_one_year = dict_ascat[str(yr0)]
+            # set npr value
+            npr_sec_ini = bxy.get_total_sec('%d0101' % yr0)
+            npr_save = np.array([dict_smap[str(yr0)][0][i0],  dict_smap[str(yr0)][1][i0]])  # npr t series
+            npr0.create_dataset('%d' % yr0, npr_save.shape, data=npr_save)
+            ascat_array = np.array([sigma0_one_year['utc_line_nodes'][i0],  # ascat back scatter t seies
+                                    sigma0_one_year['sigma0_trip_aft'][i0],
+                                    sigma0_one_year['inc_angle_trip_aft'][i0]])
+            ascat_valid = ascat_array[:, ascat_array[0]>0]
+            ascat0.create_dataset('%d' % yr0, ascat_valid.shape, data=ascat_valid)
+            # ascat1.create_dataset('%d' % yr0, ascat_array.shape, data=ascat_array)
+            # add air and snow
+            one_year_air = np.zeros([2, npr_save.shape[1], 24]) - 99
+            for i_hour in range(0, 24):
+                one_year_air[0, :, i_hour] = npr_save[0].copy()
+            air_temperature.create_dataset('%d' % yr0, shape=one_year_air.shape, data=one_year_air)
+
+            one_year_snow = np.zeros(npr_save.shape) - 99
+            one_year_snow[0] = npr_save[0]
+            snow_data.create_dataset('%d' % yr0, shape=one_year_snow.shape, data=one_year_snow)
+
+
+def detection_result(tab_name):
+    result_table = np.loadtxt(tab_name, delimiter=',').astype(int)
+    table_value_npr = result_table[:, 0:3].ravel()
+    t_tuple_npr = bxy.time_getlocaltime(result_table[:, 0:3].ravel())
+    t_tuple_ascat = bxy.time_getlocaltime(result_table[:, 3:9].ravel(), ref_time=[2000, 1, 1, 0])
+    t_tuple_station = bxy.time_getlocaltime(result_table[:, 9:12].ravel(), ref_time=[2000, 1, 1, 0], t_source='US/Alaska')
+    t_tuple_snow = bxy.time_getlocaltime(result_table[:, 12:15].ravel(),
+                                         ref_time=[2000, 1, 1, 0],
+                                         t_source='US/Alaska')
+    new_table = np.hstack((t_tuple_npr[3].reshape(-1, 3),
+                           t_tuple_ascat[3].reshape(-1, 6),
+                           t_tuple_station[3].reshape(-1, 3),
+                           t_tuple_snow[3].reshape(-1, 3),
+                           result_table[:, -1].reshape(-1, 1)))
+    np.savetxt('combining_result_for_csv.csv', new_table, delimiter=',', fmt='%d')
+    quit0()
+
+
+def air_temperature_onset(station_id, hr_pass=14):
+    onset_list = []
+    for yr0 in [2016, 2017, 2018]:
+            hr_list = np.array([5, 7, 9, 14, 18, 21])
+            hr_index = np.where(hr_list == hr_pass)[0][0]
+            swe_one_year = read_site.in_situ_series(station_id, y=yr0, hr=np.array([0]), in_situ_measure='snow')
+            t_air_one_year = read_site.in_situ_series(station_id, y=yr0, hr=hr_list)
+            # swe_value, swe_date = read_site.read_measurements(site_no, 'snow', np.arange(366, 366+365), hr=0)
+            # swe_date-=365
+            time_above_zero_list = [data_process.zero_find(t_air_one_year[:, :, i], w=7, th=-0.1)
+                                    for i in range(0, len(hr_list))]
+            onset_list.append(time_above_zero_list[hr_index])
+    return np.array(onset_list)
+
+
+def call_air_onset():
+    id_int = np.array([947, 948, 949, 950, 957, 958, 962, 968,
+                       1003, 1055, 1062, 1072, 1089, 1090, 1091, 1094,
+                       1103, 1175, 1177, 1182, 1183,
+                       1267, 1268, 2065, 2081, 2210, 2211, 2212, 2213])
+    onset_secs = np.zeros([id_int.size, 3])
+    for i0, id0 in enumerate(id_int):
+        air_onsets_1_station = air_temperature_onset(id0, hr_pass=14)
+        onset_secs[i0] = air_onsets_1_station
+    np.savetxt('test_air_onset.txt', onset_secs.astype(int), delimiter=',')
+    onset_doy = bxy.time_getlocaltime(onset_secs.ravel(), ref_time=[2000, 1, 1, 0], t_source='US/Alaska')[3]
+    np.savetxt('test_air_onset_doy.txt', onset_doy.reshape(-1, 3).astype(int), delimiter=',')
+    return 0
+
+
+def save_smap_grid_file(t_window = ['2017.08.03', '2017.08.06']):
+    doy_array, year_no = bxy.get_doy_array(t_window[0], t_window[1], fmt='%Y.%m.%d')
+    Read_radar.radar_read_alaska('_D_', ['alaska'], t_window, 'vv', year=year_no)
+    # Read_radar.radar_read_alaska('_A_', ['alaska'], t_window, 'vv', year=year_no)
+    for doy0 in doy_array:
+        t_str=bxy.doy2date(doy0, fmt='%Y%m%d', year0=year_no)
+        # spt_quick.smap_area_plot(t_str, save_dir='./result_08_01/area/smap_area_result', orbit='A')
+        spt_quick.smap_area_plot(t_str, save_dir='./result_08_01/area/smap_area_result', orbit='D')
+    quit0()
+
+
+def winter_mean_classify(key='ascat', year=2018):
+    # get station nos
+    file0_array = np.loadtxt('prepare_files/station_info/validation_stations.csv', delimiter=',')
+    station_list = file0_array[:, 16].astype(int)
+    mean_station_array = np.zeros([station_list.size, 7])
+    for i0, s0 in enumerate(station_list):
+        # extract the winter mean sigma
+        # h5_name = 'prepare_files/npz/station_measurement/station_plot_%d.h5' % s0
+        h5_name = 'prepare_files/h5/station_measurement/station_plot_%d.h5' % s0
+        data_h5 = h5py.File(h5_name, 'r')
+        value0 = data_h5['%s/%d' % (key, 2016)].value[0: 2]
+        value1 = data_h5['%s/%d' % (key, 2017)].value[0: 2]
+        value2 = data_h5['%s/%d' % (key, 2018)].value[0: 2]
+        # calculate mean winter value
+        mean_winter = mean_by_time(value0)
+        mean_station = np.array([s0,
+                                 mean_by_time(value0), mean_by_time(value1), mean_by_time(value2),
+                                 mean_by_time(value0, doy_span=[160, 240]), mean_by_time(value1, doy_span=[160, 240]),
+                                 mean_by_time(value2, doy_span=[160, 240])])
+        mean_station_array[i0]=mean_station
+    # save the mean winter sigma0
+    np.savetxt('test_winter_mean_classify.txt', mean_station_array[np.argsort(mean_station_array[:, 3])],
+               fmt='%.3f', delimiter=',')
+    # histogram
+    plot_funcs.plt_hist(mean_station_array[:, 3])
+    return 0
+
+
+def mean_by_time(series0, doy_span=[1, 80], unit='secs', t_zone='utc'):
+    doy = bxy.time_getlocaltime(series0[0], ref_time=[2000, 1, 1, 0], t_source=t_zone)[3]
+    return np.mean(series0[1][(doy > doy_span[0]) & (doy < doy_span[1])])
+
+
+def quick_process_compare_overpass():
+    # read txt result
+    txt_value = np.loadtxt('combining_result_for_csv.csv', delimiter=',')
+    txt_value = txt_value[txt_value[:, -1] > 1]
+    # compare Tair timing and NPR timing
+    return 0
+
+def out_lier1(site_id=44629, pixel_path='prepare_files/h5/pixel_check/pixel_plot_'):
+    pass_index = 14  # 1, 3, 5, 7, 9, 12, 14, 16, 18, 21, 23
+    air_w = 7
+    print 'station no: ', site_id
+    # h5_name = 'prepare_files/npz/station_measurement/station_plot_%d.h5' % site_id
+    h5_name = pixel_path+('%d.h5' % site_id)
+    data_h5 = h5py.File(h5_name, 'r')
+    plot_h5_p1 = quick_process_two_series_detect(data_h5, smap_g=3, inc_correct=True)
+    plot_dict = quick_process_validate(plot_h5_p1, data_h5, air_window=air_w, hour_index=pass_index)
+    table0 = quick_process_plot(plot_dict, site_id, site_id, snow_limit=[0, 600],
+                                h5_path=pixel_path, is_color=False, inc_correct=True)
+    check_table = bxy.time_getlocaltime(table0, t_source='US/Alaska')
+
+
+def find_outlier(year0, ll_box=np.array([55, 70, 170, 140, 75, -1]), mode='lt',
+                 folder_name='.'):
+    """
+    find pixels where the ascat onsets are too early/late than a given threshold.
+    :param ll_box: range of latitudes, range of longitudes
+    :param threshold:
+    :param mode:
+    :return:
+    """
+    # find 1d indices of pixels within the ll_box
+    pixel_info = np.load('n12_n36_array_4cols.npy')
+    # ll_box=np.array([[66, 70], [-155, -150]])
+    ind_interest = (pixel_info[2] > -1*ll_box[2]) & (pixel_info[2] < -1*ll_box[3]) & \
+                   (pixel_info[3] > ll_box[0]) & (pixel_info[3] < ll_box[1])
+    # read onset result
+    npz_fname = glob.glob('%s/*onset_all_%d*.npz' % (folder_name, year0))
+    npz_value = np.load(npz_fname[0])
+    onsets_in_interest = npz_value['ascat_onset'][ind_interest]
+    ascat_ind_interest = pixel_info[0][ind_interest]
+    # threshold_sec_lt = bxy.get_total_sec('%d0101' % year0, reftime=[2000, 1, 1, 0]) + 86400 * (ll_box[4]-1)
+    # threshold_sec_gt = bxy.get_total_sec('%d0101' % year0, reftime=[2000, 1, 1, 0]) + 86400 * (ll_box[5]-1)
+    if mode == 'gt':
+        ind_gt = onsets_in_interest > bxy.get_total_sec('%d0101' % year0, reftime=[2000, 1, 1, 0]) \
+                                      + 86400 * (ll_box[5]-1)
+        onsets_less_than, ind_less_than = onsets_in_interest[ind_gt], ascat_ind_interest[ind_gt]
+    elif mode == 'lt':
+        ind_less_than = onsets_in_interest < bxy.get_total_sec('%d0101' % year0, reftime=[2000, 1, 1, 0]) \
+                                      + 86400 * (ll_box[4]-1)
+        onsets_less_than, ind_less_than = onsets_in_interest[ind_less_than], ascat_ind_interest[ind_less_than]
+    return onsets_less_than, ind_less_than
 
 
 if __name__ == "__main__":
-    # hystory(x=1)
-    # hystory(x=1)
-    quick_process()
+    # using new thaw window [-30, 30] + smap_onset
+    # hystory(2)
+    year1 = 2018
+    info_year1 = site_infos.out_pixel_info(year1)
+    ind1 = np.array([])
+    ind0 = np.array([])
+    for info0 in info_year1:
+        a = 0
+        outlier_value, outlier_ind = find_outlier(2018, info0, mode='gt', folder_name='npz_folder_2020_8')
+        if outlier_ind.size>0:
+            outlier_ind = outlier_ind[[0, outlier_ind.size/3, 2*outlier_ind.size/3]]
+        ind0 = np.hstack((ind0, outlier_ind))
+        outlier_value1, outlier_ind1 = find_outlier(2018, info0, mode='lt', folder_name='npz_folder_2020_8')
+        if outlier_ind1.size>0:
+            outlier_ind1 = outlier_ind1[[0, outlier_ind1.size/3, 2*outlier_ind1.size/3, -1]]
+        ind1 = np.hstack((ind1, outlier_ind1))
+    p_test = np.hstack((ind0, ind1))
+    p_test_int = p_test.astype(int)
+    quick_process_outlier_prepare(p_test)
     quit0()
+    path = glob.glob('npz_folder_2020_8/ascat_onset_all_%d*.npz' % year1)
+    quick_location(map_name=path[0],  # loc=np.array([[-165.0, 61.5]]),
+                   index_1d_input=p_test, pixel_name=p_test, year0=year1)
+    # map_plot3(2016, mode='quick', folder_name='npz_folder_2020_8')
+    # map_plot3(2017, mode='quick', folder_name='npz_folder_2020_8')
+    # map_plot3(2018, mode='quick', folder_name='npz_folder_2020_8')
+    quit0()
+    # ms_get_interest_series_v2(pixel_type='outlier', input_ascat_index=np.unique(p_test), year0=2016)
+    # ms_get_interest_series_v2(pixel_type='outlier', input_ascat_index=np.unique(p_test), year0=2017)
+    # ms_get_interest_series_v2(pixel_type='outlier', input_ascat_index=np.unique(p_test), year0=2018)
+    # p_test = np.array([44035, 43726, 44324])
+    # quick_process_outlier_prepare(p_test)
+    # hystory(2)
+    # ms_get_interest_series_v2(pixel_type='outlier', input_ascat_index=np.unique(p_test), year0=2016)
+    # ms_get_interest_series_v2(pixel_type='outlier', input_ascat_index=np.unique(p_test), year0=2017)
+    # ms_get_interest_series_v2(pixel_type='outlier', input_ascat_index=np.unique(p_test), year0=2018)
+    # quit0()
+    year1 = 2018
+    p_test = np.array([44035, 43726, 44324])
+    path = glob.glob('npz_folder_2020_7/0708_1/ascat_onset_all_%d*.npz' % year1)
+    quick_location(map_name=path[0],  # loc=np.array([[-165.0, 61.5]]),
+                   index_1d_input=p_test, pixel_name=p_test, year0=year1)
+    for out0 in p_test:
+        out_lier1(out0)
+    # map_plot3(2016, mode='quick', folder_name='npz_folder_2020_7/0708_1')
+    # map_plot3(2017, mode='quick', folder_name='npz_folder_2020_7/0708_1')
+    # map_plot3(2018, mode='quick', folder_name='npz_folder_2020_7/0708_1')
+    quit0()
+
+    # check 2018 odd pixel
+    year1 = 2018
+    # onsets_early_outlier, ind_early_outlier = find_outlier(year1, ll_box=np.array([[66, 70], [-155, -150]]),
+    #                                                        folder_name='npz_folder_2020_7', mode='gt')
+    onsets_early_outlier, ind_early_outlier = find_outlier(year1, ll_box=np.array([[66, 70], [-155, -150]]),
+                                                           folder_name='npz_folder_2020_7', mode='gt', threshold=150)
+    p_test = ind_early_outlier.astype(int)
+    p_test = np.array([44035, 43726, 44324])
+    path = glob.glob('npz_folder_2020_7/0708_1/ascat_onset_all_%d*.npz' % year1)
+    quick_location(map_name=path[0],  # loc=np.array([[-165.0, 61.5]]),
+                   index_1d_input=p_test, pixel_name=p_test, year0=year1)
+    quit0()
+
+    # ms_get_interest_series_v2(pixel_type='outlier', input_ascat_index=np.unique(p_test), year0=2016)
+    # ms_get_interest_series_v2(pixel_type='outlier', input_ascat_index=np.unique(p_test), year0=2017)
+    # ms_get_interest_series_v2(pixel_type='outlier', input_ascat_index=np.unique(p_test), year0=2018)
+    # quick_process_outlier_prepare(p_test)
+    # quit0()
+    for out0 in p_test:
+        out_lier1(out0)
+    # check the odd pixel where the onset is significant different
+    quick_process_outlier_prepare()
+
+    quit0()
+    # p_test = np.array([44629, 44623, 23054, 23349])
+    # # quick_location(map_name='data_ascat_map/ascat_onset_all_2018_05091708.npz',  # loc=np.array([[-165.0, 61.5]]),
+    # #                index_1d_input=p_test, pixel_name=p_test, year0=2018)
+    # # np.array([[-144.2, 62.1]])
+    # ms_get_interest_series_v2(pixel_type='outlier', input_ascat_index=np.unique(p_test), year0=2016)
+    # ms_get_interest_series_v2(pixel_type='outlier', input_ascat_index=np.unique(p_test), year0=2018)
+    # quit0()
+    hystory(2)
+    # quit0()
+    # map_plot3(2016, mode='quick', folder_name='data_ascat_map')
+    # map_plot3(2017, mode='quick', folder_name='data_ascat_map')
+    # map_plot3(2018, mode='quick', folder_name='data_ascat_map')
+    # quit0()
+    # save site measurements and the corresponded RS data in to new h5_files
+    # quick_process_h5_prepare(False, False)
+    # quit0()
+    site_id_array = np.loadtxt('indice_interest_all_stations.txt', delimiter=',')
+    site_id_no = site_id_array[:, 2].astype(int)
+    result_tables = np.zeros([site_id_no.size, 16])
+    # 947, 948, 949, 950, 952, 957, 958, 960, 961, *962,
+    # 967,968, 1072, 1089, 1090, 1094, 1175, 1177, 1182, 1183, 1267, 1268, 2065, *2081
+    site_id_no = [947, 948, 949, 950, 952, 957, 958, 960, 961, #962,
+                  967, 968, 1072, 1089, 1090, 1094, 1175, 1177, 1182, 1183, 1267, 1268, 2065, 2081, 2210]
+    # site_id_no = [949]
+    for i0, site_id in enumerate(site_id_no): # site_id_no
+        pass_index = 14  # 1, 3, 5, 7, 9, 12, 14, 16, 18, 21, 23
+        air_w = 7
+        print 'station no: ', site_id
+        # h5_name = 'prepare_files/npz/station_measurement/station_plot_%d.h5' % site_id
+        h5_name = 'prepare_files/h5/station_measurement/station_plot_%d.h5' % site_id
+        data_h5 = h5py.File(h5_name, 'r')
+        plot_h5_p1 = quick_process_two_series_detect(data_h5, smap_g=3)
+        plot_dict = quick_process_validate(plot_h5_p1, data_h5, air_window=air_w, hour_index=pass_index)
+        table0 = quick_process_plot(plot_dict, site_id, site_id, snow_limit=[0, 600])
+        check_table = bxy.time_getlocaltime(table0, t_source='US/Alaska')
+        result_tables[i0] = table0
+        data_h5.close()
+    np.savetxt('combination_detect_results_air_temperature.txt', result_tables.astype(int), delimiter=',')
+    detection_result('combination_detect_results_air_temperature.txt')
+    quit0()
+    # plot sigma series at 4 stations: 1089, 1094, 1267, 1268
+    #1089, 1268, 1267, 968, 1177, 1183, 947, 2210, 2081
+    # move downwards 2020/03/20
+    map_plot2(2016)
+    quit0()
+    winter_mean_classify()
+    site_nos = np.array([1232, 1234, 1267, 1037, 1055, 1183, 947, 2210, 2081]).astype(int)
+    multi_station_plot(site_nos)
+    # multi_station_plot(np.array([1089, 1094, 1267, 1268]), key='air_temperature')
+    multi_station_plot(site_nos, key='snow', lim=[0, 400])
+    quit0()
+    # prepare a data set
+    # quick_process_h5_prepare(False, hour_pass=12)
+    # discuss_combining(site_nos=['2213'])
+    # quit0()
+    # save_smap_grid_file(t_window=['2017.08.07', '2017.12.31'])
+    # hystory(x=3)
+    # quick_process_prepare(hour=12, snow_limit=[0, 250], air_window=7) # save h5 files
+    # quick_process_h5_prepare(station=False, hour=14)
+
+    site_id_array = np.loadtxt('indice_interest_all_stations.txt', delimiter=',')
+    site_id_no = site_id_array[:, 2].astype(int)
+    result_tables = np.zeros([site_id_no.size, 16])
+    site_id_no = [958]
+    for i0, site_id in enumerate(site_id_no): # site_id_no
+        pass_index = 3
+        print 'station no: ', site_id
+        h5_name = 'prepare_files/npz/station_measurement/station_plot_%d.h5' % site_id
+        data_h5 = h5py.File(h5_name, 'r')
+        plot_h5_p1 = quick_process_two_series_detect(data_h5, smap_g=3)
+        plot_dict = quick_process_validate(plot_h5_p1, data_h5, air_window=7, hour_index=pass_index)
+        table0 = quick_process_plot(plot_dict, site_id, site_id, snow_limit=[0, 600], hour_index=pass_index)
+        check_table = bxy.time_getlocaltime(table0, t_source='US/Alaska')
+        result_tables[i0] = table0
+        data_h5.close()
+    np.savetxt('combination_detect_results_air_temperature.txt', result_tables.astype(int), delimiter=',')
+    detection_result('combination_detect_results_air_temperature.txt')
+    quit0()
+    # quick_process(single_check=949, hour=12, snow_limit=[0, 600], air_window=7, smap_g=3)
+    # quick_process(single_check=1090, hour=12, snow_limit=[0, 600], air_window=7, smap_g=3)
+    # quit0()
+    detection_result('combination_detect_results_air_temperature.txt')
+    quit0()
+    quick_process(hour=14, snow_limit=[0, 600], air_window=7, smap_g=3)
+    quit0()
+    # quick_process(single_check=947, hour=14, snow_limit=[0, 600], air_window=7, smap_g=3)
+    # quick_process(single_check=2213, hour=14, snow_limit=[0, 100], air_window=7)
+    quit0()
+    call_air_onset()
+    quit0()
+    # quick_process()  # single_check=1267
+    # quick_process(, hour=14)
+    quick_process(single_check=2213, hour=14)
+    quit0()
+    detection_result('combination_detect_results_air_temperature.txt')
+    quit0()
+    quick_process(single_check=1103, hour=14)
+    quick_process(single_check=1072, hour=14)
+    hystory(x=-1)
+    # hystory(x=1)
+    # quick_process()
+    # kernel_series_edges()
+    plot_KSE('npr_KSE.npz', 'npr_method.png')
+    plot_KSE('ascat_KSE.npz', 'ascat_method.png', mode='sigma0')
+    quit0()
+
     # switch_plot_alaska(3)
     # quit0()
-    # data_prepare_ascat(p0=['20170102', '20171230'], un_grid=False)
+    data_prepare_ascat(p0=['20170102', '20171230'], un_grid=False)
     # hystory(x=1)
     # ms_station_new(sno_all=np.array([52712]), pixel_type='outlier', detectors=[5,7,7])
     # quit0()
@@ -7711,7 +8770,7 @@ if __name__ == "__main__":
 
     quit0()
     # ms_station_new(pixel_type='outlier', detectors=[7, 15, 10])
-    # hystory(x=1)
+    hystory(x=1)
     # ms_station_new(['947', '962', '1090', '1177', '2210'], detectors=[7, 15, 10])
     # quit0()
     map_name = 'onset_all_2016_281316.npz'
@@ -8320,7 +9379,7 @@ if __name__ == "__main__":
                              [s_secs, s_measurements[:, 0, i_no, 1].ravel(), s_secs, pass_hr]],
                             [[air_sec, air_measure], [air_sec, air_measure]],
                             main_label=['SND (mm) vs %s' % snow_label, 'SWE (mm) vs %s' % snow_label],
-                            x_unit='sec', vline=[[snd_50-4*3600*24], ['r-'], ['snow free']],
+                            x_unit='sec', v_line=[[snd_50-4*3600*24], ['r-'], ['snow free']],
                             figname='result_08_01/2019_snow_%s_.png' % (site_no),
                             main_syb = ['k-', 'r-', 'b-'])
         snowmelt_amsr2.append(snd_50-4*3600*24)

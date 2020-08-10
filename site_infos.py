@@ -5,10 +5,10 @@ import glob
 import numpy as np
 def get_type(id, all_site=False):
     site_dic = {'sno_': ['1089', '967', '1062', '947', '949', '950', '960', '962', '968', '1090', '1175', '1177', '948',
-                     '957', '958', '963', '1183', '961', '952', '948', '1182', '958',
+                     '957', '958', '963', '1183', '961', '952', '948', '1182', '958', '1103',
                 '1266', '987', '1003', '1064', '1063', '1037', '1092', '1035', '1094',
-                '1268', '1055', '1279', '1096', '1093', '1089', '1267', '1091', '954'],
-                'scan_': ['2080', '2081', '2213', '2210', '2065', '2212', '2211', '1233', '1062', '1232']}
+                '1268', '1055', '1279', '1096', '1093', '1089', '1267', '1091', '954', '1072'],
+                'scan_': ['2080', '2081', '2213', '2210', '2065', '2212', '2211', '1233', '1062', '1232', '1234']}
     if all_site is not False:
         snos = [a0 for key0 in site_dic.keys() for a0 in site_dic[key0]]
         # for key0 in site_dic.keys():
@@ -384,6 +384,23 @@ def empty_array_sz(name):
     return dict0[name]
 
 
-def ascat_dictionary():
-    # a structure array saving the meta data of ascat dictionary
-    return 0
+def ascat_dictionary(id0, id1, id2):
+    dic = ['sigma0_trip_fore', 'sigma0_trip_mid', 'utc_line_nodes', 'sate_type', 'sigma0_trip_aft', 'inc_angle_trip_mid'
+           , 'inc_angle_trip_fore', 'inc_angle_trip_aft']
+    h5_key0 = ['air_temperature', 'ascat', 'ascat_original_angle', 'npr', 'snow']
+    h5_key1 = ['2016', '2017', '2018']
+    return [dic[id0], h5_key0[id1], h5_key1[id2]]
+
+
+def out_pixel_info(year0=2018):
+    """
+    read the file contains the corner coordinates, maximum/minimum of onsets (in days)
+    :param year0:
+    :return:
+    """
+    info = np.loadtxt('prepare_files/station_info/out_pixel_%d.txt' % year0, delimiter=',')
+    return info
+
+
+def get_ind_table():
+    return np.load('n12_n36_array_4cols.npy')

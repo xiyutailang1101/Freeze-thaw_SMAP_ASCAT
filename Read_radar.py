@@ -117,6 +117,7 @@ def return_ind(filenamez, siten, sensor, prj='North_Polar_Projection',thsig=[0.4
         # a dict for each site, keys of the dict is the same with the smap_h5
         for f0 in filenamez:
             i_dic += 1
+            print 'now read h5 file, ', f0
             hf = h5py.File(f0, 'r')
             dset_col = np.array(hf[prj + '/cell_column'])
             dset_row = np.array(hf[prj + '/cell_row'])

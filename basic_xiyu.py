@@ -236,6 +236,14 @@ def get_total_sec(date_str, fmt='%Y%m%d', reftime=[2000, 1, 1, 0]):
             datetime(reftime[0], reftime[1], reftime[2], reftime[3], 0, 0)).total_seconds()
 
 
+def get_total_sec_array(date_str_list, fmt='%Y%m%d', reftime=[2000, 1, 1, 0]):
+    time_in_secs = np.array([get_total_sec(str0) for str0 in date_str_list])
+    # np.array([(datetime.strptime(str0, fmt) -
+    #        datetime(reftime[0], reftime[1], reftime[2], reftime[3], 0, 0)).total_seconds()
+    #       for str0 in date_str_list])
+    return time_in_secs
+
+
 def zone_trans(secs, zone0, zone1, ref_time=[2000, 1, 1, 0]):
     tz0 = pytz.timezone(zone0)
     tz1 = pytz.timezone(zone1)
@@ -570,6 +578,10 @@ def sort_byline():
     return 0
 
 
+def sec2doy_array(array):
+    return np.array([time_getlocaltime([array])])
+
+
 def get_yearly_files(t_window=[0, 210], year0=2016):
     # ascat_att0=['sigma0_trip_aft', 'inc_angle_trip_aft', 'utc_line_nodes', 'sigma0_trip_fore',
     #                               'inc_angle_trip_fore', 'sigma0_trip_mid', 'inc_angle_trip_mid']
@@ -582,3 +594,27 @@ def get_yearly_files(t_window=[0, 210], year0=2016):
         match_name = 'result_08_01/%s/ascat_*%s*.h5' % (file_path, time_str0)
         path_ascat += glob.glob(match_name)
     return path_ascat
+
+
+def make_kernal(sig, sig2=False):
+    size = 6 * sig + 1
+    x = np.linspace(-size / 2 + 1, size / 2, size)
+    filterz = ((-x) / sig ** 2) * np.exp(-x ** 2 / (2 * sig ** 2))
+    if sig2:
+        size2 = 6 * sig2 + 1
+        x2 = np.linspace(-size2 / 2 + 1, size2 / 2, size2)
+        filterz2 = ((-x2) / sig2 ** 2) * np.exp(-x2 ** 2 / (2 * sig2 ** 2))
+        filter_re = filterz2[filterz2>0]
+        loc_0 = np.where(filterz==0)[0][0]  # location of 0 in the original filter
+        filterz3 = filterz.copy()
+        filterz3[loc_0-filter_re.size: loc_0] = filter_re
+        filterz3[0: loc_0-filter_re.size] = 0
+        filterz = filterz3
+    return np.array([x, filterz])
+
+
+def initial_window(year0, key='melt'):
+    window_str_dict = {'melt': ['%d0301' % year0, '%d0701' % year0],
+                       'summer': ['%d0701' % year0, '%d0901' % year0],
+                       'winter': ['%d0101' % year0, '%d0301' % year0]}
+    return window_str_dict[key]

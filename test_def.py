@@ -1737,15 +1737,7 @@ def edge_detect(t_series, edge_series, s, s2=3, order=1, seriestype='tb', is_sor
         # calculate the winter mean convolution as well as the snr
         t_valid = t_series[i_gaussian][g_size: -g_size]
         if t_valid.size < 1:
-            p = 0
             t_valid = np.array([np.min(t_series[i_gaussian])])
-        # i_winter = (t_valid > 1+365) & (t_valid < 60+365)
-        # conv_winter = conv_valid[i_winter]
-        # conv_noise = np.nanmean(np.abs(conv_winter))
-        # snr = max_gnpr[:, -1]/conv_noise
-        # max_npr_valid = max_gnpr[np.abs(snr) > snr_threshold]
-        # snr = np.abs(min_gnpr[:, -1])/conv_noise
-        # min_npr_valid = min_gnpr[np.abs(snr) > snr_threshold]
         max_npr_valid = max_gnpr
         min_npr_valid = min_gnpr
         if max_npr_valid.size < 1:
