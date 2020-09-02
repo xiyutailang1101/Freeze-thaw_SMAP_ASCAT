@@ -7040,6 +7040,65 @@ def check_pixels_125N():
 
 
 def ms_get_interest_series_v2(pixel_type='interest', year0=2016,
+                              input_pixels=[-1, -1, -1, -1], time_window=[0, 364],
+                              input_ascat_index=[]):
+    '''
+    new version, no loops
+    :param is_check:
+    :param pixel_type: interest, all, outlier
+    :param input_pixels: [0 pixel id, 1 [ 10 (lon, lat), 11 ind_smap, 12 ind_ascat]]
+           i.e. input_pixels=[p02_ind_ascat.astype(str),
+                            [p02_new, p02_ind_smap, p02_ind_ascat]]
+    :return:
+        ascat_dict_yearly: dictionary, keys include incidence angle (e.g., 'inc_angle_trip_aft'),
+                           dimension: (land pixels x time series)
+        npr_series:
+    '''
+    # get time series of specified pixels
+    if pixel_type == 'interest':
+        points = site_infos.get_id()
+        p_latlon = np.zeros([len(points), 2])
+        for i0, sno in enumerate(points):
+            p0 = site_infos.change_site(sno)
+            p_latlon[i0, 0], p_latlon[i0, 1] = p0[2], p0[1]
+    elif pixel_type == 'outlier':
+        ascat_index = input_ascat_index
+        points, p_latlon, smap_index, ascat_index_na = \
+            input_pixels[0], input_pixels[1], input_pixels[2], input_pixels[3]
+    # smap_yearly = get_yearly_smap(t_window=[0, 300], year0=year0)
+    smap_yearly = data_process.get_smap_dict(np.arange(0, 360), y=year0)
+    start0 = bxy.get_time_now()
+    if pixel_type == 'all':  # all alaska pixels
+        # set index
+        n125_n360 = np.load('n12_n36_array.npy').astype(int)
+        ascat_all_id = np.unravel_index(n125_n360[0], (300, 300))
+        smap_all_id = np.unique(n125_n360[1])
+        # read data
+        ascat_dict_yearly = ms_read_ascat(year0, t_window=time_window, pixel_id=ascat_all_id)
+        npr_series, pid_smap = \
+            prepare_smap_series(smap_all_id, input_ascat=ascat_dict_yearly, input_smap=smap_yearly)
+    else:
+        # set index
+        ascat_index = ascat_index.astype(int)
+        N125_2d = np.unravel_index(ascat_index, (300, 300))
+        path_files = get_yearly_files(t_window=np.array(time_window), year0=year0)
+        ascat_dict_yearly = data_process.ascat_alaska_grid_v3(path_ascat=path_files, pid=N125_2d)
+        ascat_dict_yearly['pixel_id'] = ascat_index
+        # save the interested pixel measurments
+        np.savez('npy_series_file/ascat_%s_series_%d.npz' % (pixel_type, year0), **ascat_dict_yearly)
+        # ascat_dict_yearly = {'sigma0_trip_mid': np.array([0, 0]), 'inc_angle_trip_mid': np.array([0, 0]),
+        #                      'utc_line_nodes': np.array([0, 0])}
+        npr_series, pid_smap = prepare_smap_series(smap_index,
+                                                   input_ascat=ascat_dict_yearly, input_smap=smap_yearly,
+                                                   ascat_index=ascat_index)
+        start1 = bxy.get_time_now()
+        print("----read ascat part in %d: %s seconds ---" % (year0, start1-start0))
+        # onsets, pixels = combine_detect_v2(n125_n360, year0, ascat_dict_yearly, npr_series, save_sp=True,
+                                        # npz_name=pixel_type, pid_smap=pid_smap, gk=gk, npz_doc='npz_folder_085')
+    return ascat_dict_yearly, npr_series, pid_smap
+
+
+def ms_get_interest_series(pixel_type='interest', year0=2016,
                               input_pixels=[-1, -1, -1, -1], time_window=[0, 210],
                               input_ascat_index=[]):
     '''
@@ -7095,77 +7154,6 @@ def ms_get_interest_series_v2(pixel_type='interest', year0=2016,
         # onsets, pixels = combine_detect_v2(n125_n360, year0, ascat_dict_yearly, npr_series, save_sp=True,
                                         # npz_name=pixel_type, pid_smap=pid_smap, gk=gk, npz_doc='npz_folder_085')
     return ascat_dict_yearly, npr_series, pid_smap
-
-def ms_get_interest_series(pixel_type='interest', is_check=False,
-                           ascat_index=np.array([]), smap_index=np.array([]), pixel_name=np.array([]),
-                           time_window=[0, 210], year0=2016):
-    '''
-    :param is_check:
-    :param pixel_type: interest, all, outlier; gk: Gaussian kernels
-    :param input_pixels: [0 pixel id, 1 ind_smap, 2 ind_ascat]]
-           i.e. input_pixels=[p02_ind_ascat.astype(str),
-                            [p02_new, p02_ind_smap, p02_ind_ascat]]
-    :return:
-    '''
-    # get time series of specified pixels
-    if pixel_type == 'interest':
-        pixel_name = site_infos.get_id(int)
-        p_latlon = np.zeros([len(pixel_name), 2])
-        for i0, sno in enumerate(pixel_name):
-            p0 = site_infos.change_site(sno)
-            p_latlon[i0, 0], p_latlon[i0, 1] = p0[2], p0[1]
-        save_index = pixel_name
-        np.savetxt('ascat_index_%s_pixels.txt' % (pixel_type), save_index, fmt='%d', dilimiter=',')
-    elif pixel_type == 'outlier':
-        if smap_index.size == 0:
-            # search the smap index from the indices table corresponding to the given ascat index
-            index_table = np.load('n12_n36_array.npy')
-            indices_1 = [np.where(index_table[0] == id0)[0][0] for id0 in ascat_index]
-            smap_index = index_table[1][indices_1].astype(int)
-        if pixel_name.size == 0:
-            pixel_name = ascat_index
-        save_index = ascat_index
-        np.savetxt('ascat_index_%s_pixels.txt' % (pixel_type), save_index, fmt='%d', delimiter=',')
-    # plot the interested pixel on map
-    if is_check:
-        a1 = -1
-        print 'dont check in ms_get_interest_series'
-        return a1
-# for year0 in [2016, 2017, 2018]:
-    smap_yearly = data_process.get_smap_dict(np.arange(0, 364), y=year0)  # gridded smap measurements one year
-    start0 = bxy.get_time_now()
-    if pixel_type == 'all':  # all alaska pixels
-        # set index
-        n125_n360 = np.load('n12_n36_array.npy').astype(int)
-        ascat_all_id = np.unravel_index(n125_n360[0], (300, 300))
-        smap_all_id = np.unique(n125_n360[1])
-        # read data
-        ascat_dict_yearly = ms_read_ascat(year0, t_window=time_window, pixel_id=ascat_all_id)
-        npr_series, pid_smap = \
-            prepare_smap_series(smap_all_id, input_ascat=ascat_dict_yearly, input_smap=smap_yearly)
-    else:
-        # set index
-        N125_2d = np.unravel_index(ascat_index, (300, 300))
-        n125_n360 = np.array([ascat_index, smap_index])
-        np.savetxt('npz_indices_%s.txt' % pixel_type,
-                   np.array([ascat_index, smap_index, np.array(pixel_name).astype(int)]), delimiter=',', fmt='%d')
-        # read data based on index
-        path_files = get_yearly_files(np.array([0, 364]), year0=year0)
-        ascat_dict_yearly = data_process.ascat_alaska_grid_v3(path_ascat=path_files, pid=N125_2d)
-        # ascat_dict_yearly = ms_read_ascat(year0, t_window=time_window, pixel_id=N125_2d)
-        # ascat_dict_yearly = {'sigma0_trip_mid': np.array([0, 0]), 'inc_angle_trip_mid': np.array([0, 0]),
-        #                      'utc_line_nodes': np.array([0, 0])}
-        npr_series, pid_smap = prepare_smap_series(smap_index,
-                                                   input_ascat=ascat_dict_yearly, input_smap=smap_yearly,
-                                                   ascat_index=ascat_index)
-
-        start1 = bxy.get_time_now()
-
-        print("----read ascat part in %d: %s seconds ---" % (year0, start1-start0))
-        # onsets, pixels = combine_detect_v2(n125_n360, year0, ascat_dict_yearly, npr_series, all_region=True,
-        #                                 npz_name=pixel_type, pid_smap=pid_smap, gk=gk, npz_doc='npz_folder_085_new')
-        # ascat_dict_yearly, npr_series = 0, 0
-
 
 def index_ascat2smap(ascat_index):
     land_id = 0
@@ -7310,20 +7298,20 @@ def hystory(x=2):
     elif x==2:
         n125_n360 = np.load('n12_n36_array_4cols.npy')
         type = 'all'
-        for year0 in [2016, 2017, 2018]:
-        # for year0 in [2018]:
+        # for year0 in [2016, 2017, 2018]:
+        for year0 in [2018]:
             start0 = bxy.get_time_now()
             ascat_dict_yearly, npr_series, pid_smap = ms_get_interest_series_v2(pixel_type=type, year0=year0,
                                                                                 time_window=[0, 360])
             # [0, 210]
             # save the required series
-            np.save('npy_series_file/npr_series_%d.npy', npr_series)
+            np.save('npy_series_file/npr_series_%d.npy' % year0, npr_series)
             print 'prepare two series data for year %d takes %s seconds' % (year0, bxy.get_time_now()-start0)
             start0 = bxy.get_time_now()
             onsets, pixels = combine_detect_v2(n125_n360, year0, ascat_dict_yearly, npr_series, all_region=True,
                                                npz_name=type, pid_smap=pid_smap, gk=[5, 7, 7],
-                                               npz_doc='npz_folder_2020_8')
-            ascat_npy2npz(year0=year0, npz_doc='npz_folder_2020_8')
+                                               npz_doc='npz_folder_2020_9')
+            ascat_npy2npz(year0=year0, npz_doc='npz_folder_2020_9')
             print 'combine detect v2 for year %d takes %s seconds' % (year0, bxy.get_time_now()-start0)
     elif x==1:  # save data of interested
         ascat_outlier_index = np.loadtxt('map_plot_check_pixel_2018.txt', delimiter=',')
@@ -7983,13 +7971,15 @@ def multi_station_plot(site_id_nos, key='ascat', lim=[-20, -6]):
                                          ylim=lim)
     plot_list = []
 
+
 def quick_process_plot(plot_dict, single_check, site_id_no, snow_limit=[0, 250],
+                       m_limit=np.array([[-0.02, 0.08], [-20, -6]]),
                        h5_path='prepare_files/npz/station_measurement/station_plot_',
                        is_color=True, inc_correct=False):
     """
     plot, the time series is from h5 data, the calculated result is returned from step2
     :param plot_dict:
-    :param single_check:
+    :param m_limit: the y axis limit for plotting npr and sigma0
     :param site_id_no:
     :param snow_limit:
     :return:
@@ -8023,13 +8013,13 @@ def quick_process_plot(plot_dict, single_check, site_id_no, snow_limit=[0, 250],
     # plotting, separate from the process
     results_table = np.zeros(16)
     if single_check:  # test one particular pixel
-        y_limit = [np.array([0, 1, 2]), np.array([[-0.02, 0.08], [-20, -6], snow_limit])]
+        y_limit = [np.array([0, 1, 2]), np.array([m_limit[0], m_limit[1], snow_limit])]
         y_limit_2 = [[0, 1], [[0, 0.05], [-3, 9]]]
         x_lim = [bxy.get_total_sec('20160101'), bxy.get_total_sec('20190101')]
         station_id = single_check
     else:
         station_id = site_id_no
-        y_limit = [np.array([0, 1, 2]), np.array([[-0.02, 0.08], [-20, -6], snow_limit])]
+        y_limit = [np.array([0, 1, 2]), np.array([m_limit[0], m_limit[1], snow_limit])]
         y_limit_2 = [[0, 1], [[0, 0.05], [-3, 6]]]
         x_lim = [bxy.get_total_sec('20160101'), bxy.get_total_sec('20190101')]
     # # 3 subs
@@ -8288,6 +8278,76 @@ def quick_process_outlier_prepare(ascat_indices=np.array([44629, 44623]).astype(
             snow_data.create_dataset('%d' % yr0, shape=one_year_snow.shape, data=one_year_snow)
 
 
+def quick_process_save_h5(ascat_indices=np.array([44629, 44623]).astype(int)):
+    # format change, from npz to h5
+    # 1 the structures of npz and h5 files
+    # 2 create h5 group (i.e., keys),
+    index_table = site_infos.get_ind_table()
+    smap_indices = np.zeros(ascat_indices.shape).astype(int) - 99
+    for i0, ind0 in enumerate(ascat_indices):
+        smap_indices[i0] = index_table[1][index_table[0]==ind0][0]
+    # initial secs for each year
+
+    dict_ascat = dict()
+    dict_smap = dict()
+
+    # get yearly smap series
+    for yr0 in [2016, 2017, 2018]:  # add 2016, 2018
+
+        smap_all_pixels = np.load('prepare_files/npz/smap/smap_all_series_A_%d.npz' % (yr0))
+        # smap measurements of the interested pixels (id = id_array[1])
+        tbv_on_station, tbh_on_station, secs_smap_all_station = smap_all_pixels['cell_tb_v_aft'][smap_indices], \
+                                                          smap_all_pixels['cell_tb_h_aft'][smap_indices], \
+                                                          smap_all_pixels['cell_tb_time_seconds_aft.npy'][smap_indices]
+        series_npr_all_staions = (tbv_on_station-tbh_on_station)/(tbv_on_station+tbh_on_station)
+        series_npr_all_staions[tbv_on_station < 100] = -999
+        dict_smap[str(yr0)] = [secs_smap_all_station, series_npr_all_staions]
+
+    # get yearly ascat series
+    for yr0 in [2016, 2017, 2018]:
+        # read npz of ascat and smap to a dict
+        sigma0_on_pixels = np.load('./npy_series_file/ascat_outlier_series_%d.npz' % yr0)
+        dict_ascat[str(yr0)] = sigma0_on_pixels  # dict contains npz files
+
+    # save the time series data into h5 file
+    for i0, pixel_id0 in enumerate(ascat_indices):
+        # create h5 files
+        h5_path = 'prepare_files/h5/pixel_check/pixel_plot_%d.h5' % pixel_id0
+        if os.path.exists(h5_path):
+            print 'the %s has already there', h5_path
+            continue
+        else:
+            plot_h5 = h5py.File(h5_path, 'a')
+            npr0 = plot_h5.create_group('npr')
+            ascat0 = plot_h5.create_group('ascat')
+            ascat1 = plot_h5.create_group('ascat_original_angle')
+            air_temperature = plot_h5.create_group('air_temperature')
+            snow_data = plot_h5.create_group('snow')
+            air_temperature.create_dataset('label', shape=(1, ), data='no data')
+            snow_data.create_dataset('label', shape=(1, ), data='no data')
+        for yr0 in [2016, 2017, 2018]:
+            sigma0_one_year = dict_ascat[str(yr0)]
+            # set npr value
+            npr_sec_ini = bxy.get_total_sec('%d0101' % yr0)
+            npr_save = np.array([dict_smap[str(yr0)][0][i0],  dict_smap[str(yr0)][1][i0]])  # npr t series
+            npr0.create_dataset('%d' % yr0, npr_save.shape, data=npr_save)
+            ascat_array = np.array([sigma0_one_year['utc_line_nodes'][i0],  # ascat back scatter t seies
+                                    sigma0_one_year['sigma0_trip_aft'][i0],
+                                    sigma0_one_year['inc_angle_trip_aft'][i0]])
+            ascat_valid = ascat_array[:, ascat_array[0]>0]
+            ascat0.create_dataset('%d' % yr0, ascat_valid.shape, data=ascat_valid)
+            # ascat1.create_dataset('%d' % yr0, ascat_array.shape, data=ascat_array)
+            # add air and snow
+            one_year_air = np.zeros([2, npr_save.shape[1], 24]) - 99
+            for i_hour in range(0, 24):
+                one_year_air[0, :, i_hour] = npr_save[0].copy()
+            air_temperature.create_dataset('%d' % yr0, shape=one_year_air.shape, data=one_year_air)
+
+            one_year_snow = np.zeros(npr_save.shape) - 99
+            one_year_snow[0] = npr_save[0]
+            snow_data.create_dataset('%d' % yr0, shape=one_year_snow.shape, data=one_year_snow)
+
+
 def detection_result(tab_name):
     result_table = np.loadtxt(tab_name, delimiter=',').astype(int)
     table_value_npr = result_table[:, 0:3].ravel()
@@ -8387,6 +8447,7 @@ def quick_process_compare_overpass():
     # compare Tair timing and NPR timing
     return 0
 
+
 def out_lier1(site_id=44629, pixel_path='prepare_files/h5/pixel_check/pixel_plot_'):
     pass_index = 14  # 1, 3, 5, 7, 9, 12, 14, 16, 18, 21, 23
     air_w = 7
@@ -8397,6 +8458,7 @@ def out_lier1(site_id=44629, pixel_path='prepare_files/h5/pixel_check/pixel_plot
     plot_h5_p1 = quick_process_two_series_detect(data_h5, smap_g=3, inc_correct=True)
     plot_dict = quick_process_validate(plot_h5_p1, data_h5, air_window=air_w, hour_index=pass_index)
     table0 = quick_process_plot(plot_dict, site_id, site_id, snow_limit=[0, 600],
+                                m_limit=np.array([[-.02, .08], [-20, -4]]),
                                 h5_path=pixel_path, is_color=False, inc_correct=True)
     check_table = bxy.time_getlocaltime(table0, t_source='US/Alaska')
 
@@ -8433,8 +8495,19 @@ def find_outlier(year0, ll_box=np.array([55, 70, 170, 140, 75, -1]), mode='lt',
     return onsets_less_than, ind_less_than
 
 
+def temp_codes():
+    '''
+    temp code, saving the id of ascat pixels (outliers)
+    '''
+    for year0 in [2016, 2017, 2018]:
+        v0 = np.load('npy_series_file/ascat_outlier_series_%d.npz' % year0)
+        np.savez_compressed('npy_series_file/ascat_outlier_series_%d.npz' % year0, pixel_id=np.unique(p_test), **v0)
+    quit0()
+
 if __name__ == "__main__":
+    # from map result, we extract the time series of the interested pixel
     # using new thaw window [-30, 30] + smap_onset
+    # quick_process_save_h5()
     # hystory(2)
     year1 = 2018
     info_year1 = site_infos.out_pixel_info(year1)
@@ -8448,22 +8521,26 @@ if __name__ == "__main__":
         ind0 = np.hstack((ind0, outlier_ind))
         outlier_value1, outlier_ind1 = find_outlier(2018, info0, mode='lt', folder_name='npz_folder_2020_8')
         if outlier_ind1.size>0:
-            outlier_ind1 = outlier_ind1[[0, outlier_ind1.size/3, 2*outlier_ind1.size/3, -1]]
+            outlier_ind1 = outlier_ind1[[0, outlier_ind1.size/3, 2*outlier_ind1.size/3]]
         ind1 = np.hstack((ind1, outlier_ind1))
     p_test = np.hstack((ind0, ind1))
     p_test_int = p_test.astype(int)
-    quick_process_outlier_prepare(p_test)
-    quit0()
-    path = glob.glob('npz_folder_2020_8/ascat_onset_all_%d*.npz' % year1)
+    path = glob.glob('npz_folder_2020_9/ascat_onset_all_%d*.npz' % year1)
     quick_location(map_name=path[0],  # loc=np.array([[-165.0, 61.5]]),
                    index_1d_input=p_test, pixel_name=p_test, year0=year1)
     # map_plot3(2016, mode='quick', folder_name='npz_folder_2020_8')
     # map_plot3(2017, mode='quick', folder_name='npz_folder_2020_8')
     # map_plot3(2018, mode='quick', folder_name='npz_folder_2020_8')
     quit0()
+    p_test_uq = np.unique(p_test_int)
+    out_lier1(48815)
+    quit0()
+    for out0 in p_test_uq:
+        out_lier1(out0)
     # ms_get_interest_series_v2(pixel_type='outlier', input_ascat_index=np.unique(p_test), year0=2016)
     # ms_get_interest_series_v2(pixel_type='outlier', input_ascat_index=np.unique(p_test), year0=2017)
     # ms_get_interest_series_v2(pixel_type='outlier', input_ascat_index=np.unique(p_test), year0=2018)
+    quit0()
     # p_test = np.array([44035, 43726, 44324])
     # quick_process_outlier_prepare(p_test)
     # hystory(2)

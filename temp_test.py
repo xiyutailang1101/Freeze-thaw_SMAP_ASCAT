@@ -1480,16 +1480,19 @@ def read_a_txt():
     npy_value = np.load('npy_file/file11388.npy')
     t_air_one_year = read_site.in_situ_series(949, y=2016, hr=np.array([15]))
 
-def read_a_npy():
+
+def read_a_npy(fname):
     p = 1
     np0 = site_infos.get_ind_table()
-    npz0 = np.load('./npy_series_file/ascat_outlier_series_2018.npz')
+    npz0 = np.load(fname)
+
     keys = npz0.keys()
     t0 = npz0['utc_line_nodes'][0]
     t0_val = t0[t0>0]
     t0_tuple = bxy.time_getlocaltime(t0_val, ref_time=[2000, 1, 1, 0])
     print t0_tuple[0]
     return 0
+
 
 def detect_one():
     year0 = 2018
@@ -1524,9 +1527,18 @@ def detect_one():
     plt.savefig('detect_one.png')
     return 0
 
+
 if __name__ == "__main__":
     # detect_one()
-    read_new_h5('prepare_files/h5/pixel_check/pixel_plot_44637.h5')
+    # read_new_h5('result_08_01/ascat_resample_all3/ascat_metopA_20161101_19_A.h5')
+    # read_a_npy('npy_series_file/ascat_outlier_series_2017.npz'
+    h99 = h5py.File('result_08_01/area/smap_area_result/SMAP_alaska_A_GRID_20151102.h5')
+    n99 = np.load('n12_n36_array_4cols.npy')
+    n0, n1 = np.load('npy_series_file/npr_series_2018.npy'), \
+             np.load('prepare_files/npz/smap/smap_all_series_D_2018.npz')
+    n12_36 = np.load('npy_series_file/npr_series_%d.npy')
+    i0 = np.where(n12_36[0] == 48815)
+    status = 0
     # read_a_txt()
     # check_angular()
     # read_a_npy()

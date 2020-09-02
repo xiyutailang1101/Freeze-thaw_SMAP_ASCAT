@@ -1887,10 +1887,9 @@ def smap_melt_initiation(npr_series, time_secs, winter_zone, summer_zone, year0,
 
     npr_series[npr_series < 0] = -9999
     conv_npr_pixel, thaw_secs_id, maximum, minimum = \
-        get_onset_index(time_secs, npr_series, year0=year0,
-                        thaw_window=[bxy.get_total_sec('%d0101' % year0, reftime=[2000, 1, 1, 12]) +
-                                     doy0 * 3600 * 24 for doy0 in [60, 150]],
-                        k=gk, type='npr')
+        get_smap_onset(time_secs, npr_series, year0=year0,
+                       thaw_window=[bxy.get_total_sec('%d0101' % year0, reftime=[2000, 1, 1, 12])+doy0 * 3600 * 24
+                                    for doy0 in [60, 150]], k=gk, type='npr')
     if thaw_secs_id.size < 1:
         npr_thaw_secs = winter_zone[1]
     else:
@@ -4055,7 +4054,7 @@ def get_onset(x_time, y_var, k=3, thaw_window=[], freeze_window=[], mode=1, type
     return conv, thaw_onset_correct, max_value, min_value
 
 
-def get_onset_index(x_time, y_var, k=3, thaw_window=[], freeze_window=[], mode=1,
+def get_smap_onset(x_time, y_var, k=3, thaw_window=[], freeze_window=[], mode=1,
                     type='npr', window2=False, year0=2016):
     """
     get indices of the first instance max/min value within max_value/min_value array, max_value/min_value is n by 3 array,
@@ -4095,9 +4094,10 @@ def get_onset_index(x_time, y_var, k=3, thaw_window=[], freeze_window=[], mode=1
     else:
         # correct of thaw onset, based on the values of convolution output
         thaw_percent = max_value_thaw[:, -1]/max_value_thaw[:, -1].max()
-        correct_onsets_index = np.where((thaw_percent > 0.5) & (max_value_thaw[:, -1] > 0.01))[0]
+        t_percent, th1, th2 = 0.8, 0.005, 0.005  # 0.5, 0.001, 0.007
+        correct_onsets_index = np.where((thaw_percent > t_percent) & (max_value_thaw[:, -1] > th1))[0]
         if correct_onsets_index.size < 1:
-            correct_onsets_index = np.where((thaw_percent > 0.5) & (max_value_thaw[:, -1] > 0.007))[0]
+            correct_onsets_index = np.where((thaw_percent > t_percent) & (max_value_thaw[:, -1] > th2))[0]
         if correct_onsets_index.size < 2:
             thaw_onset_correct = correct_onsets_index
         else:
@@ -4319,36 +4319,66 @@ def smap_extract_ad(year, smap_input_a, smap_input_d):
     return x_time, diff_tbv, diff_tbh
 
 
-def ascat_alaska_grid(ascat_atts, path_ascat):
+def ascat_alaska_grid(ascat_atts=['sigma0_trip_aft', 'inc_angle_trip_aft', 'utc_line_nodes', 'sigma0_trip_fore',
+                         'inc_angle_trip_fore', 'sigma0_trip_mid', 'inc_angle_trip_mid'],
+                         path_ascat='./', pid=np.array([3770])):
     '''
+    get the ascat measurements of all not-oncean pixels, ['inc_angle_trip_mid', 'utc_line_nodes', 'sigma0_trip_mid']
     :param ascat_atts:
     :param path_ascat:
-    :return: ascat_dict, with keys of ascat_atts, and satellite type
+    :param pid: 2-d ascat fine grid (resolution = 12.5 km) coordinate
+    :return: ascat_dict, with keys of ascat_atts, and satellite type: 'sate_type'
     '''
     sate_type = ['metopA_A.h5', 'metopB_A.h5', 'metopA_D.h5', 'metopB_D.h5']
+    # get ASCAT pixel ids which are coincided with SMAP pixel, calculate the distance between them
+    num_pixels = len(pid[0])
     ascat_dict = {}
-    start0 = bxy.get_time_now()
+    # generate dictionary that saves the data of interested pixels
     for att0 in ascat_atts:
-        ascat_dict[att0] = np.zeros([300, 300, len(path_ascat)])
+        n = site_infos.empty_array_sz(att0)
+        ascat_dict[att0] = np.zeros([num_pixels, len(path_ascat)]) - 9999  # shape: [No of pixels, No of measurements]
     ascat_dict['sate_type'] = np.zeros(len(path_ascat)) - 1
-    secs_all = np.zeros([2, len(path_ascat)])  # sort the pass secs obtained from file name
+    secs_all = np.zeros([2, len(path_ascat)])  #
+    # the ascat files are re-ordered based on time
     for i2, path0 in enumerate(path_ascat):
         fname_elems = path0.split('/')[-1].split('_')
-        if '20160130' in fname_elems:
-            pause = 0
+        # fname_elems: ['ascat', 'metopA', '20151231', '12', 'A.h5'] # secs_all: sate type
         secs_all[0, i2] = bxy.get_total_sec(fname_elems[2], fmt='%Y%m%d') + float(fname_elems[3]) * 3600  # local secs
         secs_all[1, i2] = sate_type.index(fname_elems[1] + '_' + fname_elems[-1])
     time_sort_ind = np.argsort(secs_all[0])
-    for i0, f0 in enumerate(np.array(path_ascat)[time_sort_ind]):
-        # form 3d-array to save time-sorted ascat sigma, incidence, pass secs
+    ascat_dict['sate_type'] = secs_all[1][time_sort_ind]
+    path_sorted = np.array(path_ascat)[time_sort_ind]
+    # get the not-ocean pxiels
+    # read data in a time series
+    for i0, f0 in enumerate(path_sorted):
         h0 = h5py.File(f0)
-        ascat_dict['sate_type'][i0] = h0['sate_type'].value.copy()
+        # print i0, ':', f0
+        # sigma_r = [angular_correct(sigma_i, inc_i, sec_i, inc_c=40)
+        # for inc_i, sigma_i, sec_i in zip(inc0, sigma0, secs0)]
         for att0 in ascat_atts:
             if att0 not in h0.keys():
-                ascat_dict[att0][:, :, i0] = -999
+                ascat_dict[att0][:, i0] = -999
             else:
-                ascat_dict[att0][:, :, i0] = h0[att0].value.copy()
+                ascat_dict[att0][:, i0] = h0[att0].value.copy()[pid]
         h0.close()
+    # temp check
+
+    # new_file_list = path_sorted[np.where(ascat_dict['utc_line_nodes'][2950]>0)]
+    # for i1, f1 in enumerate(new_file_list):
+    #     h0 = h5py.File(f1)
+    #     # print i0, ':', f0
+    #     # sigma_r = [angular_correct(sigma_i, inc_i, sec_i, inc_c=40)
+    #     # for inc_i, sigma_i, sec_i in zip(inc0, sigma0, secs0)]
+    #     t_current = h0['utc_line_nodes'].value[pid[0][2950], pid[1][2950]]
+    #     t_check = h0['utc_line_nodes'].value
+    #     i_valid = t_check>0
+    #     t_valid = t_check[i_valid]
+    #     for att0 in ascat_atts:
+    #         if att0 not in h0.keys():
+    #             ascat_dict[att0][:, i1] = -999
+    #         else:
+    #             ascat_dict[att0][:, i1] = h0[att0].value.copy()[pid]
+    #     h0.close()
     return ascat_dict
 
 
@@ -5330,8 +5360,6 @@ def two_series_sigma_process(l0, sigma0, inc0, times0,
     # if l0 in np.array([44035, 43726, 44324]):
     #     np.savetxt('check_pixle_%d.txt' % l0, np.array([sigma0, inc0, times0]))
     # angular correction, mean value in seasons
-    if l0 == 9219:
-        np.savetxt('check_pixle_%d.txt' % l0, np.array([sigma0, inc0, times0]))
     if angular:
         if times0.size < 1:
             sigma0_correct, a, b = sigma0, -0.11, -5
@@ -5408,6 +5436,9 @@ def two_series_sigma_process(l0, sigma0, inc0, times0,
     # print 'the noise level in winter of seireis no. %d: ' % l0, noise_negative_winter
     # print 'temporally print the detected melt onset: ', melt_onset0
     # print 'temporally print the local minimum:\n ', min_ascat
+    bxy.time_getlocaltime(melt_zone0), bxy.time_getlocaltime([melt_end_ascat]), bxy.time_getlocaltime([melt_onset0]),
+    bxy.time_getlocaltime(melt_array[0])
+
     melt_events_time_list = melt_array[0]
     melt_events_conv_list = melt_array[1]
 
@@ -5480,6 +5511,14 @@ def two_series_sigma_process(l0, sigma0, inc0, times0,
     #     list_check[string0] = ix
     #     x += sz0
     # print 'when in id is %d: \n' % (l0), list_check
+    if l0 == 10949:
+        yr0 = bxy.time_getlocaltime([times0[50]])[0]
+        np.savetxt('check_ascat_%d_%d.txt' % (l0, int(yr0)), np.array([sigma0, inc0, times0]))
+        melt_zone_doy = bxy.time_getlocaltime(melt_zone0)[3]
+        print 'the interested pixel ascat id: %d \n' % l0, \
+              'npr onset: %d\n' % bxy.time_getlocaltime([smap_onset])[3], \
+              'melt_zone: %d, %d\n' % (melt_zone_doy[0], melt_zone_doy[1]), \
+              'melt onset based on sigma, %d\n' % bxy.time_getlocaltime([melt_onset0])[3]
     save_array = np.hstack((l0, coef_a, coef_b, pixel_kernels, sigma0_mean_winter, sigma0_mean_summer,  # 0-6, k.size 2
                             sigma0_mean_melt, sigma0_std_winter, sigma0_std_summer, sigma0_std_melt, melt_onset0,  # ~11
                             conv_on_melt_date, lvl_on_melt_date, melt_end_ascat,
